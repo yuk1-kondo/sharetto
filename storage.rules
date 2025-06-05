@@ -1,0 +1,10 @@
+rules_version = '2';
+service firebase.storage {
+  match /b/{bucket}/o {
+    match /uploads/{sessionId}/{fileName} {
+      // セッションIDに基づくアクセス制御
+      // アップロードとダウンロードを許可
+      allow read, write: if true;
+    }
+  }
+}

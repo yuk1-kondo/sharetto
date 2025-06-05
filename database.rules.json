@@ -1,0 +1,16 @@
+{
+  "rules": {
+    ".read": "auth != null",
+    ".write": "auth != null",
+    "files": {
+      "$sessionId": {
+        ".read": true,
+        ".write": true,
+        "$fileId": {
+          ".read": true,
+          ".write": true
+        }
+      }
+    }
+  }
+}

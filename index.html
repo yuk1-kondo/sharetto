@@ -1,0 +1,189 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>RakuDrop Clone</title>
+  <script src="https://cdn.jsdelivr.net/npm/qrcode@1.5.0/build/qrcode.min.js"></script>
+  <style>
+    body {
+      font-family: 'Helvetica Neue', Arial, sans-serif;
+      background-color: #f5e8a0;
+      margin: 0;
+      padding: 0;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      min-height: 100vh;
+      color: #333;
+    }
+    .container {
+      background-color: #f9f3c7;
+      border-radius: 12px;
+      padding: 30px;
+      box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+      text-align: center;
+      max-width: 90%;
+      width: 500px;
+    }
+    h1 {
+      font-size: 24px;
+      margin-bottom: 20px;
+    }
+    .qr-container {
+      display: flex;
+      justify-content: center;
+      margin: 20px 0;
+    }
+    canvas {
+      border: 8px solid white;
+      border-radius: 8px;
+    }
+    .note {
+      font-size: 14px;
+      margin: 15px 0;
+      color: #666;
+    }
+    #file-list {
+      list-style: none;
+      padding: 0;
+      margin: 20px 0;
+      text-align: left;
+      max-height: 300px;
+      overflow-y: auto;
+      border-top: 1px solid #ddd;
+    }
+    #file-list li {
+      padding: 12px;
+      border-bottom: 1px solid #ddd;
+      display: flex;
+      align-items: center;
+    }
+    #file-list li a {
+      color: #0066cc;
+      text-decoration: none;
+      word-break: break-all;
+      flex-grow: 1;
+    }
+    #file-list li a:hover {
+      text-decoration: underline;
+    }
+    .file-icon {
+      margin-right: 10px;
+      width: 24px;
+      height: 24px;
+      background-color: #ddd;
+      border-radius: 4px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 12px;
+      color: #666;
+    }
+    .footer {
+      margin-top: 20px;
+      font-size: 12px;
+      color: #666;
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <h1>スマートフォンで二次元バーコードをスキャンしてください</h1>
+    <div class="qr-container">
+      <canvas id="qr"></canvas>
+    </div>
+    <p class="note">※このコードは一度限り有効です</p>
+    <div id="file-container">
+      <ul id="file-list"></ul>
+    </div>
+  </div>
+  <div class="footer">
+    RakuDrop Clone - スマホからパソコンへ簡単にファイル共有
+  </div>
+
+  <script type="module">
+    // Firebase SDKをインポート
+    import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
+    import { getDatabase, ref, onChildAdded } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-database.js";
+
+    // Firebaseの設定
+    const firebaseConfig = {
+      // ここにFirebaseの設定情報が入ります（デプロイ時に設定）
+      apiKey: "YOUR_API_KEY",
+      authDomain: "YOUR_AUTH_DOMAIN",
+      projectId: "YOUR_PROJECT_ID",
+      storageBucket: "YOUR_STORAGE_BUCKET",
+      messagingSenderId: "YOUR_MESSAGING_SENDER_ID",
+      appId: "YOUR_APP_ID",
+      databaseURL: "YOUR_DATABASE_URL"
+    };
+
+    // Firebaseの初期化
+    const app = initializeApp(firebaseConfig);
+    const db = getDatabase(app);
+
+    // セッションIDの生成（6文字のランダム文字列）
+    const sessionId = Math.random().toString(36).substring(2, 8);
+    
+    // アップロードページのURLを生成
+    const uploadUrl = `${location.origin}/upload.html?session=${sessionId}`;
+    
+    // QRコードの生成
+    QRCode.toCanvas(document.getElementById("qr"), uploadUrl, {
+      width: 200,
+      margin: 1,
+      color: {
+        dark: '#000000',
+        light: '#ffffff'
+      }
+    });
+
+    // ファイルリストの要素を取得
+    const fileList = document.getElementById("file-list");
+    
+    // Realtime Databaseの参照を作成
+    const filesRef = ref(db, `files/${sessionId}`);
+    
+    // ファイルが追加されたときのリスナーを設定
+    onChildAdded(filesRef, (snapshot) => {
+      const fileData = snapshot.val();
+      
+      // ファイルの種類に応じたアイコンを決定
+      let fileType = "FILE";
+      if (fileData.type) {
+        if (fileData.type.startsWith("image/")) {
+          fileType = "IMG";
+        } else if (fileData.type.startsWith("video/")) {
+          fileType = "VID";
+        } else if (fileData.type.startsWith("audio/")) {
+          fileType = "AUD";
+        } else if (fileData.type.includes("pdf")) {
+          fileType = "PDF";
+        }
+      }
+      
+      // リストアイテムを作成
+      const li = document.createElement("li");
+      
+      // ファイルアイコンを作成
+      const fileIcon = document.createElement("div");
+      fileIcon.className = "file-icon";
+      fileIcon.textContent = fileType;
+      li.appendChild(fileIcon);
+      
+      // ダウンロードリンクを作成
+      const a = document.createElement("a");
+      a.href = fileData.url;
+      a.textContent = fileData.name || "ファイル";
+      a.target = "_blank";
+      a.download = fileData.name || "download";
+      li.appendChild(a);
+      
+      // リストに追加
+      fileList.appendChild(li);
+    });
+  </script>
+</body>
+</html>
