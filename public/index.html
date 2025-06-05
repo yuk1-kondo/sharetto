@@ -1,0 +1,272 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>らくらく転送</title>
+  <script src="https://cdn.jsdelivr.net/npm/qrcode@1.5.0/build/qrcode.min.js"></script>
+  <style>
+    body {
+      font-family: 'Helvetica Neue', Arial, sans-serif;
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      margin: 0;
+      padding: 0;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      min-height: 100vh;
+      color: #333;
+    }
+    .container {
+      background: rgba(255, 255, 255, 0.95);
+      backdrop-filter: blur(10px);
+      border-radius: 20px;
+      padding: 30px;
+      box-shadow: 0 8px 32px rgba(31, 38, 135, 0.37);
+      border: 1px solid rgba(255, 255, 255, 0.18);
+      text-align: center;
+      max-width: 90%;
+      width: 500px;
+    }
+    h1 {
+      font-size: 24px;
+      margin-bottom: 20px;
+      color: #2c3e50;
+      font-weight: 600;
+    }
+    .qr-container {
+      display: flex;
+      justify-content: center;
+      margin: 20px 0;
+    }
+    canvas {
+      border: 8px solid #3498db;
+      border-radius: 16px;
+      box-shadow: 0 4px 20px rgba(52, 152, 219, 0.3);
+    }
+    .note {
+      font-size: 14px;
+      margin: 15px 0;
+      color: #666;
+    }
+    #file-list {
+      list-style: none;
+      padding: 0;
+      margin: 20px 0;
+      text-align: left;
+      max-height: 300px;
+      overflow-y: auto;
+      border-top: 1px solid #ddd;
+    }
+    #file-list li {
+      padding: 12px;
+      border-bottom: 1px solid #e8f4fd;
+      display: flex;
+      align-items: center;
+      transition: background-color 0.3s ease;
+    }
+    #file-list li:hover {
+      background-color: #f8fbff;
+    }
+    #file-list li a {
+      color: #2980b9;
+      text-decoration: none;
+      word-break: break-all;
+      flex-grow: 1;
+      font-weight: 500;
+      display: flex;
+      align-items: center;
+    }
+    #file-list li a:hover {
+      color: #3498db;
+      text-decoration: underline;
+    }
+    .file-icon {
+      margin-right: 10px;
+      width: 40px;
+      height: 40px;
+      background: linear-gradient(135deg, #3498db, #2980b9);
+      color: white;
+      border-radius: 8px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 10px;
+      font-weight: bold;
+      flex-shrink: 0;
+    }
+    .file-thumbnail {
+      margin-right: 10px;
+      width: 40px;
+      height: 40px;
+      border-radius: 8px;
+      object-fit: cover;
+      border: 2px solid #3498db;
+      flex-shrink: 0;
+    }
+    .file-info {
+      display: flex;
+      flex-direction: column;
+      flex-grow: 1;
+    }
+    .file-name {
+      font-weight: 500;
+      margin-bottom: 2px;
+    }
+    .file-size {
+      font-size: 12px;
+      color: #7f8c8d;
+    }
+    .footer {
+      margin-top: 20px;
+      font-size: 12px;
+      color: #666;
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <h1>📱 QRコードをスキャンしてファイル転送 📱</h1>
+    <div class="qr-container">
+      <canvas id="qr"></canvas>
+    </div>
+    <p class="note">※このコードは一度限り有効です</p>
+    <div id="file-container">
+      <ul id="file-list"></ul>
+    </div>
+  </div>
+  <div class="footer">
+    らくらく転送 - スマホからパソコンへ簡単にファイル共有
+  </div>
+
+  <script type="module">
+    // Firebase SDKをインポート
+    import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
+    import { getDatabase, ref, onChildAdded } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-database.js";
+
+    // Firebaseの設定
+    const firebaseConfig = {
+      apiKey: "AIzaSyD15hEPdpqiJAskraXETGDxhcow-aEN4VU",
+      authDomain: "rakupic-19e91.firebaseapp.com",
+      databaseURL: "https://rakupic-default-rtdb.firebaseio.com",
+      projectId: "rakupic",
+      storageBucket: "rakupic.firebasestorage.app",
+      messagingSenderId: "1072420785155",
+      appId: "1:1072420785155:web:2a57f7c1a5f4c81f121236"
+    };
+
+    // Firebaseの初期化
+    const app = initializeApp(firebaseConfig);
+    const db = getDatabase(app);
+
+    // セッションIDの生成（6文字のランダム文字列）
+    const sessionId = Math.random().toString(36).substring(2, 8);
+    
+    // アップロードページのURLを生成
+    const uploadUrl = `${location.origin}/upload.html?session=${sessionId}`;
+    
+    // QRコードの生成
+    QRCode.toCanvas(document.getElementById("qr"), uploadUrl, {
+      width: 200,
+      margin: 1,
+      color: {
+        dark: '#000000',
+        light: '#ffffff'
+      }
+    });
+
+    // ファイルリストの要素を取得
+    const fileList = document.getElementById("file-list");
+    
+    // Realtime Databaseの参照を作成
+    const filesRef = ref(db, `files/${sessionId}`);
+    
+    // ファイルが追加されたときのリスナーを設定
+    onChildAdded(filesRef, (snapshot) => {
+      const fileData = snapshot.val();
+      
+      // ファイルの種類に応じたアイコンを決定
+      let fileType = "FILE";
+      let isImage = false;
+      
+      if (fileData.type) {
+        if (fileData.type.startsWith("image/")) {
+          fileType = "IMG";
+          isImage = true;
+        } else if (fileData.type.startsWith("video/")) {
+          fileType = "VID";
+        } else if (fileData.type.startsWith("audio/")) {
+          fileType = "AUD";
+        } else if (fileData.type.includes("pdf")) {
+          fileType = "PDF";
+        }
+      }
+      
+      // リストアイテムを作成
+      const li = document.createElement("li");
+      
+      // ダウンロードリンクを作成
+      const a = document.createElement("a");
+      
+      // Base64データの場合はBlobに変換してダウンロード
+      if (fileData.data && fileData.data.startsWith('data:')) {
+        a.href = fileData.data; // Base64データURLをそのまま使用
+      } else if (fileData.url) {
+        a.href = fileData.url; // 従来のURL方式
+      } else {
+        a.href = '#'; // フォールバック
+      }
+      
+      a.target = "_blank";
+      a.download = fileData.name || "download";
+      
+      // 画像の場合はサムネイルを表示、それ以外はアイコンを表示
+      if (isImage && fileData.data) {
+        const thumbnail = document.createElement("img");
+        thumbnail.className = "file-thumbnail";
+        thumbnail.src = fileData.data;
+        thumbnail.alt = fileData.name || "画像";
+        a.appendChild(thumbnail);
+      } else {
+        // ファイルアイコンを作成
+        const fileIcon = document.createElement("div");
+        fileIcon.className = "file-icon";
+        fileIcon.textContent = fileType;
+        a.appendChild(fileIcon);
+      }
+      
+      // ファイル情報を作成
+      const fileInfo = document.createElement("div");
+      fileInfo.className = "file-info";
+      
+      const fileName = document.createElement("div");
+      fileName.className = "file-name";
+      fileName.textContent = fileData.name || "ファイル";
+      fileInfo.appendChild(fileName);
+      
+      const fileSize = document.createElement("div");
+      fileSize.className = "file-size";
+      fileSize.textContent = formatFileSize(fileData.size || 0);
+      fileInfo.appendChild(fileSize);
+      
+      a.appendChild(fileInfo);
+      li.appendChild(a);
+      
+      // リストに追加
+      fileList.appendChild(li);
+    });
+    
+    // ファイルサイズのフォーマット関数
+    function formatFileSize(bytes) {
+      if (bytes === 0) return '0 Bytes';
+      
+      const k = 1024;
+      const sizes = ['Bytes', 'KB', 'MB', 'GB'];
+      const i = Math.floor(Math.log(bytes) / Math.log(k));
+      
+      return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
+    }
+  </script>
+</body>
+</html>
