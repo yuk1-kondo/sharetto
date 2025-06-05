@@ -48,8 +48,8 @@ PC側UI (QRコード表示) ←→ Firebase Realtime Database ←→ スマホ�
 
 1. リポジトリをクローン
 ```bash
-git clone <repository-url>
-cd rakudrop-clone
+git clone https://github.com/yuk1-kondo/rakuraku.git
+cd rakuraku
 ```
 
 2. Firebase CLIをインストール
