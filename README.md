@@ -1,55 +1,69 @@
-# らくらく転送
+# 💻 らくらく転送 📱
 
-スマートフォンとPCの間でファイルを簡単に転送できるWebアプリケーション。QRコードスキャンによるシンプルな操作で、ファイル共有を実現します。
+ディック・ブルーナ風マテリアルデザインのファイル転送サービス。QRコードスキャンでスマートフォンとPCの間でファイルを簡単に転送できるWebアプリケーション。
 
-## 🚀 機能
+## 🎨 特徴
 
+- **美しいデザイン**: ディック・ブルーナ風の単色マテリアルデザイン
+- **PC側**: ロイヤルブルー (`#4169E1`) の洗練されたUI
+- **モバイル側**: ビビッドオレンジ (`#FF6B35`) の親しみやすいUI
 - **QRコードによる簡単接続**: PCでQRコードを表示、スマホでスキャンして接続
-- **ドラッグ&ドロップアップロード**: 直感的なファイルアップロード
+- **サムネイル表示**: 画像ファイルは40x40pxのプレビュー付き
 - **リアルタイム同期**: アップロードされたファイルが即座にPC側に表示
-- **自動ファイル削除**: 24時間後に自動的にファイルが削除される安全設計
 - **レスポンシブデザイン**: PC・スマートフォン両対応
+- **完全無料**: Firebase Spark (無料) プランで運用
+
+## 🚀 本番環境
+
+- **URL**: https://rakuraku.pages.dev
+- **ホスティング**: Cloudflare Pages
+- **データベース**: Firebase Realtime Database
+- **自動デプロイ**: GitHub連携
 
 ## 🛠 技術スタック
 
 - **Frontend**: HTML5, CSS3, JavaScript (ES6+)
-- **Backend**: Firebase
-  - Firebase Hosting (静的サイトホスティング)
-  - Firebase Storage (ファイルストレージ)
-  - Firebase Realtime Database (リアルタイムデータ同期)
-  - Firebase Functions (自動削除機能)
+- **Backend**: Firebase Realtime Database (リアルタイムデータ同期)
+- **Hosting**: Cloudflare Pages (高速グローバル配信)
 - **External Libraries**: QRCode.js
+- **Design**: Material Design + Dick Bruna Style
 
 ## 🏗 アーキテクチャ
 
 ```
-PC側UI (QRコード表示) ←→ Firebase Realtime Database ←→ スマホ側UI (ファイルアップロード)
-                              ↕
-                     Firebase Storage (ファイル保存)
-                              ↕
-                     Firebase Functions (自動削除)
+PC側 (ブルーデザイン) ←→ Firebase Realtime Database ←→ モバイル側 (オレンジデザイン)
+                              ↓
+                     Cloudflare Pages (ホスティング)
 ```
 
 ## 📱 使い方
 
-1. PC側でアプリケーションを開き、QRコードを表示
-2. スマートフォンでQRコードをスキャン
-3. ファイルを選択またはドラッグ&ドロップでアップロード
-4. PC側にファイルが表示され、ダウンロード可能
+1. **PC側**: https://rakuraku.pages.dev にアクセス
+2. **QRコード表示**: 自動生成されたQRコードが表示
+3. **スマホでスキャン**: QRコードリーダーでスキャン
+4. **ファイルアップロード**: タップまたはドラッグ&ドロップでアップロード
+5. **PC側で受信**: サムネイル付きでファイルが表示、ダウンロード可能
 
-## 🔧 セットアップ
+## 🔧 ローカル開発
 
 ### 前提条件
-- Node.js
-- Firebase CLI
-- Googleアカウント
+- 最新のWebブラウザ
+- Firebase プロジェクト設定
 
-### インストール
+### セットアップ
 
 1. リポジトリをクローン
 ```bash
 git clone https://github.com/yuk1-kondo/rakuraku.git
 cd rakuraku
+```
+
+2. ローカルサーバーで起動
+```bash
+# シンプルなHTTPサーバーで起動
+python3 -m http.server 8000
+# または
+npx serve public
 ```
 
 2. Firebase CLIをインストール
