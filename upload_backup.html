@@ -1,0 +1,908 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>ファイルアップロード - らくらく転送</title>
+  <style>
+    /* 認証システム用スタイル */
+    .auth-overlay {
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      background: linear-gradient(135deg, #FF6B35 0%, #E55A2B 100%);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      z-index: 1000;
+    }
+    
+    .auth-container {
+      background: #FFFFFF;
+      border-radius: 24px;
+      padding: 40px;
+      box-shadow: 0 12px 48px rgba(0, 0, 0, 0.2);
+      text-align: center;
+      max-width: 90%;
+      width: 400px;
+      border: 4px solid #FF6B35;
+    }
+    
+    .auth-title {
+      font-size: 24px;
+      margin-bottom: 16px;
+      color: #FF6B35;
+      font-weight: 700;
+    }
+    
+    .auth-subtitle {
+      font-size: 16px;
+      margin-bottom: 30px;
+      color: #666;
+      font-weight: 500;
+    }
+    
+    .auth-input {
+      width: 100%;
+      padding: 16px;
+      border: 3px solid #FF6B35;
+      border-radius: 16px;
+      font-size: 18px;
+      text-align: center;
+      margin-bottom: 20px;
+      outline: none;
+      transition: all 0.3s ease;
+      box-sizing: border-box;
+    }
+    
+    .auth-input:focus {
+      border-color: #E55A2B;
+      box-shadow: 0 0 0 4px rgba(255, 107, 53, 0.1);
+    }
+    
+    .auth-button {
+      width: 100%;
+      padding: 16px;
+      background: #FF6B35;
+      color: white;
+      border: none;
+      border-radius: 16px;
+      font-size: 18px;
+      font-weight: 700;
+      cursor: pointer;
+      transition: all 0.3s ease;
+      margin-bottom: 20px;
+    }
+    
+    .auth-button:hover {
+      background: #E55A2B;
+      transform: translateY(-2px);
+      box-shadow: 0 8px 24px rgba(255, 107, 53, 0.3);
+    }
+    
+    .auth-error {
+      color: #e74c3c;
+      font-size: 14px;
+      margin-top: 10px;
+      display: none;
+    }
+    
+    .auth-info {
+      font-size: 14px;
+      color: #7f8c8d;
+      margin-top: 20px;
+      padding: 16px;
+      background: #fff5f2;
+      border-radius: 12px;
+      border-left: 4px solid #FF6B35;
+    }
+    
+    .main-content {
+      display: none;
+    }
+    
+    .main-content.authenticated {
+      display: block;
+    }
+
+    /* タブ切り替え用スタイル */
+    .tab-container {
+      display: flex;
+      margin-bottom: 20px;
+      background: #fff5f2;
+      border-radius: 16px;
+      padding: 4px;
+      border: 2px solid #FF6B35;
+      box-shadow: 0 4px 12px rgba(255, 107, 53, 0.15);
+    }
+    
+    .tab-button {
+      flex: 1;
+      padding: 12px 8px;
+      background: transparent;
+      border: none;
+      border-radius: 12px;
+      font-size: 16px;
+      font-weight: 600;
+      cursor: pointer;
+      transition: all 0.3s ease;
+      color: #FF6B35;
+      position: relative;
+    }
+    
+    .tab-button.active {
+      background: #FF6B35;
+      color: white;
+      box-shadow: 0 2px 8px rgba(255, 107, 53, 0.3);
+      transform: translateY(-1px);
+    }
+    
+    .tab-button:not(.active):hover {
+      background: rgba(255, 107, 53, 0.1);
+      transform: translateY(-1px);
+    }
+    
+    .tab-content {
+      display: none;
+    }
+    
+    .tab-content.active {
+      display: block;
+    }
+    
+    /* URL入力フォーム用スタイル */
+    .url-input-container {
+      margin: 20px 0;
+    }
+    
+    .url-input {
+      width: 100%;
+      padding: 16px;
+      border: 3px solid #FF6B35;
+      border-radius: 16px;
+      font-size: 16px;
+      outline: none;
+      transition: all 0.3s ease;
+      box-sizing: border-box;
+      margin-bottom: 12px;
+    }
+    
+    .url-input:focus {
+      border-color: #E55A2B;
+      box-shadow: 0 0 0 4px rgba(255, 107, 53, 0.1);
+    }
+    
+    .url-input::placeholder {
+      color: #bbb;
+      font-style: italic;
+    }
+    
+    .url-preview {
+      background: #fff5f2;
+      border: 2px solid #FFD6CC;
+      border-radius: 12px;
+      padding: 16px;
+      margin: 12px 0;
+      display: none;
+    }
+    
+    .url-preview.show {
+      display: block;
+    }
+    
+    .url-preview-title {
+      font-weight: 600;
+      color: #FF6B35;
+      margin-bottom: 8px;
+      font-size: 16px;
+    }
+    
+    .url-preview-description {
+      color: #666;
+      font-size: 14px;
+      line-height: 1.4;
+    }
+    
+    .url-preview-url {
+      color: #999;
+      font-size: 12px;
+      margin-top: 8px;
+      word-break: break-all;
+    }
+
+    /* 既存のスタイル */
+    body {
+      font-family: 'Helvetica Neue', Arial, sans-serif;
+      background: #FF6B35;
+      margin: 0;
+      padding: 0;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      min-height: 100vh;
+      color: #333;
+    }
+    .container {
+      background: #FFFFFF;
+      border-radius: 24px;
+      padding: 30px;
+      box-shadow: 0 12px 48px rgba(0, 0, 0, 0.15);
+      text-align: center;
+      width: 90%;
+      max-width: 400px;
+      border: 4px solid #FF6B35;
+    }
+    h1 {
+      font-size: 24px;
+      margin-bottom: 20px;
+      color: #FF6B35;
+      font-weight: 700;
+    }
+    .upload-area {
+      border: 3px dashed #FF6B35;
+      border-radius: 20px;
+      padding: 30px;
+      margin: 20px 0;
+      background-color: #fff;
+      cursor: pointer;
+      transition: all 0.3s ease;
+    }
+    .upload-area:hover, .upload-area.dragover {
+      border-color: #E55A2B;
+      background: #FFF5F2;
+      transform: translateY(-2px);
+      box-shadow: 0 8px 24px rgba(255, 107, 53, 0.3);
+    }
+    .upload-icon {
+      font-size: 40px;
+      color: #74b9ff;
+      margin-bottom: 10px;
+      font-weight: bold;
+    }
+    .file-input {
+      display: none;
+    }
+    .btn {
+      background: #FF6B35;
+      color: white;
+      border: none;
+      padding: 15px 30px;
+      border-radius: 25px;
+      font-size: 16px;
+      font-weight: 700;
+      cursor: pointer;
+      margin-top: 15px;
+      transition: all 0.3s ease;
+      box-shadow: 0 6px 20px rgba(255, 107, 53, 0.3);
+    }
+    .btn:hover {
+      background: #E55A2B;
+      transform: translateY(-2px);
+      box-shadow: 0 8px 25px rgba(255, 107, 53, 0.4);
+    }
+    .btn:disabled {
+      background: #bdc3c7;
+      cursor: not-allowed;
+      transform: none;
+      box-shadow: none;
+    }
+    .progress-container {
+      width: 100%;
+      background-color: #FFE8E0;
+      border-radius: 15px;
+      margin: 15px 0;
+      overflow: hidden;
+      display: none;
+      box-shadow: inset 0 2px 4px rgba(0, 0, 0, 0.1);
+    }
+    .progress-bar {
+      height: 12px;
+      background: #FF6B35;
+      width: 0%;
+      transition: width 0.3s ease;
+      border-radius: 15px;
+      box-shadow: 0 2px 4px rgba(255, 107, 53, 0.3);
+    }
+    .file-preview {
+      margin: 15px 0;
+      display: none;
+      text-align: left;
+    }
+    .file-name {
+      font-size: 14px;
+      word-break: break-all;
+    }
+    .file-size {
+      font-size: 12px;
+      color: #7f8c8d;
+    }
+    .status {
+      margin-top: 15px;
+      font-size: 14px;
+      color: #7f8c8d;
+      font-weight: 500;
+    }
+    .success {
+      color: #27ae60;
+      font-weight: 600;
+    }
+    .error {
+      color: #e74c3c;
+      font-weight: 600;
+    }
+    .footer {
+      margin-top: 30px;
+      font-size: 14px;
+      color: #FFFFFF;
+      text-align: center;
+      font-weight: 500;
+    }
+    .footer small {
+      font-size: 12px;
+      opacity: 0.8;
+      margin-top: 4px;
+      display: block;
+    }
+  </style>
+</head>
+<body>
+  <!-- 認証システム -->
+  <div id="authOverlay" class="auth-overlay">
+    <div class="auth-container">
+      <h1 class="auth-title">📱 らくらく転送</h1>
+      <p class="auth-subtitle">アクセス認証が必要です</p>
+      
+      <input 
+        type="password" 
+        id="authInput" 
+        class="auth-input" 
+        placeholder="アクセスコードを入力"
+        maxlength="8"
+      >
+      
+      <button onclick="authenticate()" class="auth-button">
+        🔓 ログイン
+      </button>
+      
+      <div id="authError" class="auth-error">
+        アクセスコードが正しくありません
+      </div>
+      
+      <div class="auth-info">
+        💡 QRコードからアクセスした場合、<br>
+        自動的に認証されます
+      </div>
+    </div>
+  </div>
+
+  <!-- メインコンテンツ -->
+  <div id="mainContent" class="main-content">
+    <div class="container">
+      <h1>📱 ファイルをアップロード</h1>
+      
+      <!-- タブ切り替え -->
+      <div class="tab-container">
+        <button class="tab-button active" data-tab="file">📁 ファイル</button>
+        <button class="tab-button" data-tab="url">🔗 URL</button>
+      </div>
+      
+      <!-- ファイルアップロードタブ -->
+      <div class="tab-content active" id="file-tab">
+        <div class="upload-area" id="upload-area">
+          <div class="upload-icon">+</div>
+          <p>タップしてファイルを選択<br>または<br>ファイルをドラッグ＆ドロップ</p>
+          <input type="file" id="file-input" class="file-input">
+        </div>
+        
+        <div class="file-preview" id="file-preview">
+          <div class="file-name" id="file-name"></div>
+          <div class="file-size" id="file-size"></div>
+        </div>
+        
+        <div class="progress-container" id="progress-container">
+          <div class="progress-bar" id="progress-bar"></div>
+        </div>
+        
+        <button class="btn" id="upload-btn" disabled>アップロード</button>
+        
+        <div class="status" id="status"></div>
+      </div>
+      
+      <!-- URL共有タブ -->
+      <div class="tab-content" id="url-tab">
+        <div class="url-input-container">
+          <input 
+            type="url" 
+            id="url-input" 
+            class="url-input" 
+            placeholder="https://example.com のようにURLを入力してください"
+          >
+          
+          <div class="url-preview" id="url-preview">
+            <div class="url-preview-title" id="url-preview-title"></div>
+            <div class="url-preview-description" id="url-preview-description"></div>
+            <div class="url-preview-url" id="url-preview-url"></div>
+          </div>
+        </div>
+        
+        <div class="progress-container" id="url-progress-container">
+          <div class="progress-bar" id="url-progress-bar"></div>
+        </div>
+        
+        <button class="btn" id="url-share-btn" disabled>URLを共有</button>
+        
+        <div class="status" id="url-status"></div>
+      </div>
+  </div>
+
+  <div class="footer">
+    らくらく転送 - スマホからパソコンへ簡単にファイル共有<br>
+    <small>Created by YUKI KONDO</small>
+  </div>
+
+  <script type="module">
+    // Firebase SDKをインポート
+    import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
+    import { getDatabase, ref as dbRef, push, set } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-database.js";
+
+    // Firebaseの設定
+    const firebaseConfig = {
+      apiKey: "AIzaSyD15hEPdpqiJAskraXETGDxhcow-aEN4VU",
+      authDomain: "rakupic-19e91.firebaseapp.com",
+      databaseURL: "https://rakupic-default-rtdb.firebaseio.com",
+      projectId: "rakupic",
+      storageBucket: "rakupic.firebasestorage.app",
+      messagingSenderId: "1072420785155",
+      appId: "1:1072420785155:web:2a57f7c1a5f4c81f121236"
+    };
+
+    // Firebaseの初期化
+    const app = initializeApp(firebaseConfig);
+    const db = getDatabase(app);
+
+    // URLからセッションIDを取得
+    const urlParams = new URLSearchParams(window.location.search);
+    const sessionId = urlParams.get('session');
+
+    if (!sessionId) {
+      document.getElementById('status').textContent = 'エラー: セッションIDが見つかりません';
+      document.getElementById('status').classList.add('error');
+      document.getElementById('upload-area').style.display = 'none';
+      document.getElementById('upload-btn').style.display = 'none';
+    }
+
+    // DOM要素の取得
+    const fileInput = document.getElementById('file-input');
+    const uploadBtn = document.getElementById('upload-btn');
+    const uploadArea = document.getElementById('upload-area');
+    const filePreview = document.getElementById('file-preview');
+    const fileName = document.getElementById('file-name');
+    const fileSize = document.getElementById('file-size');
+    const progressContainer = document.getElementById('progress-container');
+    const progressBar = document.getElementById('progress-bar');
+    const status = document.getElementById('status');
+
+    // 🎯 最初に動いていた超シンプルな方法
+    uploadArea.addEventListener('click', () => {
+      fileInput.click();
+    });
+
+    // ドラッグ&ドロップイベント
+    uploadArea.addEventListener('dragover', (e) => {
+      e.preventDefault();
+      uploadArea.classList.add('dragover');
+    });
+
+    uploadArea.addEventListener('dragleave', () => {
+      uploadArea.classList.remove('dragover');
+    });
+
+    uploadArea.addEventListener('drop', (e) => {
+      e.preventDefault();
+      uploadArea.classList.remove('dragover');
+      
+      if (e.dataTransfer.files.length > 0) {
+        fileInput.files = e.dataTransfer.files;
+        handleFileSelect();
+      }
+    });
+
+    // ファイル選択イベント
+    fileInput.addEventListener('change', handleFileSelect);
+
+    function handleFileSelect() {
+      if (fileInput.files.length > 0) {
+        const file = fileInput.files[0];
+        
+        // ファイル情報の表示
+        fileName.textContent = file.name;
+        fileSize.textContent = formatFileSize(file.size);
+        filePreview.style.display = 'block';
+        
+        // アップロードボタンの有効化
+        uploadBtn.disabled = false;
+      }
+    }
+
+    // ファイルサイズのフォーマット
+    function formatFileSize(bytes) {
+      if (bytes === 0) return '0 Bytes';
+      
+      const k = 1024;
+      const sizes = ['Bytes', 'KB', 'MB', 'GB'];
+      const i = Math.floor(Math.log(bytes) / Math.log(k));
+      
+      return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
+    }
+
+    // アップロードボタンのクリックイベント
+    uploadBtn.addEventListener('click', uploadFile);
+
+    function uploadFile() {
+      if (fileInput.files.length === 0) return;
+      
+      const file = fileInput.files[0];
+      
+      // ファイルサイズ制限 (5MB)
+      if (file.size > 5 * 1024 * 1024) {
+        status.textContent = 'ファイルサイズが大きすぎます（5MB以下にしてください）';
+        status.classList.add('error');
+        return;
+      }
+      
+      // アップロードボタンの無効化
+      uploadBtn.disabled = true;
+      
+      // プログレスバーの表示
+      progressContainer.style.display = 'block';
+      progressBar.style.width = '0%';
+      
+      // ステータスの更新
+      status.textContent = 'ファイルを読み込み中...';
+      status.classList.remove('success', 'error');
+      
+      // ファイルをBase64に変換
+      const reader = new FileReader();
+      reader.onload = function(e) {
+        // プログレス更新
+        progressBar.style.width = '50%';
+        status.textContent = 'アップロード中...';
+        
+        // ファイルIDの生成
+        const fileId = Math.random().toString(36).substring(2, 10);
+        
+        // Realtime Databaseにファイル情報を保存
+        const fileDbRef = dbRef(db, `files/${sessionId}/${fileId}`);
+        set(fileDbRef, {
+          name: file.name,
+          size: file.size,
+          type: file.type,
+          data: e.target.result, // Base64データ
+          timestamp: Date.now()
+        }).then(() => {
+          // アップロード成功
+          progressBar.style.width = '100%';
+          status.textContent = 'アップロード完了！';
+          status.classList.add('success');
+          
+          // 入力フィールドのリセット
+          fileInput.value = '';
+          filePreview.style.display = 'none';
+          progressContainer.style.display = 'none';
+          uploadBtn.disabled = true;
+          
+          // 2秒後に新しいファイルをアップロードできるようにする
+          setTimeout(() => {
+            status.textContent = '別のファイルをアップロードできます';
+          }, 2000);
+        }).catch((error) => {
+          console.error('保存エラー:', error);
+          status.textContent = 'アップロードに失敗しました';
+          status.classList.add('error');
+          uploadBtn.disabled = false;
+        });
+      };
+      
+      reader.onerror = function() {
+        status.textContent = 'ファイルの読み込みに失敗しました';
+        status.classList.add('error');
+        uploadBtn.disabled = false;
+      };
+      
+      // ファイル読み込み開始
+      reader.readAsDataURL(file);
+    }
+  </script>
+
+  <script>
+    // 認証システム（upload.html用）
+    const ACCESS_CODES = [
+      'yuki2025', // メインアクセスコード
+      'rakuraku', // サブアクセスコード
+      'demo1234'  // デモ用アクセスコード
+    ];
+    
+    const AUTH_SESSION_KEY = 'rakuraku_auth_session';
+    const AUTH_EXPIRES_KEY = 'rakuraku_auth_expires';
+    const AUTH_DURATION = 24 * 60 * 60 * 1000; // 24時間
+    
+    function authenticate() {
+      const input = document.getElementById('authInput');
+      const error = document.getElementById('authError');
+      const enteredCode = input.value.trim();
+      
+      if (ACCESS_CODES.includes(enteredCode)) {
+        // 認証成功
+        const expiresAt = Date.now() + AUTH_DURATION;
+        localStorage.setItem(AUTH_SESSION_KEY, 'authenticated');
+        localStorage.setItem(AUTH_EXPIRES_KEY, expiresAt.toString());
+        
+        showMainContent();
+        error.style.display = 'none';
+        input.value = '';
+      } else {
+        // 認証失敗
+        error.style.display = 'block';
+        input.value = '';
+        input.focus();
+        
+        setTimeout(() => {
+          error.style.display = 'none';
+        }, 3000);
+      }
+    }
+    
+    function showMainContent() {
+      document.getElementById('authOverlay').style.display = 'none';
+      document.getElementById('mainContent').classList.add('authenticated');
+    }
+    
+    function checkAuthentication() {
+      // URLパラメータから自動認証をチェック
+      const urlParams = new URLSearchParams(window.location.search);
+      const sessionId = urlParams.get('session');
+      
+      // QRコードからのアクセスの場合は自動認証
+      if (sessionId && sessionId.length === 6) {
+        const expiresAt = Date.now() + AUTH_DURATION;
+        localStorage.setItem(AUTH_SESSION_KEY, 'authenticated');
+        localStorage.setItem(AUTH_EXPIRES_KEY, expiresAt.toString());
+        showMainContent();
+        return true;
+      }
+      
+      // 通常の認証チェック
+      const authStatus = localStorage.getItem(AUTH_SESSION_KEY);
+      const authExpires = localStorage.getItem(AUTH_EXPIRES_KEY);
+      
+      if (authStatus === 'authenticated' && authExpires) {
+        const expiresAt = parseInt(authExpires);
+        const now = Date.now();
+        
+        if (now < expiresAt) {
+          showMainContent();
+          return true;
+        } else {
+          localStorage.removeItem(AUTH_SESSION_KEY);
+          localStorage.removeItem(AUTH_EXPIRES_KEY);
+        }
+      }
+      
+      return false;
+    }
+    
+    // 初期化
+    document.addEventListener('DOMContentLoaded', function() {
+      const input = document.getElementById('authInput');
+      if (input) {
+        input.addEventListener('keypress', function(e) {
+          if (e.key === 'Enter') {
+            authenticate();
+          }
+        });
+      }
+      
+      if (!checkAuthentication()) {
+        document.getElementById('authInput').focus();
+      }
+    });
+  </script>
+
+  <script>
+    // ======================
+    // URL共有機能
+    // ======================
+    
+    // タブ切り替え機能
+    document.addEventListener('DOMContentLoaded', function() {
+      // タブ切り替えイベント
+      document.querySelectorAll('.tab-button').forEach(button => {
+        button.addEventListener('click', function() {
+          const tabName = this.dataset.tab;
+          
+          // すべてのタブボタンから active を削除
+          document.querySelectorAll('.tab-button').forEach(btn => btn.classList.remove('active'));
+          document.querySelectorAll('.tab-content').forEach(content => content.classList.remove('active'));
+          
+          // クリックされたタブを active にする
+          this.classList.add('active');
+          document.getElementById(tabName + '-tab').classList.add('active');
+          
+          // タブ切り替え時の処理
+          if (tabName === 'url') {
+            document.getElementById('url-input').focus();
+          }
+        });
+      });
+    });
+    
+    // URL関連のDOM要素
+    const urlInput = document.getElementById('url-input');
+    const urlShareBtn = document.getElementById('url-share-btn');
+    const urlPreview = document.getElementById('url-preview');
+    const urlPreviewTitle = document.getElementById('url-preview-title');
+    const urlPreviewDescription = document.getElementById('url-preview-description');
+    const urlPreviewUrl = document.getElementById('url-preview-url');
+    const urlProgressContainer = document.getElementById('url-progress-container');
+    const urlProgressBar = document.getElementById('url-progress-bar');
+    const urlStatus = document.getElementById('url-status');
+    
+    console.log('URL関連DOM要素の取得結果:');
+    console.log('urlInput:', urlInput);
+    console.log('urlShareBtn:', urlShareBtn);
+    console.log('urlPreview:', urlPreview);
+    
+    // URL入力時のプレビュー機能
+    let urlPreviewTimeout;
+    urlInput.addEventListener('input', function() {
+      const url = this.value.trim();
+      console.log('URL入力イベント:', url);
+      
+      // 前のタイムアウトをクリア
+      clearTimeout(urlPreviewTimeout);
+      
+      if (url && isValidUrl(url)) {
+        console.log('有効なURL、ボタンを有効化');
+        urlShareBtn.disabled = false;
+        
+        // プレビューを取得（遅延実行）
+        urlPreviewTimeout = setTimeout(() => {
+          fetchUrlPreview(url);
+        }, 500);
+      } else {
+        console.log('無効なURL、ボタンを無効化');
+        urlShareBtn.disabled = true;
+        urlPreview.classList.remove('show');
+      }
+    });
+    
+    // URL共有ボタンのクリックイベント
+    urlShareBtn.addEventListener('click', function() {
+      console.log('URL共有ボタンがクリックされました');
+      
+      const url = urlInput.value.trim();
+      console.log('入力されたURL:', url);
+      
+      if (!url || !isValidUrl(url)) {
+        console.log('無効なURL:', url);
+        urlStatus.textContent = '有効なURLを入力してください';
+        urlStatus.classList.add('error');
+        return;
+      }
+      
+      console.log('shareUrl関数を呼び出します');
+      shareUrl(url);
+    });
+    
+    // URL妥当性チェック
+    function isValidUrl(string) {
+      try {
+        new URL(string);
+        return true;
+      } catch (_) {
+        return false;
+      }
+    }
+    
+    // URLプレビューの取得
+    async function fetchUrlPreview(url) {
+      try {
+        // URLの基本情報を表示
+        const urlObj = new URL(url);
+        urlPreviewTitle.textContent = urlObj.hostname;
+        urlPreviewDescription.textContent = 'リンクの共有準備完了';
+        urlPreviewUrl.textContent = url;
+        urlPreview.classList.add('show');
+        urlShareBtn.disabled = false;
+
+      } catch (error) {
+        console.error('URLプレビューエラー:', error);
+        urlPreview.classList.remove('show');
+      }
+    }
+    async function fetchUrlPreview(url) {
+      try {
+        // URLの基本情報を表示
+        const urlObj = new URL(url);
+        urlPreviewTitle.textContent = urlObj.hostname;
+        urlPreviewDescription.textContent = 'リンクの共有準備完了';
+        urlPreviewUrl.textContent = url;
+        urlPreview.classList.add('show');
+        urlShareBtn.disabled = false;
+        
+      } catch (error) {
+        console.error('URLプレビューエラー:', error);
+        urlPreview.classList.remove('show');
+      }
+    }
+    
+    // URL共有機能
+    function shareUrl(url) {
+      console.log('URL共有開始:', url);
+      console.log('セッションID:', sessionId);
+      
+      if (!sessionId) {
+        urlStatus.textContent = 'エラー: セッションIDが見つかりません';
+        urlStatus.classList.add('error');
+        console.error('セッションIDなし');
+        return;
+      }
+      
+      // UI更新
+      urlShareBtn.disabled = true;
+      urlProgressContainer.style.display = 'block';
+      urlProgressBar.style.width = '30%';
+      urlStatus.textContent = 'URLを共有中...';
+      urlStatus.classList.remove('success', 'error');
+      
+      // URLIDの生成
+      const urlId = Math.random().toString(36).substring(2, 10);
+      console.log('生成されたURL ID:', urlId);
+      
+      // URLプレビュー情報を取得
+      const urlObj = new URL(url);
+      const urlData = {
+        type: 'url',
+        url: url,
+        title: urlPreviewTitle.textContent || urlObj.hostname,
+        description: urlPreviewDescription.textContent || 'リンク',
+        hostname: urlObj.hostname,
+        timestamp: Date.now()
+      };
+      
+      console.log('保存するURLデータ:', urlData);
+      console.log('データベースパス:', `files/${sessionId}/${urlId}`);
+      
+      // Realtime Databaseに保存
+      const urlDbRef = dbRef(db, `files/${sessionId}/${urlId}`);
+      set(urlDbRef, urlData).then(() => {
+        console.log('URL保存成功');
+        // 共有成功
+        urlProgressBar.style.width = '100%';
+        urlStatus.textContent = 'URL共有完了！';
+        urlStatus.classList.add('success');
+        
+        // フォームをリセット
+        setTimeout(() => {
+          urlInput.value = '';
+          urlPreview.classList.remove('show');
+          urlProgressContainer.style.display = 'none';
+          urlProgressBar.style.width = '0%';
+          urlStatus.textContent = '';
+          urlStatus.classList.remove('success');
+          urlShareBtn.disabled = true;
+        }, 2000);
+        
+      }).catch((error) => {
+        console.error('URL保存エラー:', error);
+        urlStatus.textContent = 'URL共有に失敗しました: ' + error.message;
+        urlStatus.classList.add('error');
+        urlShareBtn.disabled = false;
+      });
+    }
+  </script>
+</body>
+</html>

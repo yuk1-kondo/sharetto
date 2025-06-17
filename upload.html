@@ -107,6 +107,111 @@
       display: block;
     }
 
+    /* タブ切り替え用スタイル */
+    .tab-container {
+      display: flex;
+      margin-bottom: 20px;
+      background: #fff5f2;
+      border-radius: 16px;
+      padding: 4px;
+      border: 2px solid #FF6B35;
+      box-shadow: 0 4px 12px rgba(255, 107, 53, 0.15);
+    }
+    
+    .tab-button {
+      flex: 1;
+      padding: 12px 8px;
+      background: transparent;
+      border: none;
+      border-radius: 12px;
+      font-size: 16px;
+      font-weight: 600;
+      cursor: pointer;
+      transition: all 0.3s ease;
+      color: #FF6B35;
+      position: relative;
+    }
+    
+    .tab-button.active {
+      background: #FF6B35;
+      color: white;
+      box-shadow: 0 2px 8px rgba(255, 107, 53, 0.3);
+      transform: translateY(-1px);
+    }
+    
+    .tab-button:not(.active):hover {
+      background: rgba(255, 107, 53, 0.1);
+      transform: translateY(-1px);
+    }
+    
+    .tab-content {
+      display: none;
+    }
+    
+    .tab-content.active {
+      display: block;
+    }
+    
+    /* URL入力フォーム用スタイル */
+    .url-input-container {
+      margin: 20px 0;
+    }
+    
+    .url-input {
+      width: 100%;
+      padding: 16px;
+      border: 3px solid #FF6B35;
+      border-radius: 16px;
+      font-size: 16px;
+      outline: none;
+      transition: all 0.3s ease;
+      box-sizing: border-box;
+      margin-bottom: 12px;
+    }
+    
+    .url-input:focus {
+      border-color: #E55A2B;
+      box-shadow: 0 0 0 4px rgba(255, 107, 53, 0.1);
+    }
+    
+    .url-input::placeholder {
+      color: #bbb;
+      font-style: italic;
+    }
+    
+    .url-preview {
+      background: #fff5f2;
+      border: 2px solid #FFD6CC;
+      border-radius: 12px;
+      padding: 16px;
+      margin: 12px 0;
+      display: none;
+    }
+    
+    .url-preview.show {
+      display: block;
+    }
+    
+    .url-preview-title {
+      font-weight: 600;
+      color: #FF6B35;
+      margin-bottom: 8px;
+      font-size: 16px;
+    }
+    
+    .url-preview-description {
+      color: #666;
+      font-size: 14px;
+      line-height: 1.4;
+    }
+    
+    .url-preview-url {
+      color: #999;
+      font-size: 12px;
+      margin-top: 8px;
+      word-break: break-all;
+    }
+
     /* 既存のスタイル */
     body {
       font-family: 'Helvetica Neue', Arial, sans-serif;
@@ -278,24 +383,60 @@
     <div class="container">
       <h1>📱 ファイルをアップロード</h1>
       
-      <div class="upload-area" id="upload-area">
-      <div class="upload-icon">+</div>
-      <p>タップしてファイルを選択<br>または<br>ファイルをドラッグ＆ドロップ</p>
-      <input type="file" id="file-input" class="file-input">
+      <!-- タブ切り替え -->
+      <div class="tab-container">
+        <button class="tab-button active" data-tab="file">📁 ファイル</button>
+        <button class="tab-button" data-tab="url">🔗 URL</button>
+      </div>
+      
+      <!-- ファイルアップロードタブ -->
+      <div class="tab-content active" id="file-tab">
+        <div class="upload-area" id="upload-area">
+          <div class="upload-icon">+</div>
+          <p>タップしてファイルを選択<br>または<br>ファイルをドラッグ＆ドロップ</p>
+          <input type="file" id="file-input" class="file-input">
+        </div>
+        
+        <div class="file-preview" id="file-preview">
+          <div class="file-name" id="file-name"></div>
+          <div class="file-size" id="file-size"></div>
+        </div>
+        
+        <div class="progress-container" id="progress-container">
+          <div class="progress-bar" id="progress-bar"></div>
+        </div>
+        
+        <button class="btn" id="upload-btn" disabled>アップロード</button>
+        
+        <div class="status" id="status"></div>
+      </div>
+      
+      <!-- URL共有タブ -->
+      <div class="tab-content" id="url-tab">
+        <div class="url-input-container">
+          <input 
+            type="url" 
+            id="url-input" 
+            class="url-input" 
+            placeholder="https://example.com のようにURLを入力してください"
+          >
+          
+          <div class="url-preview" id="url-preview">
+            <div class="url-preview-title" id="url-preview-title"></div>
+            <div class="url-preview-description" id="url-preview-description"></div>
+            <div class="url-preview-url" id="url-preview-url"></div>
+          </div>
+        </div>
+        
+        <div class="progress-container" id="url-progress-container">
+          <div class="progress-bar" id="url-progress-bar"></div>
+        </div>
+        
+        <button class="btn" id="url-share-btn" disabled>URLを共有</button>
+        
+        <div class="status" id="url-status"></div>
+      </div>
     </div>
-    
-    <div class="file-preview" id="file-preview">
-      <div class="file-name" id="file-name"></div>
-      <div class="file-size" id="file-size"></div>
-    </div>
-    
-    <div class="progress-container" id="progress-container">
-      <div class="progress-bar" id="progress-bar"></div>
-    </div>
-    
-    <button class="btn" id="upload-btn" disabled>アップロード</button>
-    
-    <div class="status" id="status"></div>
   </div>
 
   <div class="footer">
@@ -326,256 +467,382 @@
     // URLからセッションIDを取得
     const urlParams = new URLSearchParams(window.location.search);
     const sessionId = urlParams.get('session');
+    console.log('📱 セッションID:', sessionId);
 
-    if (!sessionId) {
-      document.getElementById('status').textContent = 'エラー: セッションIDが見つかりません';
-      document.getElementById('status').classList.add('error');
-      document.getElementById('upload-area').style.display = 'none';
-      document.getElementById('upload-btn').style.display = 'none';
-    }
-
-    // DOM要素の取得
-    const fileInput = document.getElementById('file-input');
-    const uploadBtn = document.getElementById('upload-btn');
-    const uploadArea = document.getElementById('upload-area');
-    const filePreview = document.getElementById('file-preview');
-    const fileName = document.getElementById('file-name');
-    const fileSize = document.getElementById('file-size');
-    const progressContainer = document.getElementById('progress-container');
-    const progressBar = document.getElementById('progress-bar');
-    const status = document.getElementById('status');
-
-    // 🎯 最初に動いていた超シンプルな方法
-    uploadArea.addEventListener('click', () => {
-      fileInput.click();
-    });
-
-    // ドラッグ&ドロップイベント
-    uploadArea.addEventListener('dragover', (e) => {
-      e.preventDefault();
-      uploadArea.classList.add('dragover');
-    });
-
-    uploadArea.addEventListener('dragleave', () => {
-      uploadArea.classList.remove('dragover');
-    });
-
-    uploadArea.addEventListener('drop', (e) => {
-      e.preventDefault();
-      uploadArea.classList.remove('dragover');
-      
-      if (e.dataTransfer.files.length > 0) {
-        fileInput.files = e.dataTransfer.files;
-        handleFileSelect();
-      }
-    });
-
-    // ファイル選択イベント
-    fileInput.addEventListener('change', handleFileSelect);
-
-    function handleFileSelect() {
-      if (fileInput.files.length > 0) {
-        const file = fileInput.files[0];
-        
-        // ファイル情報の表示
-        fileName.textContent = file.name;
-        fileSize.textContent = formatFileSize(file.size);
-        filePreview.style.display = 'block';
-        
-        // アップロードボタンの有効化
-        uploadBtn.disabled = false;
-      }
-    }
-
-    // ファイルサイズのフォーマット
-    function formatFileSize(bytes) {
-      if (bytes === 0) return '0 Bytes';
-      
-      const k = 1024;
-      const sizes = ['Bytes', 'KB', 'MB', 'GB'];
-      const i = Math.floor(Math.log(bytes) / Math.log(k));
-      
-      return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
-    }
-
-    // アップロードボタンのクリックイベント
-    uploadBtn.addEventListener('click', uploadFile);
-
-    function uploadFile() {
-      if (fileInput.files.length === 0) return;
-      
-      const file = fileInput.files[0];
-      
-      // ファイルサイズ制限 (5MB)
-      if (file.size > 5 * 1024 * 1024) {
-        status.textContent = 'ファイルサイズが大きすぎます（5MB以下にしてください）';
-        status.classList.add('error');
-        return;
-      }
-      
-      // アップロードボタンの無効化
-      uploadBtn.disabled = true;
-      
-      // プログレスバーの表示
-      progressContainer.style.display = 'block';
-      progressBar.style.width = '0%';
-      
-      // ステータスの更新
-      status.textContent = 'ファイルを読み込み中...';
-      status.classList.remove('success', 'error');
-      
-      // ファイルをBase64に変換
-      const reader = new FileReader();
-      reader.onload = function(e) {
-        // プログレス更新
-        progressBar.style.width = '50%';
-        status.textContent = 'アップロード中...';
-        
-        // ファイルIDの生成
-        const fileId = Math.random().toString(36).substring(2, 10);
-        
-        // Realtime Databaseにファイル情報を保存
-        const fileDbRef = dbRef(db, `files/${sessionId}/${fileId}`);
-        set(fileDbRef, {
-          name: file.name,
-          size: file.size,
-          type: file.type,
-          data: e.target.result, // Base64データ
-          timestamp: Date.now()
-        }).then(() => {
-          // アップロード成功
-          progressBar.style.width = '100%';
-          status.textContent = 'アップロード完了！';
-          status.classList.add('success');
-          
-          // 入力フィールドのリセット
-          fileInput.value = '';
-          filePreview.style.display = 'none';
-          progressContainer.style.display = 'none';
-          uploadBtn.disabled = true;
-          
-          // 2秒後に新しいファイルをアップロードできるようにする
-          setTimeout(() => {
-            status.textContent = '別のファイルをアップロードできます';
-          }, 2000);
-        }).catch((error) => {
-          console.error('保存エラー:', error);
-          status.textContent = 'アップロードに失敗しました';
-          status.classList.add('error');
-          uploadBtn.disabled = false;
-        });
-      };
-      
-      reader.onerror = function() {
-        status.textContent = 'ファイルの読み込みに失敗しました';
-        status.classList.add('error');
-        uploadBtn.disabled = false;
-      };
-      
-      // ファイル読み込み開始
-      reader.readAsDataURL(file);
-    }
-  </script>
-
-  <script>
-    // 認証システム（upload.html用）
-    const ACCESS_CODES = [
-      'yuki2025', // メインアクセスコード
-      'rakuraku', // サブアクセスコード
-      'demo1234'  // デモ用アクセスコード
-    ];
-    
+    // 認証システム
+    const ACCESS_CODES = ['yuki2025', 'rakuraku', 'demo1234'];
     const AUTH_SESSION_KEY = 'rakuraku_auth_session';
     const AUTH_EXPIRES_KEY = 'rakuraku_auth_expires';
-    const AUTH_DURATION = 24 * 60 * 60 * 1000; // 24時間
-    
-    function authenticate() {
+    const AUTH_DURATION = 24 * 60 * 60 * 1000;
+
+    window.authenticate = function() {
       const input = document.getElementById('authInput');
       const error = document.getElementById('authError');
       const enteredCode = input.value.trim();
       
       if (ACCESS_CODES.includes(enteredCode)) {
-        // 認証成功
         const expiresAt = Date.now() + AUTH_DURATION;
         localStorage.setItem(AUTH_SESSION_KEY, 'authenticated');
         localStorage.setItem(AUTH_EXPIRES_KEY, expiresAt.toString());
-        
         showMainContent();
         error.style.display = 'none';
         input.value = '';
       } else {
-        // 認証失敗
         error.style.display = 'block';
         input.value = '';
         input.focus();
-        
-        setTimeout(() => {
-          error.style.display = 'none';
-        }, 3000);
+        setTimeout(() => error.style.display = 'none', 3000);
       }
-    }
-    
+    };
+
     function showMainContent() {
-      document.getElementById('authOverlay').style.display = 'none';
-      document.getElementById('mainContent').classList.add('authenticated');
-    }
-    
-    function checkAuthentication() {
-      // URLパラメータから自動認証をチェック
-      const urlParams = new URLSearchParams(window.location.search);
-      const sessionId = urlParams.get('session');
+      const authOverlay = document.getElementById('authOverlay');
+      const mainContent = document.getElementById('mainContent');
       
-      // QRコードからのアクセスの場合は自動認証
-      if (sessionId && sessionId.length === 6) {
-        const expiresAt = Date.now() + AUTH_DURATION;
-        localStorage.setItem(AUTH_SESSION_KEY, 'authenticated');
-        localStorage.setItem(AUTH_EXPIRES_KEY, expiresAt.toString());
+      if (authOverlay) {
+        authOverlay.style.display = 'none';
+      }
+      
+      if (mainContent) {
+        mainContent.classList.add('authenticated');
+        mainContent.style.display = 'block';
+      }
+      
+      console.log('✅ メインコンテンツを表示しました');
+    }
+
+    function checkAuthentication() {
+      const authSession = localStorage.getItem(AUTH_SESSION_KEY);
+      const authExpires = localStorage.getItem(AUTH_EXPIRES_KEY);
+      const isQRAccess = urlParams.has('session');
+      
+      if (isQRAccess || (authSession === 'authenticated' && authExpires && Date.now() < parseInt(authExpires))) {
         showMainContent();
         return true;
-      }
-      
-      // 通常の認証チェック
-      const authStatus = localStorage.getItem(AUTH_SESSION_KEY);
-      const authExpires = localStorage.getItem(AUTH_EXPIRES_KEY);
-      
-      if (authStatus === 'authenticated' && authExpires) {
-        const expiresAt = parseInt(authExpires);
-        const now = Date.now();
-        
-        if (now < expiresAt) {
-          showMainContent();
-          return true;
-        } else {
+      } else {
+        if (authSession && authExpires && Date.now() >= parseInt(authExpires)) {
           localStorage.removeItem(AUTH_SESSION_KEY);
           localStorage.removeItem(AUTH_EXPIRES_KEY);
         }
+        return false;
       }
-      
-      return false;
     }
-    
+
     // 初期化
     document.addEventListener('DOMContentLoaded', function() {
-      const input = document.getElementById('authInput');
-      if (input) {
-        input.addEventListener('keypress', function(e) {
-          if (e.key === 'Enter') {
-            authenticate();
+      console.log('🚀 DOMContentLoaded イベント発生');
+      console.log('📍 現在のURL:', window.location.href);
+      console.log('📋 URLパラメータ:', window.location.search);
+      
+      try {
+        // DOM要素の存在確認
+        const authOverlay = document.getElementById('authOverlay');
+        const mainContent = document.getElementById('mainContent');
+        const authInput = document.getElementById('authInput');
+        
+        console.log('🔍 DOM要素チェック:');
+        console.log('authOverlay:', !!authOverlay);
+        console.log('mainContent:', !!mainContent);
+        console.log('authInput:', !!authInput);
+        
+        // 認証チェック
+        const authResult = checkAuthentication();
+        console.log('🔐 認証結果:', authResult);
+        
+        if (!authResult && authInput) {
+          authInput.focus();
+        }
+
+        // Enterキーでログイン
+        if (authInput) {
+          authInput.addEventListener('keypress', function(e) {
+            if (e.key === 'Enter') window.authenticate();
+          });
+        }
+
+        // DOM要素の取得
+        const fileInput = document.getElementById('file-input');
+        const uploadBtn = document.getElementById('upload-btn');
+        const uploadArea = document.getElementById('upload-area');
+        const filePreview = document.getElementById('file-preview');
+        const fileName = document.getElementById('file-name');
+        const fileSize = document.getElementById('file-size');
+        const progressContainer = document.getElementById('progress-container');
+        const progressBar = document.getElementById('progress-bar');
+        const status = document.getElementById('status');
+
+        // URL関連のDOM要素
+        const urlInput = document.getElementById('url-input');
+        const urlShareBtn = document.getElementById('url-share-btn');
+        const urlPreview = document.getElementById('url-preview');
+        const urlPreviewTitle = document.getElementById('url-preview-title');
+        const urlPreviewDescription = document.getElementById('url-preview-description');
+        const urlPreviewUrl = document.getElementById('url-preview-url');
+        const urlProgressContainer = document.getElementById('url-progress-container');
+        const urlProgressBar = document.getElementById('url-progress-bar');
+        const urlStatus = document.getElementById('url-status');
+
+        console.log('🔍 DOM要素チェック:');
+        console.log('urlInput:', !!urlInput);
+        console.log('urlShareBtn:', !!urlShareBtn);
+        console.log('sessionId:', sessionId);
+
+        if (!sessionId) {
+          console.warn('⚠️ セッションIDが見つかりません');
+          if (status) {
+            status.textContent = 'エラー: セッションIDが見つかりません';
+            status.classList.add('error');
+          }
+        }
+
+      // ファイルアップロード関連イベント
+      if (uploadArea && fileInput) {
+        uploadArea.addEventListener('click', () => fileInput.click());
+        uploadArea.addEventListener('dragover', (e) => { e.preventDefault(); uploadArea.classList.add('dragover'); });
+        uploadArea.addEventListener('dragleave', () => uploadArea.classList.remove('dragover'));
+        uploadArea.addEventListener('drop', (e) => {
+          e.preventDefault();
+          uploadArea.classList.remove('dragover');
+          const files = e.dataTransfer.files;
+          if (files.length > 0) handleFileSelect(files[0]);
+        });
+
+        fileInput.addEventListener('change', (e) => {
+          if (e.target.files.length > 0) handleFileSelect(e.target.files[0]);
+        });
+      }
+
+      if (uploadBtn) {
+        uploadBtn.addEventListener('click', uploadFile);
+      }
+
+      // タブ切り替え機能
+      document.querySelectorAll('.tab-button').forEach(button => {
+        button.addEventListener('click', function() {
+          const tabName = this.dataset.tab;
+          console.log('📑 タブクリック:', tabName);
+          
+          document.querySelectorAll('.tab-button').forEach(btn => btn.classList.remove('active'));
+          document.querySelectorAll('.tab-content').forEach(content => content.classList.remove('active'));
+          
+          this.classList.add('active');
+          const targetTab = document.getElementById(tabName + '-tab');
+          if (targetTab) {
+            targetTab.classList.add('active');
+          }
+          
+          if (tabName === 'url' && urlInput) {
+            setTimeout(() => urlInput.focus(), 100);
+          }
+        });
+      });
+
+      // URL入力イベント
+      let urlPreviewTimeout;
+      if (urlInput) {
+        urlInput.addEventListener('input', function() {
+          const url = this.value.trim();
+          console.log('📝 URL入力:', url);
+          
+          clearTimeout(urlPreviewTimeout);
+          
+          if (url && isValidUrl(url)) {
+            console.log('✅ 有効なURL');
+            if (urlShareBtn) urlShareBtn.disabled = false;
+            urlPreviewTimeout = setTimeout(() => fetchUrlPreview(url), 500);
+          } else {
+            console.log('❌ 無効なURL');
+            if (urlShareBtn) urlShareBtn.disabled = true;
+            if (urlPreview) urlPreview.classList.remove('show');
           }
         });
       }
-      
-      if (!checkAuthentication()) {
-        document.getElementById('authInput').focus();
+
+      // URL共有ボタンイベント
+      if (urlShareBtn) {
+        urlShareBtn.addEventListener('click', function() {
+          console.log('🔗 URL共有ボタンクリック');
+          try {
+            const url = urlInput ? urlInput.value.trim() : '';
+            
+            if (!url || !isValidUrl(url)) {
+              console.warn('⚠️ 無効なURL:', url);
+              if (urlStatus) {
+                urlStatus.textContent = '有効なURLを入力してください';
+                urlStatus.classList.add('error');
+              }
+              return;
+            }
+            
+            shareUrl(url);
+          } catch (error) {
+            console.error('❌ URL共有ボタンエラー:', error);
+            if (urlStatus) {
+              urlStatus.textContent = 'エラーが発生しました: ' + error.message;
+              urlStatus.classList.add('error');
+            }
+          }
+        });
+      } else {
+        console.warn('⚠️ URL共有ボタンが見つかりません');
+      }
+
+      // 関数定義
+      function handleFileSelect(file) {
+        if (fileName) fileName.textContent = file.name;
+        if (fileSize) fileSize.textContent = formatFileSize(file.size);
+        if (filePreview) filePreview.style.display = 'block';
+        if (uploadBtn) uploadBtn.disabled = false;
+      }
+
+      function uploadFile() {
+        const file = fileInput ? fileInput.files[0] : null;
+        if (!file || !sessionId) return;
+
+        const reader = new FileReader();
+        reader.onload = function() {
+          const fileData = {
+            name: file.name,
+            type: file.type,
+            size: file.size,
+            data: reader.result,
+            timestamp: Date.now()
+          };
+
+          if (progressContainer) progressContainer.style.display = 'block';
+          if (progressBar) progressBar.style.width = '50%';
+          if (status) {
+            status.textContent = 'アップロード中...';
+            status.classList.remove('success', 'error');
+          }
+
+          const fileRef = dbRef(db, `files/${sessionId}/${Date.now()}`);
+          set(fileRef, fileData).then(() => {
+            if (progressBar) progressBar.style.width = '100%';
+            if (status) {
+              status.textContent = 'アップロード完了！';
+              status.classList.add('success');
+            }
+            
+            setTimeout(() => {
+              if (fileInput) fileInput.value = '';
+              if (filePreview) filePreview.style.display = 'none';
+              if (progressContainer) progressContainer.style.display = 'none';
+              if (progressBar) progressBar.style.width = '0%';
+              if (status) {
+                status.textContent = '';
+                status.classList.remove('success');
+              }
+              if (uploadBtn) uploadBtn.disabled = true;
+            }, 2000);
+          }).catch(error => {
+            console.error('📤 アップロードエラー:', error);
+            if (status) {
+              status.textContent = 'アップロードに失敗しました';
+              status.classList.add('error');
+            }
+          });
+        };
+        reader.readAsDataURL(file);
+      }
+
+      function isValidUrl(string) {
+        try {
+          new URL(string);
+          return true;
+        } catch (_) {
+          return false;
+        }
+      }
+
+      function fetchUrlPreview(url) {
+        try {
+          const urlObj = new URL(url);
+          if (urlPreviewTitle) urlPreviewTitle.textContent = urlObj.hostname;
+          if (urlPreviewDescription) urlPreviewDescription.textContent = 'リンクの共有準備完了';
+          if (urlPreviewUrl) urlPreviewUrl.textContent = url;
+          if (urlPreview) urlPreview.classList.add('show');
+        } catch (error) {
+          console.error('🔍 URLプレビューエラー:', error);
+        }
+      }
+
+      function shareUrl(url) {
+        console.log('🚀 URL共有開始:', url);
+        
+        if (!sessionId) {
+          if (urlStatus) {
+            urlStatus.textContent = 'エラー: セッションIDが見つかりません';
+            urlStatus.classList.add('error');
+          }
+          return;
+        }
+        
+        if (urlShareBtn) urlShareBtn.disabled = true;
+        if (urlProgressContainer) urlProgressContainer.style.display = 'block';
+        if (urlProgressBar) urlProgressBar.style.width = '30%';
+        if (urlStatus) {
+          urlStatus.textContent = 'URLを共有中...';
+          urlStatus.classList.remove('success', 'error');
+        }
+        
+        const urlId = Math.random().toString(36).substring(2, 10);
+        const urlData = {
+          type: 'url',
+          url: url,
+          title: (urlPreviewTitle ? urlPreviewTitle.textContent : '') || new URL(url).hostname,
+          description: (urlPreviewDescription ? urlPreviewDescription.textContent : '') || 'リンク',
+          hostname: new URL(url).hostname,
+          timestamp: Date.now()
+        };
+        
+        console.log('💾 保存データ:', urlData);
+        console.log('📍 保存パス:', `files/${sessionId}/${urlId}`);
+        
+        const urlDbRef = dbRef(db, `files/${sessionId}/${urlId}`);
+        set(urlDbRef, urlData).then(() => {
+          console.log('✅ URL共有成功');
+          if (urlProgressBar) urlProgressBar.style.width = '100%';
+          if (urlStatus) {
+            urlStatus.textContent = 'URL共有完了！';
+            urlStatus.classList.add('success');
+          }
+          
+          setTimeout(() => {
+            if (urlInput) urlInput.value = '';
+            if (urlPreview) urlPreview.classList.remove('show');
+            if (urlProgressContainer) urlProgressContainer.style.display = 'none';
+            if (urlProgressBar) urlProgressBar.style.width = '0%';
+            if (urlStatus) {
+              urlStatus.textContent = '';
+              urlStatus.classList.remove('success');
+            }
+            if (urlShareBtn) urlShareBtn.disabled = true;
+          }, 2000);
+        }).catch(error => {
+          console.error('❌ URL共有エラー:', error);
+          if (urlStatus) {
+            urlStatus.textContent = 'URL共有に失敗しました: ' + error.message;
+            urlStatus.classList.add('error');
+          }
+          if (urlShareBtn) urlShareBtn.disabled = false;
+        });
+      }
+
+      function formatFileSize(bytes) {
+        if (bytes === 0) return '0 Bytes';
+        const k = 1024;
+        const sizes = ['Bytes', 'KB', 'MB', 'GB'];
+        const i = Math.floor(Math.log(bytes) / Math.log(k));
+        return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
+      }
+
+      console.log('🎉 スクリプト初期化完了');
+      } catch (error) {
+        console.error('❌ 初期化エラー:', error);
+        alert('初期化エラーが発生しました: ' + error.message);
       }
     });
   </script>
-
-    </div>
-    <div class="footer">
-      らくらく転送 - かんたんファイル共有<br>
-      <small>Created by YUKI KONDO</small>
-    </div>
-  </div>
 </body>
 </html>

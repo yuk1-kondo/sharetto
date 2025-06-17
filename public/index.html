@@ -227,6 +227,98 @@
       font-size: 12px;
       color: #7f8c8d;
     }
+
+    /* URL表示用スタイル */
+    .url-item {
+      background: linear-gradient(135deg, #e3f2fd 0%, #bbdefb 100%);
+      border: 2px solid #4169E1;
+      border-radius: 16px;
+      padding: 16px;
+      margin: 8px 0;
+      transition: all 0.3s ease;
+    }
+    
+    .url-item:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 8px 24px rgba(65, 105, 225, 0.2);
+    }
+    
+    .url-icon {
+      margin-right: 12px;
+      width: 40px;
+      height: 40px;
+      background: #4169E1;
+      color: white;
+      border-radius: 12px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 16px;
+      font-weight: 700;
+      flex-shrink: 0;
+    }
+    
+    .url-content {
+      flex-grow: 1;
+    }
+    
+    .url-title {
+      font-weight: 600;
+      color: #2E4BC6;
+      margin-bottom: 4px;
+      font-size: 16px;
+    }
+    
+    .url-description {
+      color: #666;
+      font-size: 14px;
+      margin-bottom: 8px;
+      line-height: 1.3;
+    }
+    
+    .url-link {
+      color: #4169E1;
+      font-size: 12px;
+      text-decoration: none;
+      word-break: break-all;
+      display: block;
+      margin-top: 4px;
+    }
+    
+    .url-link:hover {
+      text-decoration: underline;
+    }
+    
+    .url-actions {
+      display: flex;
+      gap: 8px;
+      margin-top: 8px;
+    }
+    
+    .url-action-btn {
+      padding: 6px 12px;
+      background: #4169E1;
+      color: white;
+      border: none;
+      border-radius: 8px;
+      font-size: 12px;
+      cursor: pointer;
+      transition: background 0.3s ease;
+    }
+    
+    .url-action-btn:hover {
+      background: #2E4BC6;
+    }
+    
+    .url-action-btn.copy {
+      background: #28a745;
+    }
+    
+    .url-action-btn.copy:hover {
+      background: #218838;
+    }
+
+    /* 既存のスタイル */
     .footer {
       margin-top: 30px;
       font-size: 14px;
@@ -276,7 +368,7 @@
   <!-- メインコンテンツ -->
   <div id="mainContent" class="main-content">
     <div class="container">
-      <h1>�💻 QRでファイル転送 📱</h1>
+      <h1>💻 QRでファイル転送 📱</h1>
       <div class="qr-container">
         <canvas id="qr"></canvas>
       </div>
@@ -407,9 +499,11 @@
 
       // セッションIDの生成（6文字のランダム文字列）
       const sessionId = Math.random().toString(36).substring(2, 8);
+      console.log('PC側セッションID:', sessionId);
       
       // アップロードページのURLを生成
       const uploadUrl = `${location.origin}/upload.html?session=${sessionId}`;
+      console.log('生成されたアップロードURL:', uploadUrl);
       
       // QRコードの生成
       QRCode.toCanvas(document.getElementById("qr"), uploadUrl, {
@@ -428,9 +522,49 @@
       const filesRef = ref(db, `files/${sessionId}`);
       
       // ファイルが追加されたときのリスナーを設定
+      console.log('Firebase リスナー設定中:', `files/${sessionId}`);
       onChildAdded(filesRef, (snapshot) => {
-        const fileData = snapshot.val();
+        const data = snapshot.val();
+        console.log('新しいデータ受信:', data);
         
+        // URLデータの場合
+        if (data.type === 'url') {
+          console.log('URLデータを処理:', data);
+          createUrlItem(data);
+        } else {
+          console.log('ファイルデータを処理:', data);
+          // ファイルデータの場合
+          createFileItem(data);
+        }
+      });
+      
+      // URL項目を作成する関数
+      function createUrlItem(urlData) {
+        const li = document.createElement("li");
+        li.className = "url-item";
+        
+        // URL項目のHTMLを構築
+        li.innerHTML = `
+          <div style="display: flex; align-items: flex-start;">
+            <div class="url-icon">🔗</div>
+            <div class="url-content">
+              <div class="url-title">${escapeHtml(urlData.title || urlData.hostname || 'リンク')}</div>
+              <div class="url-description">${escapeHtml(urlData.description || 'URLが共有されました')}</div>
+              <a href="${escapeHtml(urlData.url)}" target="_blank" class="url-link">${escapeHtml(urlData.url)}</a>
+              <div class="url-actions">
+                <button class="url-action-btn" onclick="openUrl('${escapeHtml(urlData.url)}')">開く</button>
+                <button class="url-action-btn copy" onclick="copyUrl('${escapeHtml(urlData.url)}')">コピー</button>
+              </div>
+            </div>
+          </div>
+        `;
+        
+        // リストに追加
+        fileList.appendChild(li);
+      }
+      
+      // ファイル項目を作成する関数
+      function createFileItem(fileData) {
         // ファイルの種類に応じたアイコンを決定
         let fileType = "FILE";
         let isImage = false;
@@ -500,7 +634,53 @@
         
         // リストに追加
         fileList.appendChild(li);
-      });
+      }
+      
+      // HTML要素のエスケープ関数
+      function escapeHtml(text) {
+        const map = {
+          '&': '&amp;',
+          '<': '&lt;',
+          '>': '&gt;',
+          '"': '&quot;',
+          "'": '&#039;'
+        };
+        return text ? text.replace(/[&<>"']/g, function(m) { return map[m]; }) : '';
+      }
+      
+      // URL操作用の関数をグローバルスコープに追加
+      window.openUrl = function(url) {
+        window.open(url, '_blank');
+      };
+      
+      window.copyUrl = function(url) {
+        navigator.clipboard.writeText(url).then(() => {
+          // コピー成功の視覚的フィードバック
+          const originalText = event.target.textContent;
+          event.target.textContent = '✓ コピー済み';
+          event.target.style.background = '#28a745';
+          
+          setTimeout(() => {
+            event.target.textContent = originalText;
+            event.target.style.background = '#28a745';
+          }, 2000);
+        }).catch(err => {
+          console.error('URLコピーエラー:', err);
+          // フォールバック: テキスト選択
+          const textArea = document.createElement('textarea');
+          textArea.value = url;
+          document.body.appendChild(textArea);
+          textArea.select();
+          document.execCommand('copy');
+          document.body.removeChild(textArea);
+          
+          const originalText = event.target.textContent;
+          event.target.textContent = '✓ コピー済み';
+          setTimeout(() => {
+            event.target.textContent = originalText;
+          }, 2000);
+        });
+      };
       
       // ファイルサイズのフォーマット関数
       function formatFileSize(bytes) {
