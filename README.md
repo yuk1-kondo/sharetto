@@ -1,23 +1,22 @@
-# 💻 シェアっと 📱
+# 💻 シェアっと (Sharetto) 📱
 
 スマートフォンとPCの間でファイルやURLを簡単に転送できるWebアプリケーション。QRコードスキャンで即座に接続し、リアルタイムでデータを共有できます。
 
 ## 🎨 特徴
 
-- **美しいデザイン**: モダンなマテリアルデザイン
-- **PC側**: 洗練されたブルー系UI
-- **モバイル側**: 親しみやすいオレンジ系UI
-- **QRコードによる簡単接続**: PCでQRコードを表示、スマホでスキャンして接続
+- **Liquid Glass UI**: 美しいガラス効果を使った現代的なデザイン
+- **QRコード連携**: PCでQRコードを表示、モバイルで読み取ってファイル共有
+- **画像プレビュー**: アップロードした画像をサムネイル＆フルサイズプレビュー
+- **リアルタイム同期**: Firebase Realtime Databaseによる即座のデータ同期
 - **ファイル転送**: ドラッグ&ドロップまたはタップでファイルアップロード
 - **URL共有**: WebページのURLを簡単に共有
-- **リアルタイム同期**: アップロードされたデータが即座にPC側に表示
 - **認証システム**: セキュアなアクセス制御
 - **レスポンシブデザイン**: PC・スマートフォン両対応
 - **完全無料**: Firebase無料プランで運用
 
 ## 🚀 本番環境
 
-- **URL**: https://rakupic-19e91.web.app
+- **URL**: https://sharetto.web.app
 - **ホスティング**: Firebase Hosting
 - **データベース**: Firebase Realtime Database
 - **自動デプロイ**: Firebase CLI
@@ -27,7 +26,7 @@
 - **Frontend**: HTML5, CSS3, JavaScript (ES6 Modules)
 - **Backend**: Firebase Realtime Database (リアルタイムデータ同期)
 - **Hosting**: Firebase Hosting (高速配信)
-- **External Libraries**: QRious.js (QRコード生成)
+- **External Libraries**: QRCode Generator (QRコード生成)
 - **Authentication**: カスタム認証システム
 - **Design**: モダンマテリアルデザイン
 

@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>モバイルアップロード - シェアっと (Liquid Glass)</title>
+  <title>ファイルアップロード - シェアっと (Liquid Glass)</title>
   <style>
     * {
       margin: 0;
@@ -692,11 +692,6 @@
     // URLからセッションIDを取得
     const urlParams = new URLSearchParams(window.location.search);
     const sessionId = urlParams.get('session') || 'default';
-    
-    console.log('セッション情報:');
-    console.log('URL:', window.location.href);
-    console.log('URLパラメータ:', urlParams.toString());
-    console.log('セッションID:', sessionId);
 
     // 認証システム
     function authenticate() {
@@ -729,37 +724,26 @@
     }
 
     function checkAuthentication() {
-      // URLパラメータから自動認証をチェック
-      const urlParams = new URLSearchParams(window.location.search);
-      const sessionId = urlParams.get('session');
-      
-      // QRコードからのアクセスの場合は自動認証
-      if (sessionId && sessionId.length >= 6) {
-        const expiresAt = Date.now() + SESSION_DURATION;
-        localStorage.setItem(AUTH_SESSION_KEY, 'authenticated');
-        localStorage.setItem(AUTH_EXPIRES_KEY, expiresAt.toString());
-        showMainContent();
-        return true;
-      }
-      
-      // 通常の認証チェック
       const authSession = localStorage.getItem(AUTH_SESSION_KEY);
       const authExpires = localStorage.getItem(AUTH_EXPIRES_KEY);
       
-      if (authSession === 'authenticated' && authExpires) {
-        const expiresAt = parseInt(authExpires);
-        const now = Date.now();
-        
-        if (now < expiresAt) {
-          showMainContent();
-          return true;
-        } else {
+      // URLパラメータからQRアクセスかを判定
+      const urlParams = new URLSearchParams(window.location.search);
+      const isQRAccess = urlParams.has('session');
+      
+      if (isQRAccess || (authSession === 'authenticated' && authExpires && Date.now() < parseInt(authExpires))) {
+        // QRアクセスまたは有効な認証セッションがある場合
+        showMainContent();
+        return true;
+      } else {
+        // 認証が必要
+        if (authSession && authExpires && Date.now() >= parseInt(authExpires)) {
+          // セッション期限切れの場合、クリア
           localStorage.removeItem(AUTH_SESSION_KEY);
           localStorage.removeItem(AUTH_EXPIRES_KEY);
         }
+        return false;
       }
-      
-      return false;
     }
 
     // DOM要素の取得
@@ -867,16 +851,6 @@
       
       const file = fileInput.files[0];
       
-      console.log('ファイルアップロード開始:', file.name);
-      console.log('セッションID:', sessionId);
-      
-      if (!sessionId) {
-        status.textContent = 'エラー: セッションIDが見つかりません';
-        status.classList.add('error');
-        console.error('セッションIDなし');
-        return;
-      }
-      
       // ファイルサイズ制限 (100MB)
       if (file.size > 100 * 1024 * 1024) {
         status.textContent = 'ファイルサイズが大きすぎます (最大100MB)';
@@ -905,26 +879,15 @@
         // ファイルIDの生成
         const fileId = Math.random().toString(36).substring(2, 10);
         
-        // ファイルデータを元の構造に合わせて保存
-        const fileData = {
-          type: 'file',
-          name: file.name,
-          size: file.size,
-          mimeType: file.type,
-          data: e.target.result, // Base64データ
-          timestamp: Date.now()
-        };
-        
-        console.log('保存するファイルデータ:', {
-          ...fileData,
-          data: 'Base64データ（省略）'
-        });
-        console.log('データベースパス:', `files/${sessionId}/${fileId}`);
-        
         // Realtime Databaseにファイル情報を保存
         const fileDbRef = dbRef(db, `files/${sessionId}/${fileId}`);
-        set(fileDbRef, fileData).then(() => {
-          console.log('ファイル保存成功');
+        set(fileDbRef, {
+          name: file.name,
+          size: file.size,
+          type: file.type,
+          data: e.target.result, // Base64データ
+          timestamp: Date.now()
+        }).then(() => {
           // アップロード成功
           progressBar.style.width = '100%';
           status.textContent = 'アップロード完了！';
@@ -943,8 +906,8 @@
           
         }).catch((error) => {
           // アップロード失敗
-          console.error('ファイルアップロードエラー:', error);
-          status.textContent = 'アップロードに失敗しました: ' + error.message;
+          console.error('Upload error:', error);
+          status.textContent = 'アップロードに失敗しました';
           status.classList.add('error');
           uploadBtn.disabled = false;
           progressContainer.style.display = 'none';
@@ -991,54 +954,26 @@
       const url = urlInput.value.trim();
       if (!url) return;
 
-      console.log('URL共有開始:', url);
-      console.log('セッションID:', sessionId);
-      
-      if (!sessionId) {
-        urlStatus.textContent = 'エラー: セッションIDが見つかりません';
-        urlStatus.classList.add('error');
-        console.error('セッションIDなし');
-        return;
-      }
-
       urlShareBtn.disabled = true;
       urlStatus.textContent = 'URL共有中...';
       urlStatus.classList.remove('success', 'error');
 
-      // URLをデータベースに保存（filesパスに統一）
+      // URLをデータベースに保存
       const urlId = Math.random().toString(36).substring(2, 10);
-      const urlDbRef = dbRef(db, `files/${sessionId}/${urlId}`);
+      const urlDbRef = dbRef(db, `urls/${sessionId}/${urlId}`);
       
-      const urlObj = new URL(url);
-      const urlData = {
-        type: 'url',
+      set(urlDbRef, {
         url: url,
-        title: urlObj.hostname,
-        description: 'リンク',
-        hostname: urlObj.hostname,
         timestamp: Date.now()
-      };
-      
-      console.log('保存するURLデータ:', urlData);
-      console.log('データベースパス:', `files/${sessionId}/${urlId}`);
-      
-      set(urlDbRef, urlData).then(() => {
-        console.log('URL保存成功');
+      }).then(() => {
         urlStatus.textContent = 'URL共有完了！';
         urlStatus.classList.add('success');
         urlInput.value = '';
         urlPreview.classList.remove('show');
         urlShareBtn.disabled = true;
-        
-        // フォームをリセット
-        setTimeout(() => {
-          urlStatus.textContent = '';
-          urlStatus.classList.remove('success');
-        }, 2000);
-        
       }).catch((error) => {
-        console.error('URL保存エラー:', error);
-        urlStatus.textContent = 'URL共有に失敗しました: ' + error.message;
+        console.error('URL share error:', error);
+        urlStatus.textContent = 'URL共有に失敗しました';
         urlStatus.classList.add('error');
         urlShareBtn.disabled = false;
       });
