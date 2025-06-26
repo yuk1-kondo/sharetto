@@ -257,6 +257,39 @@
       z-index: 1;
     }
     
+    /* ログアウトボタン */
+    .logout-btn {
+      max-width: 200px;
+      margin: 16px auto;
+      padding: 12px;
+      font-size: 14px;
+      opacity: 0.8;
+      background: rgba(255, 255, 255, 0.1);
+      border: 1px solid rgba(255, 255, 255, 0.2);
+      border-radius: 16px;
+      color: rgba(255, 255, 255, 0.9);
+      cursor: pointer;
+      transition: all 0.3s ease;
+      -webkit-backdrop-filter: blur(10px);
+      backdrop-filter: blur(10px);
+      display: block;
+    }
+    
+    /* 画面切り替え用スタイル */
+    .hidden-screen {
+      display: none;
+    }
+    
+    .google-login-icon {
+      margin-right: 8px;
+    }
+    
+    .back-button {
+      margin-top: 16px;
+      padding: 12px 24px;
+      font-size: 14px;
+    }
+    
     .main-content {
       display: none;
       padding: 20px;
@@ -990,13 +1023,29 @@
 <body>
   <!-- 認証オーバーレイ -->
   <div id="authOverlay" class="auth-overlay">
-    <div class="auth-container">
-      <h2 class="auth-title">📱 シェアっと</h2>
-      <p class="auth-subtitle">アクセス認証が必要です</p>
-      <input type="password" id="authInput" class="auth-input" placeholder="アクセスコードを入力" maxlength="8" />
-      <button onclick="authenticate()" class="auth-button">🔓 ログイン</button>
-      <div id="authError" class="auth-error">アクセスコードが正しくありません</div>
-      <div class="auth-info">💡 PCからのログイン用パスワードです</div>
+    <!-- 招待コード入力画面 -->
+    <div id="inviteCodeScreen" class="auth-container">
+      <h2 class="auth-title">🎫 招待制アクセス</h2>
+      <p class="auth-subtitle">招待コードを入力してください</p>
+      <input type="password" id="inviteCodeInput" class="auth-input" placeholder="招待コードを入力" maxlength="8" />
+      <button onclick="checkInviteCode()" class="auth-button">🎟️ 次へ</button>
+      <div id="inviteCodeError" class="auth-error">招待コードが正しくありません</div>
+      <div class="auth-info">💡 招待コードが必要です</div>
+    </div>
+
+    <!-- Googleログイン画面 -->
+    <div id="googleLoginScreen" class="auth-container hidden-screen">
+      <h2 class="auth-title">🔐 Googleログイン</h2>
+      <p class="auth-subtitle">Googleアカウントでログインしてください</p>
+      <button onclick="signInWithGoogle()" class="auth-button google-login-btn">
+        <span class="google-login-icon">🔑</span>
+        Googleでログイン
+      </button>
+      <div id="googleLoginError" class="auth-error">ログインに失敗しました</div>
+      <div class="auth-info">💡 招待コード認証が完了しました</div>
+      <button onclick="backToInviteCode()" class="btn-secondary back-button">
+        ← 招待コード入力に戻る
+      </button>
     </div>
   </div>
 
@@ -1005,6 +1054,9 @@
     <div class="header">
       <h1>シェアっと</h1>
       <p>美しいファイル共有体験</p>
+      <button onclick="signOutUser()" class="logout-btn">
+        🚪 ログアウト
+      </button>
     </div>
 
     <div class="glass-container">
@@ -1019,7 +1071,7 @@
           <div class="qr-info">
             <p class="qr-url" id="qrUrl"></p>
           <div class="qr-actions">
-            <button onclick="copyQRUrl()" class="action-button">� URLをコピー</button>
+            <button onclick="copyQRUrl()" class="action-button">📋 URLをコピー</button>
             <button onclick="generateNewSession()" class="action-button">🔄 新しいQRコード</button>
           </div>
           </div>
@@ -1077,6 +1129,7 @@
     // Firebase SDKをインポート
     import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
     import { getDatabase, ref as dbRef, push, set, onValue, off } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-database.js";
+    import { getAuth, signInWithPopup, GoogleAuthProvider, onAuthStateChanged, signOut } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-auth.js";
 
     // Firebaseの設定（元の設定を使用）
     const firebaseConfig = {
@@ -1092,6 +1145,8 @@
     // Firebaseの初期化
     const app = initializeApp(firebaseConfig);
     const db = getDatabase(app);
+    const auth = getAuth(app);
+    const provider = new GoogleAuthProvider();
 
     // セッション管理の定数
     const AUTH_SESSION_KEY = 'auth_session';
@@ -1099,8 +1154,143 @@
     const SESSION_DURATION = 24 * 60 * 60 * 1000; // 24時間
 
     let currentSessionId = null;
+    let currentUser = null;
 
-    // 認証システム
+    // 招待コード設定（実際の運用では環境変数や安全な場所に保存）
+    const VALID_INVITE_CODES = [
+      'SHARE123',
+      'INVITE24',
+      'ACCESS99',
+      'FRIEND01'
+    ];
+
+    // 招待コード認証
+    function checkInviteCode() {
+      const inviteCode = document.getElementById('inviteCodeInput').value.trim().toUpperCase();
+      const errorDiv = document.getElementById('inviteCodeError');
+      
+      if (!inviteCode) {
+        errorDiv.textContent = '招待コードを入力してください';
+        errorDiv.style.display = 'block';
+        return;
+      }
+      
+      if (VALID_INVITE_CODES.includes(inviteCode)) {
+        // 招待コード認証成功 → Googleログイン画面へ
+        console.log('招待コード認証成功:', inviteCode);
+        document.getElementById('inviteCodeScreen').classList.add('hidden-screen');
+        document.getElementById('googleLoginScreen').classList.remove('hidden-screen');
+        errorDiv.style.display = 'none';
+        
+        // 招待コードをセッションに保存
+        sessionStorage.setItem('inviteCodeValid', 'true');
+        sessionStorage.setItem('usedInviteCode', inviteCode);
+      } else {
+        // 招待コード認証失敗
+        errorDiv.textContent = '招待コードが正しくありません';
+        errorDiv.style.display = 'block';
+        document.getElementById('inviteCodeInput').value = '';
+        
+        // エラーを一定時間後に隠す
+        setTimeout(() => {
+          errorDiv.style.display = 'none';
+        }, 3000);
+      }
+    }
+
+    // Googleログイン画面に戻る
+    function backToInviteCode() {
+      document.getElementById('googleLoginScreen').classList.add('hidden-screen');
+      document.getElementById('inviteCodeScreen').classList.remove('hidden-screen');
+      document.getElementById('inviteCodeInput').value = '';
+      document.getElementById('googleLoginError').style.display = 'none';
+    }
+
+    // Googleログイン機能
+    async function signInWithGoogle() {
+      // 招待コード認証チェック
+      if (sessionStorage.getItem('inviteCodeValid') !== 'true') {
+        console.error('招待コード認証が完了していません');
+        document.getElementById('googleLoginError').textContent = '招待コード認証が必要です';
+        document.getElementById('googleLoginError').style.display = 'block';
+        backToInviteCode();
+        return;
+      }
+
+      try {
+        const result = await signInWithPopup(auth, provider);
+        const user = result.user;
+        console.log('ログイン成功:', user.displayName, user.email);
+        
+        // ユーザー情報を保存
+        currentUser = user;
+        
+        // 認証完了の記録
+        const usedCode = sessionStorage.getItem('usedInviteCode');
+        console.log('使用された招待コード:', usedCode);
+        
+        showMainContent();
+        generateQRCode();
+        
+        document.getElementById('googleLoginError').style.display = 'none';
+      } catch (error) {
+        console.error('ログインエラー:', error);
+        document.getElementById('googleLoginError').textContent = 'ログインに失敗しました。再度お試しください。';
+        document.getElementById('googleLoginError').style.display = 'block';
+        
+        // エラーを一定時間後に隠す
+        setTimeout(() => {
+          document.getElementById('googleLoginError').style.display = 'none';
+        }, 5000);
+      }
+    }
+
+    // ログアウト機能
+    async function signOutUser() {
+      try {
+        await signOut(auth);
+        currentUser = null;
+        
+        // すべての認証情報をクリア
+        localStorage.removeItem(AUTH_SESSION_KEY);
+        localStorage.removeItem(AUTH_EXPIRES_KEY);
+        sessionStorage.removeItem('inviteCodeValid');
+        sessionStorage.removeItem('usedInviteCode');
+        
+        // 認証画面に戻る
+        document.getElementById('authOverlay').style.display = 'flex';
+        document.getElementById('inviteCodeScreen').classList.remove('hidden-screen');
+        document.getElementById('googleLoginScreen').classList.add('hidden-screen');
+        document.getElementById('mainContent').classList.remove('authenticated');
+        
+        // 入力フィールドをクリア
+        document.getElementById('inviteCodeInput').value = '';
+        document.getElementById('inviteCodeError').style.display = 'none';
+        document.getElementById('googleLoginError').style.display = 'none';
+        
+        console.log('ログアウト完了');
+      } catch (error) {
+        console.error('ログアウトエラー:', error);
+      }
+    }
+
+    // 認証状態の監視
+    onAuthStateChanged(auth, (user) => {
+      if (user) {
+        // ログイン済み
+        currentUser = user;
+        console.log('認証済みユーザー:', user.displayName, user.email);
+        showMainContent();
+        generateQRCode();
+      } else {
+        // ログアウト状態
+        currentUser = null;
+        console.log('ユーザーはログアウト状態');
+        checkAuthentication();
+      }
+    });
+
+    // 従来の認証システム（パスワード認証）
     function authenticate() {
       const password = document.getElementById('authInput').value;
       const errorDiv = document.getElementById('authError');
@@ -1132,21 +1322,44 @@
     }
 
     function checkAuthentication() {
+      // Firebase Authを優先チェック
+      if (currentUser) {
+        showMainContent();
+        generateQRCode();
+        return true;
+      }
+      
+      // 招待コード + Googleログインの状態をチェック
+      const inviteCodeValid = sessionStorage.getItem('inviteCodeValid');
+      
+      // 従来のパスワード認証をフォールバック（開発用）
       const authSession = localStorage.getItem(AUTH_SESSION_KEY);
       const authExpires = localStorage.getItem(AUTH_EXPIRES_KEY);
       
       if (authSession === 'authenticated' && authExpires && Date.now() < parseInt(authExpires)) {
-        // 有効な認証セッションがある場合
+        // 有効な認証セッションがある場合（従来の認証）
         showMainContent();
         generateQRCode();
         return true;
       } else {
-        // 認証が必要
+        // 認証が必要 - 招待コード入力画面を表示
         if (authSession && authExpires && Date.now() >= parseInt(authExpires)) {
           // セッション期限切れの場合、クリア
           localStorage.removeItem(AUTH_SESSION_KEY);
           localStorage.removeItem(AUTH_EXPIRES_KEY);
         }
+        
+        // 招待制認証画面を表示
+        document.getElementById('authOverlay').style.display = 'flex';
+        document.getElementById('inviteCodeScreen').classList.remove('hidden-screen');
+        document.getElementById('googleLoginScreen').classList.add('hidden-screen');
+        document.getElementById('mainContent').classList.remove('authenticated');
+        
+        // 招待コード入力にフォーカス
+        setTimeout(() => {
+          document.getElementById('inviteCodeInput').focus();
+        }, 100);
+        
         return false;
       }
     }
@@ -1474,8 +1687,15 @@
     document.addEventListener('DOMContentLoaded', function() {
       console.log('DOMContentLoaded - 初期化開始');
       
+      // 認証状態をチェック
       if (!checkAuthentication()) {
-        document.getElementById('authInput').focus();
+        // 招待コード入力フィールドにフォーカス
+        setTimeout(() => {
+          const inviteCodeInput = document.getElementById('inviteCodeInput');
+          if (inviteCodeInput) {
+            inviteCodeInput.focus();
+          }
+        }, 100);
       }
       
       // 一定時間後にファイル表示を開始（認証状態に関係なく）
@@ -1485,14 +1705,35 @@
       }, 1000);
     });
 
-    // Enterキーでログイン
-    document.getElementById('authInput').addEventListener('keypress', function(e) {
-      if (e.key === 'Enter') {
-        authenticate();
+    // 招待コード入力でEnterキー対応
+    document.addEventListener('DOMContentLoaded', function() {
+      const inviteCodeInput = document.getElementById('inviteCodeInput');
+      if (inviteCodeInput) {
+        inviteCodeInput.addEventListener('keypress', function(e) {
+          if (e.key === 'Enter') {
+            checkInviteCode();
+          }
+        });
+      }
+    });
+
+    // 従来の認証システム用（開発・テスト用）
+    document.addEventListener('DOMContentLoaded', function() {
+      const authInput = document.getElementById('authInput');
+      if (authInput) {
+        authInput.addEventListener('keypress', function(e) {
+          if (e.key === 'Enter') {
+            authenticate();
+          }
+        });
       }
     });
 
     // グローバル関数として公開
+    window.checkInviteCode = checkInviteCode;
+    window.backToInviteCode = backToInviteCode;
+    window.signInWithGoogle = signInWithGoogle;
+    window.signOutUser = signOutUser;
     window.authenticate = authenticate;
     window.generateNewSession = generateNewSession;
     window.copyQRUrl = copyQRUrl;
