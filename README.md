@@ -41,7 +41,7 @@ PC側 (ブルーUI) ←→ Firebase Realtime Database ←→ モバイル側 (�
 ## 📱 使い方
 
 ### 基本的な使い方
-1. **PC側**: https://rakupic-19e91.web.app にアクセス
+1. **PC側**: https://sharetto.web.app にアクセス
 2. **新しいセッション**: 「新しいセッションを開始」をクリック
 3. **QRコード表示**: 自動生成されたQRコードが表示
 4. **スマホでスキャン**: QRコードリーダーでスキャン
@@ -75,8 +75,8 @@ PC側 (ブルーUI) ←→ Firebase Realtime Database ←→ モバイル側 (�
 
 1. リポジトリをクローン
 ```bash
-git clone https://github.com/yuk1-kondo/rakuraku.git
-cd rakuraku
+git clone https://github.com/yuk1-kondo/sharetto.git
+cd sharetto
 ```
 
 2. ローカルでテスト
@@ -101,7 +101,7 @@ firebase login
 
 3. プロジェクトを選択
 ```bash
-firebase use rakupic
+firebase use sharetto
 ```
 
 4. デプロイ
@@ -181,5 +181,5 @@ MIT License
 
 ---
 
-作成者: Yuki
+作成者: Yuki Kondo
 作成日: 2025年6月5日
