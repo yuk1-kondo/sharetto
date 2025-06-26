@@ -1,9 +1,0 @@
-# Cloudflare Pages設定ファイル
-name = "rakuraku"
-compatibility_date = "2024-06-06"
-pages_build_output_dir = "public"
-
-[build]
-command = ""
-cwd = ""
-watch_dir = "public"

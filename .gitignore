@@ -95,3 +95,32 @@ Thumbs.db
 *.swp
 *.swo
 *~
+
+# Backup files
+*_backup.*
+*-backup.*
+*-fixed.*
+*-complex.*
+*-simple.*
+
+# Development files
+deploy.sh
+wrangler.toml
+
+# Documentation (old)
+CACHE_TROUBLESHOOTING.md
+CHANGELOG.md
+CLOUDFLARE_SETUP.md
+DESIGN_GUIDE.md
+DEVELOPMENT_LOG.md
+FIREBASE_BILLING_GUIDE.md
+FIREBASE_DEPLOY_GUIDE.md
+PRODUCTION_TEST.md
+URL_SHARING_GUIDE.md
+auth-config.md
+cloudflare-setup.md
+firebase-research.md
+*.pages-config.md
+
+# Japanese docs (legacy)
+シェアっと*.md
