@@ -808,10 +808,18 @@
       display: flex;
       gap: 16px;
     }
+
+    .file-size, .file-date {
+      color: rgba(255, 255, 255, 0.6);
+      font-size: 14px;
+      margin-bottom: 2px;
+    }
     
     .file-actions {
       display: flex;
+      flex-direction: column;
       gap: 8px;
+      min-width: 120px;
     }
     
     .download-btn {
@@ -819,10 +827,13 @@
       border: 1px solid rgba(255, 255, 255, 0.2);
       border-radius: 12px;
       color: white;
-      padding: 8px 16px;
-      font-size: 14px;
+      padding: 10px 12px;
+      font-size: 13px;
       cursor: pointer;
       transition: all 0.3s ease;
+      white-space: nowrap;
+      text-align: center;
+      min-width: 100px;
     }
     
     .download-btn:hover {
@@ -871,18 +882,9 @@
       border-radius: 8px;
     }
     
-    .image-badge {
-      background: linear-gradient(135deg, #ff6b6b, #ff8e53);
-      color: white;
-      padding: 4px 8px;
-      border-radius: 8px;
-      font-size: 12px;
-      font-weight: 600;
-    }
-    
     .view-btn {
       background: linear-gradient(135deg, #667eea, #764ba2);
-      margin-right: 8px;
+      margin-right: 0;
     }
     
     .view-btn:hover {
@@ -944,6 +946,60 @@
       font-size: 18px;
       font-weight: 600;
       margin-bottom: 8px;
+    }
+
+    /* セッションタイマーUI */
+    .session-timer {
+      background: linear-gradient(135deg, rgba(255, 107, 107, 0.9), rgba(255, 142, 83, 0.9));
+      border: 1px solid rgba(255, 255, 255, 0.3);
+      border-radius: 16px;
+      padding: 12px 20px;
+      margin: 16px 0;
+      text-align: center;
+      color: white;
+      font-weight: 600;
+      box-shadow: 0 8px 32px rgba(255, 107, 107, 0.3);
+      animation: pulse-timer 2s infinite;
+    }
+
+    .session-timer.warning {
+      background: linear-gradient(135deg, rgba(255, 193, 7, 0.9), rgba(255, 152, 0, 0.9));
+      animation: flash-warning 1s infinite;
+    }
+
+    .session-timer.critical {
+      background: linear-gradient(135deg, rgba(220, 53, 69, 0.9), rgba(255, 107, 107, 0.9));
+      animation: flash-critical 0.5s infinite;
+    }
+
+    @keyframes pulse-timer {
+      0%, 100% { transform: scale(1); }
+      50% { transform: scale(1.02); }
+    }
+
+    @keyframes flash-warning {
+      0%, 100% { opacity: 1; }
+      50% { opacity: 0.7; }
+    }
+
+    @keyframes flash-critical {
+      0%, 100% { opacity: 1; }
+      50% { opacity: 0.5; }
+    }
+
+    .timer-text {
+      font-size: 18px;
+      margin-bottom: 4px;
+    }
+
+    .timer-detail {
+      font-size: 13px;
+      opacity: 0.9;
+    }
+
+    .timer-icon {
+      font-size: 20px;
+      margin-right: 8px;
     }
     
     .modal-actions {
@@ -1078,6 +1134,15 @@
           </div>
         </div>
       </div>
+      
+      <!-- セッションタイマー表示 -->
+      <div id="sessionTimer" class="session-timer" style="display: none;">
+        <div class="timer-text">
+          <span class="timer-icon">⏰</span>
+          <span id="timerDisplay">10:00</span>
+        </div>
+        <div class="timer-detail">ファイルは自動的に削除されます</div>
+      </div>
     </div>
 
     <!-- アップロードされたファイル表示 -->
@@ -1161,6 +1226,9 @@
 
     let currentSessionId = null;
     let currentUser = null;
+    let sessionStartTime = null;
+    let sessionTimer = null;
+    const SESSION_DURATION_MS = 10 * 60 * 1000; // 10分間
 
     // 招待コード設定（実際の運用では環境変数や安全な場所に保存）
     const VALID_INVITE_CODES = [
@@ -1441,6 +1509,7 @@
     function generateQRCode() {
       // セッションIDを生成
       currentSessionId = Math.random().toString(36).substring(2, 15);
+      sessionStartTime = Date.now(); // セッション開始時間を記録
       
       const qrElement = document.getElementById('qrcode');
       const currentUrl = `${window.location.origin}/upload.html?session=${currentSessionId}`;
@@ -1475,6 +1544,9 @@
         
         console.log('QRコード生成成功:', currentUrl);
         
+        // タイマー開始
+        startSessionTimer();
+        
         // ファイル監視を開始
         displayFiles();
         
@@ -1485,11 +1557,6 @@
       
       // URL表示を更新
       document.getElementById('qrUrl').textContent = currentUrl;
-    }
-
-    // 新しいセッション生成
-    function generateNewSession() {
-      generateQRCode();
     }
 
     // QR URL コピー機能
@@ -1505,6 +1572,91 @@
       // 新しいタブでPC間共有ページを開く
       const pcShareUrl = `${window.location.origin}/pc-share.html`;
       window.open(pcShareUrl, '_blank');
+    }
+
+    // セッションタイマー機能
+    function startSessionTimer() {
+      // 既存のタイマーをクリア
+      if (sessionTimer) {
+        clearInterval(sessionTimer);
+      }
+      
+      // タイマー表示を開始
+      const timerElement = document.getElementById('sessionTimer');
+      timerElement.style.display = 'block';
+      
+      // 1秒ごとに更新
+      sessionTimer = setInterval(updateTimer, 1000);
+      updateTimer(); // 即座に更新
+    }
+    
+    function updateTimer() {
+      if (!sessionStartTime) {
+        return;
+      }
+      
+      const now = Date.now();
+      const elapsed = now - sessionStartTime;
+      const remaining = SESSION_DURATION_MS - elapsed;
+      
+      if (remaining <= 0) {
+        // 時間切れ
+        clearInterval(sessionTimer);
+        sessionExpired();
+        return;
+      }
+      
+      // 残り時間を分:秒で表示
+      const minutes = Math.floor(remaining / 60000);
+      const seconds = Math.floor((remaining % 60000) / 1000);
+      const timeString = `${minutes}:${seconds.toString().padStart(2, '0')}`;
+      
+      const timerDisplay = document.getElementById('timerDisplay');
+      const timerElement = document.getElementById('sessionTimer');
+      
+      if (timerDisplay) {
+        timerDisplay.textContent = timeString;
+      }
+      
+      // 警告レベルに応じてスタイル変更
+      if (timerElement) {
+        timerElement.className = 'session-timer';
+        
+        if (remaining <= 60000) { // 1分以下
+          timerElement.classList.add('critical');
+        } else if (remaining <= 180000) { // 3分以下
+          timerElement.classList.add('warning');
+        }
+      }
+    }
+    
+    function sessionExpired() {
+      const timerElement = document.getElementById('sessionTimer');
+      const timerDisplay = document.getElementById('timerDisplay');
+      
+      if (timerDisplay) {
+        timerDisplay.textContent = '期限切れ';
+      }
+      
+      if (timerElement) {
+        timerElement.className = 'session-timer critical';
+        timerElement.querySelector('.timer-detail').textContent = '新しいセッションを開始してください';
+      }
+      
+      // 5秒後に新しいQRコードを生成
+      setTimeout(() => {
+        generateNewSession();
+      }, 5000);
+    }
+
+    // 新しいセッション生成
+    function generateNewSession() {
+      // タイマーをリセット
+      if (sessionTimer) {
+        clearInterval(sessionTimer);
+      }
+      
+      generateQRCode();
     }
 
     // テストデータ作成機能
@@ -1682,17 +1834,14 @@
           ${thumbnailHtml}
           <div class="file-details">
             <div class="file-name">${fileIcon} ${file.name}</div>
-            <div class="file-meta">
-              <span>サイズ: ${fileSize}</span>
-              <span>アップロード: ${fileDate}</span>
-              ${isImage ? '<span class="image-badge">画像</span>' : ''}
-            </div>
+            <div class="file-size">サイズ: ${fileSize}</div>
+            <div class="file-date">アップロード: ${fileDate}</div>
           </div>
           <div class="file-actions">
-            ${isImage ? `<button class="download-btn view-btn" onclick="viewFullImage('${file.data}', '${file.name}')">👁️ プレビュー</button>` : ''}
             <button class="download-btn" onclick="downloadFile('${file.id}', '${file.name}', '${file.data}')">
               ⬇️ ダウンロード
             </button>
+            ${isImage ? `<button class="download-btn view-btn" onclick="viewFullImage('${file.data}', '${file.name}')">👁️ プレビュー</button>` : ''}
           </div>
         </div>
       `;

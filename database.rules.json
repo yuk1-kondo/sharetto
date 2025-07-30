@@ -11,6 +11,16 @@
           ".write": true
         }
       }
+    },
+    "pc-share": {
+      "$sessionId": {
+        ".read": true,
+        ".write": true,
+        "$fileId": {
+          ".read": true,
+          ".write": true
+        }
+      }
     }
   }
 }
