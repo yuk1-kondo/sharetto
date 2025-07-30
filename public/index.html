@@ -1072,6 +1072,7 @@
             <p class="qr-url" id="qrUrl"></p>
           <div class="qr-actions">
             <button onclick="copyQRUrl()" class="action-button">📋 URLをコピー</button>
+            <button onclick="openPCShare()" class="action-button">🖥️ PC間共有</button>
             <button onclick="generateNewSession()" class="action-button">🔄 新しいQRコード</button>
           </div>
           </div>
@@ -1498,6 +1499,13 @@
       });
     }
 
+    // PC間共有を開く
+    function openPCShare() {
+      // 新しいタブでPC間共有ページを開く
+      const pcShareUrl = `${window.location.origin}/public/pc-share.html`;
+      window.open(pcShareUrl, '_blank');
+    }
+
     // テストデータ作成機能
     function createTestData() {
       console.log('テストデータを作成中...');
@@ -1822,6 +1830,7 @@
     window.authenticate = authenticate;
     window.generateNewSession = generateNewSession;
     window.copyQRUrl = copyQRUrl;
+    window.openPCShare = openPCShare;
     window.refreshFiles = refreshFiles;
     window.downloadFile = downloadFile;
     window.copyToClipboard = copyToClipboard;
