@@ -84,7 +84,12 @@ a { color: var(--md-primary); }
 .view-btn:hover { background: var(--md-primary-pressed) !important; }
 
 /* Session timer colors */
-.session-timer { background: var(--md-primary) !important; color: #fff !important; border: 1px solid var(--md-outline-variant) !important; }
+/* Start in blue regardless of primary button color; JS toggles .warning/.critical */
+.session-timer { 
+  background: linear-gradient(135deg, rgba(52, 120, 246, 0.95), rgba(33, 87, 243, 0.95)) !important; 
+  color: #fff !important; 
+  border: 1px solid var(--md-outline-variant) !important; 
+}
 .session-timer.warning { background: #f59e0b !important; }
 .session-timer.critical { background: #ef4444 !important; }
 
