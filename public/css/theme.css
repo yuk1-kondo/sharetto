@@ -90,6 +90,9 @@ a { color: var(--md-primary); }
   color: #fff !important; 
   border: 1px solid var(--md-outline-variant) !important; 
 }
+.session-timer .timer-text,
+.session-timer .timer-detail,
+.session-timer #timerDisplay { color: #fff !important; }
 .session-timer.warning { background: #f59e0b !important; }
 .session-timer.critical { background: #ef4444 !important; }
 
