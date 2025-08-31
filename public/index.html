@@ -1224,10 +1224,7 @@
     const { app, db, auth } = initFirebase(firebaseConfig);
     
     // Google認証プロバイダーをグローバルに設定
-    console.log('Firebase初期化完了:', {
-      authDomain: firebaseConfig.authDomain,
-      projectId: firebaseConfig.projectId
-    });
+    // quiet logs
 
     // セッション管理の定数
     const AUTH_SESSION_KEY = 'auth_session';
@@ -1247,27 +1244,19 @@
     // Googleログイン機能
     async function signInWithGoogle() {
       try {
-        console.log('Googleログイン開始...');
+        // quiet logs
         
         // Google認証プロバイダーの設定
         const provider = new GoogleAuthProvider();
         provider.addScope('email');
         provider.addScope('profile');
         
-        console.log('Firebase Auth設定:', {
-          authDomain: auth.app.options.authDomain,
-          projectId: auth.app.options.projectId
-        });
+        // quiet logs
         
         const result = await signInWithPopup(auth, provider);
         const user = result.user;
         
-        console.log('✅ Googleログイン成功:', {
-          displayName: user.displayName,
-          email: user.email,
-          uid: user.uid,
-          photoURL: user.photoURL
-        });
+        // quiet logs
         
         // ユーザー情報を保存
         currentUser = user;
@@ -1351,7 +1340,7 @@
         const loginError = document.getElementById('googleLoginError');
         if (loginError) loginError.style.display = 'none';
         
-        console.log('ログアウト完了');
+        // quiet logs
       } catch (error) {
         console.error('ログアウトエラー:', error);
       }
@@ -1359,23 +1348,18 @@
 
     // 認証状態の監視
     onAuthStateChanged(auth, (user) => {
-      console.log('🔄 認証状態変更:', user ? 'ログイン中' : 'ログアウト中');
+      // quiet logs
       
       if (user) {
         // ログイン済み
         currentUser = user;
-        console.log('✅ 認証済みユーザー:', {
-          displayName: user.displayName,
-          email: user.email,
-          uid: user.uid,
-          emailVerified: user.emailVerified
-        });
+        // quiet logs
         showMainContent();
         generateQRCode();
       } else {
         // ログアウト状態
         currentUser = null;
-        console.log('⚠️ ユーザーはログアウト状態');
+        // quiet logs
         checkAuthentication();
       }
     });
@@ -1475,7 +1459,7 @@
         qrElement.innerHTML = '';
         qrElement.appendChild(qrContainer);
         
-        console.log('QRコード生成成功:', currentUrl);
+        // quiet logs
         
         // タイマー開始
         startSessionTimer();
@@ -1812,36 +1796,14 @@
     
     
     
-    function refreshFiles() {
-      console.log('ファイルリストを更新中...');
-      displayFiles();
-    }
+    function refreshFiles() { displayFiles(); }
     
     // 初期化
     document.addEventListener('DOMContentLoaded', function() {
-      console.log('🚀 DOMContentLoaded - 初期化開始');
-      console.log('🌐 現在のURL:', window.location.href);
-      console.log('🔧 Firebase設定確認:', {
-        authDomain: firebaseConfig.authDomain,
-        projectId: firebaseConfig.projectId,
-        apiKey: firebaseConfig.apiKey.substring(0, 10) + '...'
-      });
-      
-      // Firebase Auth接続テスト
-      try {
-        console.log('🔑 Firebase Auth接続テスト:', auth.app.name);
-      } catch (error) {
-        console.error('❌ Firebase Auth接続エラー:', error);
-      }
-      
       // 認証状態をチェック
       checkAuthentication();
-      
       // 一定時間後にファイル表示を開始（認証状態に関係なく）
-      setTimeout(() => {
-        console.log('📁 ファイル表示を開始');
-        displayFiles();
-      }, 1000);
+      setTimeout(() => { displayFiles(); }, 1000);
     });
 
     // 旧 招待コード入力のEnter対応は廃止

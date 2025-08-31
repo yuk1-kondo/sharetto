@@ -62,17 +62,17 @@
       const code = extractDigits(input.value);
       if (!/^\d{6}$/.test(code)) return;
       statusEl.textContent = '照会中...';
-      console.info('[join] start lookup for code', code);
+    // quiet logs
       for (let i=0;i<10;i++) {
         try {
           const snap = await get(dbRef(db, `codes/${code}`));
-          console.info('[join] attempt', i+1, 'exists=', snap.exists());
+          // quiet logs
           if (snap.exists()) {
             const { sessionId, timestamp } = snap.val();
-            console.info('[join] found', { sessionId, timestamp });
+            // quiet logs
             // 10分TTLのクライアント側確認（念のため）
             if (Date.now() - (timestamp||0) < 600000) {
-              console.info('[join] redirecting to session', sessionId);
+              // quiet logs
               location.href = `upload.html?session=${sessionId}`;
               return;
             }

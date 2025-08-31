@@ -1,5 +1,4 @@
 import { dbRef, set, update } from './firebase.js';
-console.info('[files-save] version v20250831a');
 
 async function withRetry(fn, options = {}) {
   const {
@@ -41,7 +40,6 @@ export async function putFile(db, sessionId, payload) {
   // Keep parent metadata updated to satisfy strict rules in production
   updates['timestamp'] = payload.timestamp;
   if (typeof payload.size === 'number') updates['size'] = payload.size;
-  console.info('[files-save] putFile via update()', { path: `files/${sessionId}`, fileId, size: payload.size });
   await withRetry(() => update(parentRef, updates));
   return fileId;
 }
@@ -65,7 +63,6 @@ export async function putUrl(db, sessionId, urlString) {
   updates[urlId] = payload;
   updates['timestamp'] = payload.timestamp;
   updates['size'] = payload.size;
-  console.info('[files-save] putUrl via update()', { path: `files/${sessionId}`, urlId });
   await withRetry(() => update(parentRef, updates));
   return urlId;
 }

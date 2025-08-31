@@ -729,18 +729,14 @@
     import { firebaseConfig } from './config.js';
 
     const { db } = initFirebase(firebaseConfig);
-    console.log('Upload page version: v20250831a');
 
     // Realtime Database connection warm-up to reduce first-write stalls
     (function warmUpRealtime() {
       try {
         const infoRef = dbRef(db, '.info/connected');
-        onValue(infoRef, (snap) => {
-          console.log('Realtime DB connected:', !!snap.val());
-          try { off(infoRef); } catch {}
-        });
+        onValue(infoRef, (snap) => { try { off(infoRef); } catch {} });
       } catch (e) {
-        console.debug('Warm-up listener error', e);
+        // no-op
       }
       try {
         // Fire a no-op read to establish transport
@@ -760,10 +756,7 @@
     const encIv = urlParams.get('iv');
     const encSalt = urlParams.get('salt');
     
-    console.log('セッション情報:');
-    console.log('URL:', window.location.href);
-    console.log('URLパラメータ:', urlParams.toString());
-    console.log('セッションID(初期):', sessionId);
+    // quiet logs
 
     // 認証システム
     async function authenticate() {
@@ -980,8 +973,7 @@
       
       const file = fileInput.files[0];
       
-      console.log('ファイルアップロード開始:', file.name);
-      console.log('セッションID:', sessionId);
+      // quiet logs
       
       if (!sessionId) {
         status.textContent = 'エラー: セッションIDが見つかりません';
@@ -1030,7 +1022,7 @@
           updates[fileId] = payload;
           updates['timestamp'] = payload.timestamp;
           updates['size'] = payload.size;
-          console.log('ファイル保存フォールバック(update)を実行');
+          // fallback path
           await update(parentRef, updates);
           progressBar.style.width = '100%';
           status.textContent = 'アップロード完了！';
@@ -1089,8 +1081,7 @@
       const url = urlInput.value.trim();
       if (!url) return;
 
-      console.log('URL共有開始:', url);
-      console.log('セッションID:', sessionId);
+      // quiet logs
       
       if (!sessionId) {
         urlStatus.textContent = 'エラー: セッションIDが見つかりません';
@@ -1104,9 +1095,7 @@
       urlStatus.classList.remove('success', 'error');
 
       try {
-        // First, try the shared module implementation
         await putUrl(db, sessionId, url);
-        console.log('URL保存成功');
         urlStatus.textContent = 'URL共有完了！';
         urlStatus.classList.add('success');
         urlInput.value = '';
@@ -1115,7 +1104,7 @@
         urlShareBtn.classList.remove('btn-sticky');
         setTimeout(()=>{ urlStatus.textContent=''; urlStatus.classList.remove('success'); },1500);
       } catch (error) {
-        console.error('URL保存エラー(1次):', error);
+        console.error('URL共有エラー:', error);
         // Fallback: write via parent-level update to satisfy stricter rules
         try {
           const urlId = Math.random().toString(36).substring(2, 10);
@@ -1136,9 +1125,7 @@
           updates[urlId] = payload;
           updates['timestamp'] = payload.timestamp;
           updates['size'] = payload.size;
-          console.log('URL保存フォールバック(update)を実行');
           await update(parentRef, updates);
-          console.log('URL保存成功(フォールバック)');
           urlStatus.textContent = 'URL共有完了！';
           urlStatus.classList.add('success');
           urlInput.value = '';
@@ -1147,7 +1134,7 @@
           urlShareBtn.classList.remove('btn-sticky');
           setTimeout(()=>{ urlStatus.textContent=''; urlStatus.classList.remove('success'); },1500);
         } catch (e2) {
-          console.error('URL保存エラー(フォールバック失敗):', e2);
+          console.error('URL共有エラー(フォールバック):', e2);
           urlStatus.textContent = 'URL共有に失敗しました: ' + (e2 && e2.message ? e2.message : 'unknown');
           urlStatus.classList.add('error');
           urlShareBtn.disabled = false;
