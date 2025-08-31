@@ -933,11 +933,13 @@
     .timer-text {
       font-size: 18px;
       margin-bottom: 4px;
+      color: #fff;
     }
 
     .timer-detail {
       font-size: 13px;
-      opacity: 0.9;
+      color: #fff;
+      opacity: 1;
     }
 
     .timer-icon {
@@ -1116,13 +1118,13 @@
 
   <!-- メインコンテンツ -->
   <div id="mainContent" class="main-content">
-    <div class="topbar glass-container" style="margin: 0 auto 12px; max-width: 960px;">
-      <div class="topbar-inner">
-        <div style="display:flex;align-items:baseline;gap:12px">
-          <h1 style="margin:0;font-size:24px">シェアっと</h1>
-          <span style="opacity:.8">美しいファイル共有体験</span>
+    <div class="topbar glass-container" style="margin: 0 auto 12px; max-width: 960px; background: transparent; border: none; box-shadow: none;">
+      <div class="topbar-inner" style="display:grid;grid-template-columns:1fr auto;align-items:center;">
+        <div style="justify-self:center;text-align:center;">
+          <h1 style="margin:0;font-size:36px;font-weight:800;letter-spacing:.5px;">シェアっと</h1>
+          <div style="opacity:.8;font-size:14px;margin-top:2px;">美しいファイル共有体験</div>
         </div>
-        <div style="display:flex;gap:8px;flex-wrap:wrap;justify-content:flex-end">
+        <div style="display:flex;gap:8px;flex-wrap:wrap;justify-content:flex-end;align-items:center;">
           <button onclick="signOutUser()" class="action-button">🚪 ログアウト</button>
         </div>
       </div>
@@ -1143,15 +1145,9 @@
             <button onclick="copyQRUrl()" class="action-button">📋 URLをコピー</button>
             <button onclick="generateNewSession()" class="action-button">🔄 新しいQRコード</button>
           </div>
-          <div style="margin-top:12px">
-            <label style="font-size:14px;color:var(--text-secondary)">🔒 PINコード（自動生成・共有に必要）</label>
-            <input id="pinInput" inputmode="numeric" pattern="[0-9]*" maxlength="8" class="auth-input" style="max-width:200px;margin-top:6px" readonly />
-          </div>
-          <div style="margin-top:12px;padding-top:12px;border-top:1px solid rgba(0,0,0,.1)">
-            <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap">
-              <div style="font-weight:700">🧩 参加コード:</div>
-              <div id="joinCode" style="font-family:monospace;letter-spacing:2px;font-size:18px">------</div>
-            </div>
+          <div class="join-code-wrap" style="margin-top:16px;text-align:center;">
+            <div style="font-weight:700; font-size:14px; opacity:.85;">🧩 参加コード</div>
+            <div id="joinCode" style="font-family:monospace;letter-spacing:3px;font-size:28px; margin-top:4px;">------</div>
           </div>
         </div>
       </div>

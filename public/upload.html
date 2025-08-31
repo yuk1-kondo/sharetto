@@ -638,10 +638,10 @@
   <div id="authOverlay" class="auth-overlay">
     <div class="auth-container">
       <h2 class="auth-title">📱 シェアっと</h2>
-      <p class="auth-subtitle">アクセス認証が必要です</p>
-      <input type="password" id="authInput" class="auth-input" placeholder="アクセスコードを入力" maxlength="8" />
+      <p class="auth-subtitle">参加コードで認証してください</p>
+      <input type="password" id="authInput" class="auth-input" placeholder="参加コードを入力" maxlength="8" />
       <button onclick="authenticate()" class="auth-button">🔓 ログイン</button>
-      <div id="authError" class="auth-error">アクセスコードが正しくありません</div>
+      <div id="authError" class="auth-error">参加コードが正しくありません</div>
       <div class="auth-info">💡 QRコードからアクセスした場合、<br>自動的に認証されます</div>
     </div>
   </div>
@@ -777,7 +777,7 @@
           return;
         } catch (e) {
           console.error('復号失敗', e);
-          errorDiv.textContent = 'PINが違います';
+          errorDiv.textContent = '参加コードが違います';
           errorDiv.style.display = 'block';
           document.getElementById('authInput').value = '';
           setTimeout(() => { errorDiv.style.display = 'none'; }, 3000);
