@@ -72,13 +72,9 @@ PC側 (ブルーUI) ←→ Firebase Realtime Database ←→ モバイル側 (�
 
 ### 前提条件
 - 最新のWebブラウザ
-- Firebase CLI (デプロイ用)
+- Firebase CLI (デプロイ/エミュレータ用)
 - Firebase プロジェクト設定
 
-### セットアップ
-
-1. リポジトリをクローン
-```bash
 ### セットアップ手順
 
 1. リポジトリをクローン
@@ -87,12 +83,13 @@ git clone https://github.com/yuk1-kondo/sharetto.git
 cd sharetto
 ```
 
-2. ローカルでテスト
+2. ローカルでテスト（静的ホスティング）
 ```bash
-# シンプルなHTTPサーバーで起動
-python3 -m http.server 8000
-# または
+# public ディレクトリを配信
 npx serve public
+# または（プロジェクトルートで）
+python3 -m http.server 8000
+# ブラウザで http://localhost:8000/public/ にアクセス
 ```
 
 ### Firebase デプロイ (本番環境)
@@ -117,35 +114,52 @@ firebase use sharetto
 firebase deploy
 ```
 
-詳細なデプロイ手順は `FIREBASE_DEPLOY_GUIDE.md` を参照してください。
+Functions を利用する場合は、後述の「自動削除(10分)」セクションも参照してください。
 
 ## 📝 ファイル構成
 
 ```
-├── public/                 # 本番用ファイル
-│   ├── index.html         # PC側UI (QRコード表示画面)
-│   └── upload.html        # スマホ側UI (ファイル・URL共有画面)
-├── index.html              # 開発用PC側UI
-├── upload.html             # 開発用スマホ側UI
-├── firebase.json           # Firebase設定
-├── database.rules.json     # Firebase Realtime Database セキュリティルール
-├── CHANGELOG.md            # 更新履歴
-├── DEVELOPMENT_LOG.md      # 開発作業履歴
-├── README.md               # このファイル
-└── docs/                   # ドキュメント
-    ├── FIREBASE_DEPLOY_GUIDE.md
-    ├── URL_SHARING_GUIDE.md
-    └── プロジェクト ToDo.md
+├── public/                     # ホスティング対象
+│   ├── index.html             # PC側UI (QR表示/閲覧)
+│   ├── upload.html            # モバイルUI (アップロード/URL共有)
+│   ├── pc-share.html          # PC間共有UI（6桁コード）
+│   ├── join-session.html      # セッション参加UI（コード入力）
+│   ├── config.js              # Firebase公開設定（共通化）
+│   └── upload-liquid-glass.html # 互換: upload.html にリダイレクト
+├── firebase.json               # Firebase Hosting 設定
+├── database.rules.json         # Realtime Database セキュリティルール
+├── functions/                  # Cloud Functions（自動削除の定期実行）
+│   ├── index.js
+│   └── package.json
+├── cost-optimization-plan.md   # コスト最適化方針
+├── icon-design-brief.md        # アイコンデザイン企画
+└── README.md                   # このファイル
 ```
 
 ## 🔐 認証・セキュリティ
 
-- **アクセスコード認証**: 設定されたアクセスコードでの認証
-- **QRコード自動認証**: QRコードからのアクセス時は自動認証
-- **セッション管理**: 24時間有効な認証セッション
-- **Firebase セキュリティルール**: データベースアクセス制御
-- **セッションベースのアクセス制御**: 一意のセッションIDでデータ分離
-- **自動データ削除**: 24時間後の自動削除（実装予定）
+- PC側: Google アカウントでログイン（Firebase Auth）
+- モバイル側: 匿名認証（Firebase Auth）
+- ルール: `auth != null` を前提に、セッションIDとタイムスタンプでアクセス制御（`database.rules.json`）
+- 招待コードUI: 廃止（クライアント側直書きはセキュリティにならないため）
+- 設定の共通化: `public/config.js` にFirebase公開設定を集約
+
+## 🧹 自動削除（10分）
+
+UIでは10分の残り時間を表示し、ルールで「古いデータへの書込/読込」を抑制しています。実データの削除は Cloud Functions の定期実行で行います。
+
+- スケジュール: 1分ごとに実行
+- クリーニング対象: `files/{sessionId}/{fileId}`, `pc-share/{sessionId}/{fileId}`
+- 期限: 10分経過したアイテムを削除。空になったセッションノードも削除
+
+デプロイ手順（初回）:
+```bash
+cd functions
+npm ci # or npm install
+cd ..
+firebase deploy --only functions
+```
+ローカルでエミュレーションする場合は Firebase Emulator Suite を利用できます。
 
 ## 🤝 コントリビューション
 
@@ -157,16 +171,14 @@ firebase deploy
 4. ブランチにプッシュ (`git push origin feature/amazing-feature`)
 5. プルリクエストを作成
 
-## 📄 ライセンス
+## 📄 ライセンス / 作者 / 謝辞
 
-このプロジェクトは MIT ライセンスの下で公開されています。詳細は [LICENSE](LICENSE) ファイルを参照してください。
+MIT License
 
-## 👨‍💻 作者
-
-**YUKI KONDO**
+作者: **YUKI KONDO**
 - GitHub: [@yuk1-kondo](https://github.com/yuk1-kondo)
 
-## 🎉 謝辞
+謝辞:
 
 このプロジェクトの開発にあたり、以下の技術・サービスを使用させていただきました：
 
@@ -177,17 +189,7 @@ firebase deploy
 ---
 
 ⭐ このプロジェクトが役に立った場合は、ぜひスターをお願いします！
-- Firebase セキュリティルールによるアクセス制限
-
-## 📄 ライセンス
-
-MIT License
 
 ## 🤝 コントリビューション
 
-プルリクエストやイシューの報告を歓迎します。
-
----
-
-作成者: Yuki Kondo
-作成日: 2025年6月5日
+プルリクエストや Issue の報告を歓迎します！

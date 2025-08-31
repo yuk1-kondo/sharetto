@@ -1,0 +1,40 @@
+/* Sharetto Component Styles (light theme aligned) */
+
+/* Layout helpers */
+.container { max-width: 960px; margin: 0 auto; padding: 16px; }
+.section { margin: 16px auto; }
+
+/* Headings */
+.section-title { font-size: 24px; font-weight: 700; color: var(--md-on-surface); margin: 0 0 8px; }
+.section-subtitle { font-size: 14px; color: var(--md-on-surface-variant); margin: 0 0 16px; }
+
+/* Cards */
+.card { background: var(--md-surface); border: 1px solid var(--md-outline-variant); border-radius: 16px; box-shadow: 0 8px 24px rgba(0,0,0,.06); padding: 16px; }
+
+/* Buttons */
+.btn, .auth-button, .action-button, .download-btn, .btn-primary {
+  display: inline-flex; align-items: center; justify-content: center;
+  gap: 8px; min-height: 44px; padding: 12px 16px; border-radius: 12px;
+  font-weight: 700; text-align: center; cursor: pointer;
+  transition: background .15s ease, transform .05s ease;
+}
+.btn:active, .auth-button:active, .action-button:active, .download-btn:active, .btn-primary:active { transform: translateY(0.5px); }
+
+/* Inputs */
+.auth-input, .session-input, .url-input {
+  display: block; width: 100%; min-height: 44px; border-radius: 12px;
+  padding: 12px 14px; box-sizing: border-box; border: 1px solid var(--md-outline-variant);
+}
+
+/* Lists */
+.files-list { display: block; }
+.no-files { color: var(--md-on-surface-variant); text-align: center; padding: 24px 12px; }
+
+/* Topbar */
+.topbar { position: sticky; top: 0; z-index: 120; background: var(--md-surface); border-bottom: 1px solid var(--md-outline); padding: 8px 12px; }
+
+/* Sticky CTA (mobile) */
+@media (max-width: 768px) {
+  .btn-sticky { position: fixed; left: 12px; right: 12px; bottom: max(12px, env(safe-area-inset-bottom)); width: auto; z-index: 110; }
+}
+

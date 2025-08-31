@@ -1,0 +1,95 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>参加コードで参加 - シェアっと</title>
+  <link rel="stylesheet" href="css/theme.css" />
+  <link rel="stylesheet" href="css/components.css" />
+  <style>
+    body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; margin:0; }
+    .wrap { max-width:520px; margin:40px auto; padding:24px; background: rgba(255,255,255,0.06); border:1px solid rgba(255,255,255,0.24); border-radius:16px; overflow:hidden; }
+    h1 { margin:0 0 8px; font-size:28px; }
+    p { margin:0 0 16px; color:rgba(255,255,255,0.8) }
+    .input { display:block; width:100%; padding:14px 16px; font-size:20px; letter-spacing:2px; border-radius:12px; border:1px solid rgba(255,255,255,0.24); background: rgba(255,255,255,0.06); color:#fff; text-align:center; box-sizing:border-box; }
+    .input:focus { outline:none; box-shadow:0 0 0 3px rgba(10,132,255,.35); }
+    .btn { display:block; width:100%; margin-top:12px; padding:12px 16px; border-radius:12px; border:1px solid transparent; background:#0a84ff; color:#fff; font-weight:700; cursor:pointer; box-sizing:border-box; }
+    .btn:disabled { opacity:.5; cursor:not-allowed; }
+    .status { margin-top:10px; min-height:20px; color:rgba(255,255,255,0.85) }
+  </style>
+  <!-- Material theme overrides: fixed light scheme across pages -->
+  <style>
+    :root { --md-bg:#f6f7f9; --md-surface:#ffffff; --md-surface-variant:#f2f4f7; --md-outline:#d0d7e2; --md-outline-variant:#e3e8f1; --md-on-bg:#111111; --md-on-surface:#111111; --md-primary:#2962ff; --md-primary-pressed:#0039cb; }
+    body { background: var(--md-bg); color: var(--md-on-bg); color-scheme: light; }
+    .wrap { background: var(--md-surface); border-color: var(--md-outline-variant); }
+    .btn { background: var(--md-primary); }
+    .btn:hover { background: var(--md-primary-pressed); }
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <h1>🧩 参加コード</h1>
+    <p>6桁のPIN/参加コードを入力するとセッションに参加できます（有効期限10分）。URLを貼り付けてもOKです。</p>
+    <input id="code" class="input" placeholder="例: 123456 または URL を貼付け" maxlength="64" autocomplete="off" />
+    <button id="joinBtn" class="btn" disabled>参加する</button>
+    <a href="/" style="display:block;text-align:center;margin-top:12px;color:#9ecbff;text-decoration:underline">← トップへ戻る</a>
+    <div id="status" class="status"></div>
+  </div>
+
+  <script type="module">
+    import { initFirebase, dbRef, get } from './js/firebase.js';
+    import { firebaseConfig } from './config.js';
+
+    const { db } = initFirebase(firebaseConfig);
+
+    const input = document.getElementById('code');
+    const btn = document.getElementById('joinBtn');
+    const statusEl = document.getElementById('status');
+
+    function extractDigits(s) { return (s || '').replace(/[^0-9]/g,'').slice(0,6); }
+
+    function update() {
+      const digits = extractDigits(input.value);
+      btn.disabled = !/^\d{6}$/.test(digits);
+      statusEl.textContent = '';
+    }
+    input.addEventListener('input', update);
+    input.addEventListener('paste', () => setTimeout(update));
+    input.addEventListener('keypress', (e)=>{ if(e.key==='Enter' && !btn.disabled){ join(); }});
+    btn.addEventListener('click', join);
+
+    async function join() {
+      const code = extractDigits(input.value);
+      if (!/^\d{6}$/.test(code)) return;
+      statusEl.textContent = '照会中...';
+      console.info('[join] start lookup for code', code);
+      for (let i=0;i<10;i++) {
+        try {
+          const snap = await get(dbRef(db, `codes/${code}`));
+          console.info('[join] attempt', i+1, 'exists=', snap.exists());
+          if (snap.exists()) {
+            const { sessionId, timestamp } = snap.val();
+            console.info('[join] found', { sessionId, timestamp });
+            // 10分TTLのクライアント側確認（念のため）
+            if (Date.now() - (timestamp||0) < 600000) {
+              console.info('[join] redirecting to session', sessionId);
+              location.href = `upload.html?session=${sessionId}`;
+              return;
+            }
+          }
+        } catch (e) {
+          console.warn('codes読み取りエラー', e);
+          statusEl.textContent = '権限エラーが発生しました。しばらくしてからお試しください。';
+        }
+        await new Promise(r=>setTimeout(r, 700));
+      }
+      statusEl.textContent = 'コードが見つからないか、有効期限が切れました。PC側で新しいコードを発行してください。';
+    }
+
+    // URLに ?code=123456 があればセット
+    const urlCode = new URLSearchParams(location.search).get('code');
+    if (urlCode) { input.value = urlCode; update(); }
+    input.focus();
+  </script>
+</body>
+</html>

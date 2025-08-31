@@ -4,6 +4,8 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>シェアっと - PC ログイン (Liquid Glass)</title>
+  <link rel="stylesheet" href="css/theme.css">
+  <link rel="stylesheet" href="css/components.css">
   <style>
     * {
       margin: 0;
@@ -13,61 +15,12 @@
     
     body {
       font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-      background: linear-gradient(135deg, 
-        #667eea 0%, 
-        #764ba2 25%, 
-        #f093fb 50%, 
-        #f5576c 75%, 
-        #4facfe 100%);
-      background-size: 400% 400%;
-      animation: gradientShift 15s ease infinite;
       min-height: 100vh;
       overflow-x: hidden;
     }
     
     @keyframes gradientShift {
-      0% { bac    <div class="glass-container">
-      <!-- QRコード表示 -->
-      <div class="qr-section">
-        <div class="qr-header">
-          <h3>📱 スマートフォンでアクセス</h3>
-          <p>下のQRコードをスマートフォンで読み取ってファイルをアップロードしてください</p>
-        </div>
-        <div class="qr-container">
-          <div id="qrcode" class="qr-display"></div>
-          <div class="qr-info">
-            <p class="qr-url" id="qrUrl"></p>
-          <div class="qr-actions">
-            <button onclick="copyQRUrl()" class="action-button">📋 URLをコピー</button>
-            <button onclick="generateNewSession()" class="action-button">🔄 新しいQRコード</button>
-            <button onclick="createTestData()" class="action-button">🧪 テストデータ</button>
-          </div>
-          </div>
-        </div>
-      </div>
-    </div>
-
-    <!-- アップロードされたファイル表示 -->
-    <div class="glass-container">
-      <div class="files-header">
-        <h3>📁 アップロードされたファイル</h3>
-        <button onclick="refreshFiles()" class="action-button">🔄 更新</button>
-      </div>
-      <div id="filesList" class="files-list">
-        <div class="no-files">まだファイルがアップロードされていません</div>
-      </div>
-    </div>
-
-    <!-- 共有されたURL表示 -->
-    <div class="glass-container">
-      <div class="files-header">
-        <h3>🔗 共有されたURL</h3>
-        <button onclick="refreshFiles()" class="action-button">🔄 更新</button>
-      </div>
-      <div id="urlsList" class="files-list">
-        <div class="no-files">まだURLが共有されていません</div>
-      </div>
-    </div>% 50%; }
+      0% { background-position: 0% 50%; }
       50% { background-position: 100% 50%; }
       100% { background-position: 0% 50%; }
     }
@@ -170,10 +123,7 @@
     .auth-title {
       font-size: 28px;
       margin-bottom: 16px;
-      background: linear-gradient(135deg, #fff, #f0f0f0);
-      -webkit-background-clip: text;
-      -webkit-text-fill-color: transparent;
-      background-clip: text;
+      color: #111111;
       font-weight: 700;
       position: relative;
       z-index: 1;
@@ -300,22 +250,15 @@
     }
     
     /* Header */
-    .header {
-      text-align: center;
-      margin-bottom: 40px;
-    }
+    .header { text-align: center; margin-bottom: 40px; }
+    .topbar { position: sticky; top: 0; z-index: 100; padding: 12px 16px; }
+    .topbar-inner { display:flex; align-items:center; justify-content:space-between; gap:12px; }
     
     .header h1 {
       font-size: 48px;
       font-weight: 800;
       margin-bottom: 16px;
-      background: linear-gradient(135deg, 
-        rgba(255, 255, 255, 0.9), 
-        rgba(255, 255, 255, 0.6));
-      -webkit-background-clip: text;
-      -webkit-text-fill-color: transparent;
-      background-clip: text;
-      text-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+      color: #111111;
     }
     
     .header p {
@@ -1074,23 +1017,89 @@
         padding: 12px 8px;
       }
     }
+  /* Apple-like design tokens and overrides */
+  :root {
+    --accent: #0a84ff;
+    --accent-pressed: #0066cc;
+    --text-primary: rgba(255, 255, 255, 0.92);
+    --text-secondary: rgba(255, 255, 255, 0.72);
+    --border: rgba(255, 255, 255, 0.16);
+    --border-strong: rgba(255, 255, 255, 0.24);
+    --surface: rgba(255, 255, 255, 0.10);
+    --radius-lg: 20px;
+    --radius-xl: 24px;
+  }
+
+  body {
+    background: linear-gradient(180deg, #0b0f14, #11151b);
+    color: var(--text-primary);
+  }
+
+  .glass-container { background: var(--surface); border-color: var(--border); border-radius: var(--radius-xl); }
+  .auth-title { color: var(--text-primary); -webkit-text-fill-color: unset; background: none; }
+  .auth-input { background: var(--surface); border-color: var(--border); color: var(--text-primary); }
+  .auth-input:focus { border-color: var(--border-strong); box-shadow: 0 0 0 4px rgba(10,132,255,.15); transform: none; }
+  .auth-button, .btn-primary, .action-button, .download-btn { background: var(--accent); border-color: transparent; color: #fff; }
+  .auth-button:hover, .btn-primary:hover, .action-button:hover, .download-btn:hover { background: var(--accent-pressed); }
+  .header h1 { -webkit-text-fill-color: unset; background: none; color: var(--text-primary); }
+  .file-item, .url-item { background: rgba(255,255,255,0.08); border-color: var(--border); }
+  .url-link { color: var(--accent); }
+  </style>
+  <!-- Material theme overrides: fixed light scheme (no dark switch) -->
+  <style>
+    :root { --md-bg:#f6f7f9; --md-surface:#ffffff; --md-surface-variant:#f2f4f7; --md-outline:#d0d7e2; --md-outline-variant:#e3e8f1; --md-on-bg:#111111; --md-on-surface:#111111; --md-on-surface-variant:#4a5568; --md-primary:#2962ff; --md-primary-pressed:#0039cb; }
+    body { background: var(--md-bg) !important; color: var(--md-on-bg); color-scheme: light; }
+    .glass-container, .auth-container { background: var(--md-surface) !important; border:1px solid var(--md-outline-variant) !important; }
+    .auth-button, .action-button, .btn, .download-btn { background: var(--md-primary) !important; color:#fff !important; border-color: transparent !important; }
+    .auth-button:hover, .action-button:hover, .btn:hover, .download-btn:hover { background: var(--md-primary-pressed) !important; }
+    .header h1, .files-header h3, .qr-header h3 { color: var(--md-on-surface) !important; }
+    .file-item, .url-item { background: var(--md-surface-variant) !important; border:1px solid var(--md-outline) !important; }
+    .auth-subtitle, .header p, .qr-header p, .file-meta, .file-size, .file-date, .auth-info, .status { color: var(--md-on-surface-variant) !important; }
+    .url-link { color: var(--md-primary) !important; }
+  </style>
+  <style>
+  /* Legacy tokens remapped to fixed light scheme */
+  :root {
+    --bg-start: var(--md-bg);
+    --bg-end: var(--md-bg);
+    --surface: var(--md-surface);
+    --border: var(--md-outline-variant);
+    --border-strong: var(--md-outline);
+    --text-primary: var(--md-on-surface);
+    --text-secondary: var(--md-on-surface-variant);
+    --accent: var(--md-primary);
+    --accent-pressed: var(--md-primary-pressed);
+    --radius-md: 12px; --radius-lg: 16px; --radius-xl: 24px;
+    --shadow-elev: 0 8px 24px rgba(0,0,0,0.08);
+  }
+  body { background: linear-gradient(180deg, var(--bg-start), var(--bg-end)); color: var(--text-primary); line-height: 1.5; }
+  .glass-container { background: var(--surface); border-color: var(--border); border-radius: var(--radius-xl); box-shadow: var(--shadow-elev); }
+  .header h1 { color: var(--text-primary); -webkit-text-fill-color: initial; background: none; }
+  .header p { color: var(--text-secondary); }
+  .files-header h3, .qr-header h3 { color: var(--text-primary); }
+  .qr-header p { color: var(--text-secondary); }
+  /* Inputs */
+  .auth-input, .session-input, .url-input { background: var(--surface); border-color: var(--border); color: var(--text-primary); }
+  .auth-input::placeholder, .session-input::placeholder, .url-input::placeholder { color: var(--text-secondary); }
+  .auth-input:focus, .session-input:focus, .url-input:focus { border-color: var(--border-strong); box-shadow: 0 0 0 4px rgba(10,132,255,.15); transform: none; }
+  /* Buttons */
+  .btn, .auth-button, .action-button, .download-btn { min-height: 44px; padding: 12px 16px; border-radius: var(--radius-lg); background: var(--accent); border: 1px solid transparent; color: #fff; }
+  .btn:hover, .auth-button:hover, .action-button:hover, .download-btn:hover { background: var(--accent-pressed); transform: none; box-shadow: none; }
+  .btn:disabled, .auth-button:disabled, .action-button:disabled, .download-btn:disabled { opacity: .5; cursor: not-allowed; }
+  .btn:focus-visible, .auth-button:focus-visible, .action-button:focus-visible, .download-btn:focus-visible { outline: none; box-shadow: 0 0 0 4px rgba(10,132,255,.25); }
+  /* Items */
+  .file-item, .url-item { background: var(--surface); border-color: var(--border); }
+  .file-meta, .file-size, .file-date { color: var(--text-secondary); }
+  .url-link { color: var(--accent); }
+  /* Reduce playful motion */
+  .upload-area:hover, .tab-button:not(.active):hover { transform: none; box-shadow: none; }
   </style>
 </head>
 <body>
-  <!-- 認証オーバーレイ -->
+  <!-- 認証オーバーレイ（Googleログインのみ） -->
   <div id="authOverlay" class="auth-overlay">
-    <!-- 招待コード入力画面 -->
-    <div id="inviteCodeScreen" class="auth-container">
-      <h2 class="auth-title">🎫 招待制アクセス</h2>
-      <p class="auth-subtitle">招待コードを入力してください</p>
-      <input type="password" id="inviteCodeInput" class="auth-input" placeholder="招待コードを入力" maxlength="8" />
-      <button onclick="checkInviteCode()" class="auth-button">🎟️ 次へ</button>
-      <div id="inviteCodeError" class="auth-error">招待コードが正しくありません</div>
-      <div class="auth-info">💡 招待コードが必要です</div>
-    </div>
-
-    <!-- Googleログイン画面 -->
-    <div id="googleLoginScreen" class="auth-container hidden-screen">
+    <div id="googleLoginScreen" class="auth-container">
+      <h1 style="font-size:32px;font-weight:800;margin-bottom:8px;letter-spacing:.5px;">シェアっと</h1>
       <h2 class="auth-title">🔐 Googleログイン</h2>
       <p class="auth-subtitle">Googleアカウントでログインしてください</p>
       <button onclick="signInWithGoogle()" class="auth-button google-login-btn">
@@ -1098,42 +1107,55 @@
         Googleでログイン
       </button>
       <div id="googleLoginError" class="auth-error">ログインに失敗しました</div>
-      <div class="auth-info">💡 招待コード認証が完了しました</div>
-      <button onclick="backToInviteCode()" class="btn-secondary back-button">
-        ← 招待コード入力に戻る
-      </button>
+      <div class="auth-info">💡 ログイン後にQRコードが表示されます</div>
+
+      <div style="margin:16px 0; opacity:.7; font-size:14px;">— または —</div>
+      <a href="/join.html" class="auth-button" style="display:block;text-align:center">🧩 参加専用ページへ</a>
     </div>
   </div>
 
   <!-- メインコンテンツ -->
   <div id="mainContent" class="main-content">
-    <div class="header">
-      <h1>シェアっと</h1>
-      <p>美しいファイル共有体験</p>
-      <button onclick="signOutUser()" class="logout-btn">
-        🚪 ログアウト
-      </button>
+    <div class="topbar glass-container" style="margin: 0 auto 12px; max-width: 960px;">
+      <div class="topbar-inner">
+        <div style="display:flex;align-items:baseline;gap:12px">
+          <h1 style="margin:0;font-size:24px">シェアっと</h1>
+          <span style="opacity:.8">美しいファイル共有体験</span>
+        </div>
+        <div style="display:flex;gap:8px;flex-wrap:wrap;justify-content:flex-end">
+          <button onclick="signOutUser()" class="action-button">🚪 ログアウト</button>
+        </div>
+      </div>
     </div>
 
-    <div class="glass-container">
+    <div class="glass-container" style="max-width:960px">
       <!-- QRコード表示 -->
       <div class="qr-section">
         <div class="qr-header">
           <h3>📱 スマートフォンでアクセス</h3>
           <p>下のQRコードをスマートフォンで読み取ってファイルをアップロードしてください</p>
         </div>
-        <div class="qr-container">
-          <div id="qrcode" class="qr-display"></div>
-          <div class="qr-info">
-            <p class="qr-url" id="qrUrl"></p>
+      <div class="qr-container">
+        <div id="qrcode" class="qr-display"></div>
+        <div class="qr-info">
+          <p class="qr-url" id="qrUrl"></p>
           <div class="qr-actions">
             <button onclick="copyQRUrl()" class="action-button">📋 URLをコピー</button>
-            <button onclick="openPCShare()" class="action-button">🖥️ PC間共有</button>
             <button onclick="generateNewSession()" class="action-button">🔄 新しいQRコード</button>
           </div>
+          <div style="margin-top:12px">
+            <label style="font-size:14px;color:var(--text-secondary)">🔒 PINコード（自動生成・共有に必要）</label>
+            <input id="pinInput" inputmode="numeric" pattern="[0-9]*" maxlength="8" class="auth-input" style="max-width:200px;margin-top:6px" readonly />
+          </div>
+          <div style="margin-top:12px;padding-top:12px;border-top:1px solid rgba(0,0,0,.1)">
+            <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap">
+              <div style="font-weight:700">🧩 参加コード:</div>
+              <div id="joinCode" style="font-family:monospace;letter-spacing:2px;font-size:18px">------</div>
+            </div>
           </div>
         </div>
       </div>
+    </div>
       
       <!-- セッションタイマー表示 -->
       <div id="sessionTimer" class="session-timer" style="display: none;">
@@ -1146,7 +1168,7 @@
     </div>
 
     <!-- アップロードされたファイル表示 -->
-    <div class="glass-container">
+    <div class="glass-container" style="max-width:960px">
       <div class="files-header">
         <h3>📁 アップロードされたファイル</h3>
         <button onclick="refreshFiles()" class="action-button">🔄 更新</button>
@@ -1157,7 +1179,7 @@
     </div>
 
     <!-- 共有されたURL表示 -->
-    <div class="glass-container">
+    <div class="glass-container" style="max-width:960px">
       <div class="files-header">
         <h3>🔗 共有されたURL</h3>
         <button onclick="refreshFiles()" class="action-button">🔄 更新</button>
@@ -1192,26 +1214,14 @@
   <script src="https://cdn.jsdelivr.net/npm/qrcode-generator@1.4.4/qrcode.js"></script>
 
   <script type="module">
-    // Firebase SDKをインポート
-    import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
-    import { getDatabase, ref as dbRef, push, set, onValue, off } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-database.js";
-    import { getAuth, signInWithPopup, GoogleAuthProvider, onAuthStateChanged, signOut } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-auth.js";
-
-    // Firebaseの設定（元の設定を使用）
-    const firebaseConfig = {
-      apiKey: "AIzaSyBfQL3uQps2xRvfJn7CWaa-7KNmvNopARA",
-      authDomain: "sharetto-app.firebaseapp.com",
-      databaseURL: "https://sharetto-app-default-rtdb.asia-southeast1.firebasedatabase.app",
-      projectId: "sharetto-app",
-      storageBucket: "sharetto-app.firebasestorage.app",
-      messagingSenderId: "41080814725",
-      appId: "1:41080814725:web:9e08830290acdb28903dec"
-    };
+    // Firebase centralized module
+    import { initFirebase, dbRef, set, get, onValue, off, serverTimestamp, GoogleAuthProvider, signInWithPopup, onAuthStateChanged, signOut } from './js/firebase.js';
+    import { viewFullImage, closeImageModal, downloadModalImage, downloadFile, copyToClipboard } from './js/ui.js';
+    import { attachFilesListener } from './js/files-view.js';
+    import { firebaseConfig } from './config.js';
 
     // Firebaseの初期化
-    const app = initializeApp(firebaseConfig);
-    const db = getDatabase(app);
-    const auth = getAuth(app);
+    const { app, db, auth } = initFirebase(firebaseConfig);
     
     // Google認証プロバイダーをグローバルに設定
     console.log('Firebase初期化完了:', {
@@ -1225,73 +1235,17 @@
     const SESSION_DURATION = 24 * 60 * 60 * 1000; // 24時間
 
     let currentSessionId = null;
+    let currentJoinCode = null; // PINと同じ6桁を表示
     let currentUser = null;
     let sessionStartTime = null;
     let sessionTimer = null;
     const SESSION_DURATION_MS = 10 * 60 * 1000; // 10分間
+    let currentFilesRef = null;
 
-    // 招待コード設定（実際の運用では環境変数や安全な場所に保存）
-    const VALID_INVITE_CODES = [
-      'SHARE123',
-      'INVITE24',
-      'ACCESS99',
-      'FRIEND01',
-      'YUKI2025'  // 新しい招待コードを追加
-    ];
-
-    // 招待コード認証
-    function checkInviteCode() {
-      const inviteCode = document.getElementById('inviteCodeInput').value.trim().toUpperCase();
-      const errorDiv = document.getElementById('inviteCodeError');
-      
-      if (!inviteCode) {
-        errorDiv.textContent = '招待コードを入力してください';
-        errorDiv.style.display = 'block';
-        return;
-      }
-      
-      if (VALID_INVITE_CODES.includes(inviteCode)) {
-        // 招待コード認証成功 → Googleログイン画面へ
-        console.log('招待コード認証成功:', inviteCode);
-        document.getElementById('inviteCodeScreen').classList.add('hidden-screen');
-        document.getElementById('googleLoginScreen').classList.remove('hidden-screen');
-        errorDiv.style.display = 'none';
-        
-        // 招待コードをセッションに保存
-        sessionStorage.setItem('inviteCodeValid', 'true');
-        sessionStorage.setItem('usedInviteCode', inviteCode);
-      } else {
-        // 招待コード認証失敗
-        errorDiv.textContent = '招待コードが正しくありません';
-        errorDiv.style.display = 'block';
-        document.getElementById('inviteCodeInput').value = '';
-        
-        // エラーを一定時間後に隠す
-        setTimeout(() => {
-          errorDiv.style.display = 'none';
-        }, 3000);
-      }
-    }
-
-    // Googleログイン画面に戻る
-    function backToInviteCode() {
-      document.getElementById('googleLoginScreen').classList.add('hidden-screen');
-      document.getElementById('inviteCodeScreen').classList.remove('hidden-screen');
-      document.getElementById('inviteCodeInput').value = '';
-      document.getElementById('googleLoginError').style.display = 'none';
-    }
+    // 招待コードUIは廃止（Firebase Authで保護）
 
     // Googleログイン機能
     async function signInWithGoogle() {
-      // 招待コード認証チェック
-      if (sessionStorage.getItem('inviteCodeValid') !== 'true') {
-        console.error('招待コード認証が完了していません');
-        document.getElementById('googleLoginError').textContent = '招待コード認証が必要です';
-        document.getElementById('googleLoginError').style.display = 'block';
-        backToInviteCode();
-        return;
-      }
-
       try {
         console.log('Googleログイン開始...');
         
@@ -1318,9 +1272,7 @@
         // ユーザー情報を保存
         currentUser = user;
         
-        // 認証完了の記録
-        const usedCode = sessionStorage.getItem('usedInviteCode');
-        console.log('使用された招待コード:', usedCode);
+        // 認証完了の記録（招待コードは廃止）
         
         // 成功時のユーザーフィードバック
         const googleLoginError = document.getElementById('googleLoginError');
@@ -1392,15 +1344,12 @@
         sessionStorage.removeItem('usedInviteCode');
         
         // 認証画面に戻る
-        document.getElementById('authOverlay').style.display = 'flex';
-        document.getElementById('inviteCodeScreen').classList.remove('hidden-screen');
-        document.getElementById('googleLoginScreen').classList.add('hidden-screen');
-        document.getElementById('mainContent').classList.remove('authenticated');
-        
-        // 入力フィールドをクリア
-        document.getElementById('inviteCodeInput').value = '';
-        document.getElementById('inviteCodeError').style.display = 'none';
-        document.getElementById('googleLoginError').style.display = 'none';
+        const overlay = document.getElementById('authOverlay');
+        if (overlay) overlay.style.display = 'flex';
+        const main = document.getElementById('mainContent');
+        if (main) main.classList.remove('authenticated');
+        const loginError = document.getElementById('googleLoginError');
+        if (loginError) loginError.style.display = 'none';
         
         console.log('ログアウト完了');
       } catch (error) {
@@ -1470,49 +1419,33 @@
         return true;
       }
       
-      // 招待コード + Googleログインの状態をチェック
-      const inviteCodeValid = sessionStorage.getItem('inviteCodeValid');
-      
-      // 従来のパスワード認証をフォールバック（開発用）
-      const authSession = localStorage.getItem(AUTH_SESSION_KEY);
-      const authExpires = localStorage.getItem(AUTH_EXPIRES_KEY);
-      
-      if (authSession === 'authenticated' && authExpires && Date.now() < parseInt(authExpires)) {
-        // 有効な認証セッションがある場合（従来の認証）
-        showMainContent();
-        generateQRCode();
-        return true;
-      } else {
-        // 認証が必要 - 招待コード入力画面を表示
-        if (authSession && authExpires && Date.now() >= parseInt(authExpires)) {
-          // セッション期限切れの場合、クリア
-          localStorage.removeItem(AUTH_SESSION_KEY);
-          localStorage.removeItem(AUTH_EXPIRES_KEY);
-        }
-        
-        // 招待制認証画面を表示
-        document.getElementById('authOverlay').style.display = 'flex';
-        document.getElementById('inviteCodeScreen').classList.remove('hidden-screen');
-        document.getElementById('googleLoginScreen').classList.add('hidden-screen');
-        document.getElementById('mainContent').classList.remove('authenticated');
-        
-        // 招待コード入力にフォーカス
-        setTimeout(() => {
-          document.getElementById('inviteCodeInput').focus();
-        }, 100);
-        
-        return false;
-      }
+      // Googleログインを要求
+      document.getElementById('authOverlay').style.display = 'flex';
+      document.getElementById('googleLoginScreen').classList.remove('hidden-screen');
+      document.getElementById('mainContent').classList.remove('authenticated');
+      return false;
+    }
+
+    // 13文字のセッションIDを生成（小文字英数）
+    function generateSessionId() {
+      // 時刻 + 乱数で十分な長さを作り、13文字に切り詰め
+      const seed = (Date.now().toString(36) + Math.random().toString(36).slice(2)).replace(/[^a-z0-9]/g,'');
+      return seed.slice(0, 13);
     }
 
     // QRコード生成機能
-    function generateQRCode() {
+    async function generateQRCode() {
       // セッションIDを生成
-      currentSessionId = Math.random().toString(36).substring(2, 15);
+      currentSessionId = generateSessionId();
       sessionStartTime = Date.now(); // セッション開始時間を記録
       
       const qrElement = document.getElementById('qrcode');
-      const currentUrl = `${window.location.origin}/upload.html?session=${currentSessionId}`;
+      let currentUrl = `${window.location.origin}/upload.html?session=${currentSessionId}`;
+      
+      // PINはjoin用に自動生成するが、QRは平文セッションURLを使用（スマホでPIN入力不要に）
+      const pin = generatePin();
+      const pinInput = document.getElementById('pinInput');
+      if (pinInput) pinInput.value = pin;
       
       // ローディング表示
       qrElement.innerHTML = '<div style="color: white; text-align: center; padding: 40px;">QRコード生成中...</div>';
@@ -1555,10 +1488,44 @@
         qrElement.innerHTML = '<p style="color: #ff6b6b; text-align: center; padding: 40px;">QRコードの生成に失敗しました</p>';
       }
       
-      // URL表示を更新
+      // URL表示を更新（スマホはPIN不要で直接入れる導線）
       document.getElementById('qrUrl').textContent = currentUrl;
+      // 参加コード=PIN として発行（join.html 用）
+      const ok = await ensureJoinCodeForSession(pin);
+      if (!ok) {
+        alert('参加コードの発行に失敗しました。ページを更新してやり直してください。');
+      }
+      updateJoinCodeUI();
     }
 
+    // --- Encryption helpers (Web Crypto) ---
+    function toUint8(str) { return new TextEncoder().encode(str); }
+    function b64url(buf) {
+      let bin = '';
+      const bytes = new Uint8Array(buf);
+      for (let i = 0; i < bytes.byteLength; i++) bin += String.fromCharCode(bytes[i]);
+      return btoa(bin).replace(/\+/g,'-').replace(/\//g,'_').replace(/=+$/,'');
+    }
+    async function encryptSessionId(sessionId, pin) {
+      const salt = crypto.getRandomValues(new Uint8Array(16));
+      const iv = crypto.getRandomValues(new Uint8Array(12));
+      const keyMaterial = await crypto.subtle.importKey('raw', toUint8(pin), 'PBKDF2', false, ['deriveKey']);
+      const key = await crypto.subtle.deriveKey(
+        { name: 'PBKDF2', salt, iterations: 200000, hash: 'SHA-256' },
+        keyMaterial,
+        { name: 'AES-GCM', length: 256 },
+        false,
+        ['encrypt']
+      );
+      const ctBuf = await crypto.subtle.encrypt({ name: 'AES-GCM', iv }, key, toUint8(sessionId));
+      return { ct: b64url(ctBuf), iv: b64url(iv), salt: b64url(salt) };
+    }
+
+    function generatePin() {
+      // 6桁の数字PIN（000000は避ける）
+      let pin = String(Math.floor(100000 + Math.random() * 900000));
+      return pin;
+    }
     // QR URL コピー機能
     function copyQRUrl() {
       const url = document.getElementById('qrUrl').textContent;
@@ -1567,12 +1534,25 @@
       });
     }
 
-    // PC間共有を開く
-    function openPCShare() {
-      // 新しいタブでPC間共有ページを開く
-      const pcShareUrl = `${window.location.origin}/pc-share.html`;
-      window.open(pcShareUrl, '_blank');
+    // 参加コードの生成・保存（共通モジュール利用）
+    import { issueJoinCode } from './js/session.js';
+    async function ensureJoinCodeForSession(pin) {
+      const ok = await issueJoinCode(db, currentSessionId, pin);
+      currentJoinCode = ok ? String(pin).slice(0,6) : null;
+      return ok;
     }
+
+    function updateJoinCodeUI() {
+      const el = document.getElementById('joinCode');
+      if (el) el.textContent = currentJoinCode || '------';
+    }
+
+    function copyJoinCode() {
+      if (!currentJoinCode) return;
+      navigator.clipboard.writeText(currentJoinCode).then(() => alert('参加コードをコピーしました'));
+    }
+
+    // PC間共有機能は削除済み
 
     // セッションタイマー機能
     function startSessionTimer() {
@@ -1664,8 +1644,8 @@
       console.log('テストデータを作成中...');
       
       if (!currentSessionId) {
-        currentSessionId = 'test-session-' + Math.random().toString(36).substring(2, 8);
-        console.log('テスト用セッションID作成:', currentSessionId);
+        alert('セッションがありません。QRを生成してからテストしてください。');
+        return;
       }
       
       // テストファイルデータ
@@ -1693,6 +1673,7 @@
         type: 'url',
         url: 'https://example.com',
         title: 'Example',
+        name: 'Example',
         description: 'テストURL',
         hostname: 'example.com',
         timestamp: Date.now() + 2000
@@ -1718,84 +1699,18 @@
     }
 
     // ファイル表示機能
+    let detachFiles = null;
     function displayFiles() {
       console.log('displayFiles開始, currentSessionId:', currentSessionId);
-      
-      if (!currentSessionId) {
-        console.log('セッションIDがありません');
-        // テスト用に仮のセッションIDを設定
-        currentSessionId = 'test-session';
-        console.log('テスト用セッションIDを設定:', currentSessionId);
-      }
-      
-      const filesRef = dbRef(db, `files/${currentSessionId}`);
-      console.log('Firebaseパス:', `files/${currentSessionId}`);
-      
-      onValue(filesRef, (snapshot) => {
-        const data = snapshot.val();
-        console.log('Firebaseから取得したデータ:', data);
-        
-        const filesList = document.getElementById('filesList');
-        const urlsList = document.getElementById('urlsList');
-        
-        console.log('DOM要素確認:');
-        console.log('filesList:', filesList);
-        console.log('urlsList:', urlsList);
-        
-        if (!filesList || !urlsList) {
-          console.error('DOM要素が見つかりません');
-          return;
-        }
-        
-        // リストをクリア
-        filesList.innerHTML = '';
-        urlsList.innerHTML = '';
-        
-        if (!data) {
-          console.log('データがありません');
-          filesList.innerHTML = '<div class="no-files">まだファイルがアップロードされていません</div>';
-          urlsList.innerHTML = '<div class="no-files">まだURLが共有されていません</div>';
-          return;
-        }
-        
-        const files = [];
-        const urls = [];
-        
-        // データを分類
-        Object.entries(data).forEach(([key, value]) => {
-          console.log('処理中のデータ:', key, value);
-          if (value.type === 'file') {
-            files.push({ id: key, ...value });
-          } else if (value.type === 'url') {
-            urls.push({ id: key, ...value });
-          } else {
-            console.log('不明なタイプ:', value.type);
-          }
-        });
-        
-        console.log('分類結果 - files:', files.length, 'urls:', urls.length);
-        
-        // ファイル表示
-        if (files.length === 0) {
-          filesList.innerHTML = '<div class="no-files">まだファイルがアップロードされていません</div>';
-        } else {
-          files.sort((a, b) => b.timestamp - a.timestamp);
-          files.forEach(file => {
-            const fileItem = createFileItem(file);
-            filesList.appendChild(fileItem);
-          });
-        }
-        
-        // URL表示
-        if (urls.length === 0) {
-          urlsList.innerHTML = '<div class="no-files">まだURLが共有されていません</div>';
-        } else {
-          urls.sort((a, b) => b.timestamp - a.timestamp);
-          urls.forEach(url => {
-            const urlItem = createUrlItem(url);
-            urlsList.appendChild(urlItem);
-          });
-        }
+      if (!currentSessionId) return;
+      const filesList = document.getElementById('filesList');
+      const urlsList = document.getElementById('urlsList');
+      if (detachFiles) try { detachFiles(); } catch {}
+      detachFiles = attachFilesListener(db, currentSessionId, {
+        filesList,
+        urlsList,
+        createFileItem,
+        createUrlItem,
       });
     }
     
@@ -1806,6 +1721,8 @@
       const fileSize = formatFileSize(file.size);
       const fileDate = new Date(file.timestamp).toLocaleString('ja-JP');
       const isImage = file.mimeType && file.mimeType.startsWith('image/');
+      const safeName = escapeHTML(file.name || '');
+      const safeNameForAttr = (file.name || '').replace(/'/g, "\\'");
       
       // 画像の場合はサムネイル表示
       let thumbnailHtml = '';
@@ -1833,15 +1750,15 @@
         <div class="file-info">
           ${thumbnailHtml}
           <div class="file-details">
-            <div class="file-name">${fileIcon} ${file.name}</div>
+            <div class="file-name">${fileIcon} ${safeName}</div>
             <div class="file-size">サイズ: ${fileSize}</div>
             <div class="file-date">アップロード: ${fileDate}</div>
           </div>
           <div class="file-actions">
-            <button class="download-btn" onclick="downloadFile('${file.id}', '${file.name}', '${file.data}')">
+            <button class="download-btn" onclick="downloadFile('${file.id}', '${safeNameForAttr}', '${file.data}')">
               ⬇️ ダウンロード
             </button>
-            ${isImage ? `<button class="download-btn view-btn" onclick="viewFullImage('${file.data}', '${file.name}')">👁️ プレビュー</button>` : ''}
+            ${isImage ? `<button class="download-btn view-btn" onclick="viewFullImage('${file.data}', '${safeNameForAttr}')">👁️ プレビュー</button>` : ''}
           </div>
         </div>
       `;
@@ -1854,18 +1771,22 @@
       div.className = 'url-item';
       
       const urlDate = new Date(url.timestamp).toLocaleString('ja-JP');
+      const safeTitle = escapeHTML(url.title || url.hostname || 'リンク');
+      const safeUrl = String(url.url || '');
+      const isHttp = /^https?:\/\//i.test(safeUrl);
+      const displayUrl = escapeHTML(safeUrl);
       
       div.innerHTML = `
         <div class="file-info">
           <div class="file-details">
-            <div class="file-name">🔗 ${url.title || url.hostname || 'リンク'}</div>
+            <div class="file-name">🔗 ${safeTitle}</div>
             <div class="file-meta">
               <span>共有: ${urlDate}</span>
             </div>
-            <a href="${url.url}" target="_blank" class="url-link">${url.url}</a>
+            ${isHttp ? `<a href="${displayUrl}" target="_blank" rel="noopener" class="url-link">${displayUrl}</a>` : `<span class="url-link">${displayUrl}</span>`}
           </div>
           <div class="file-actions">
-            <button class="download-btn" onclick="copyToClipboard('${url.url}')">
+            <button class="download-btn" onclick="copyToClipboard('${safeUrl.replace(/'/g, "\\'")}')">
               📋 コピー
             </button>
           </div>
@@ -1873,6 +1794,12 @@
       `;
       
       return div;
+    }
+
+    function escapeHTML(str) {
+      return String(str).replace(/[&<>"']/g, function(m) {
+        return ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;','\'':'&#39;'}[m]);
+      });
     }
     
     function formatFileSize(bytes) {
@@ -1883,29 +1810,7 @@
       return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
     }
     
-    function downloadFile(fileId, fileName, fileData) {
-      try {
-        // Base64データからBlob作成
-        const link = document.createElement('a');
-        link.href = fileData;
-        link.download = fileName;
-        document.body.appendChild(link);
-        link.click();
-        document.body.removeChild(link);
-      } catch (error) {
-        console.error('ダウンロードエラー:', error);
-        alert('ダウンロードに失敗しました');
-      }
-    }
     
-    function copyToClipboard(text) {
-      navigator.clipboard.writeText(text).then(() => {
-        alert('✅ URLをコピーしました！');
-      }).catch(err => {
-        console.error('コピーエラー:', err);
-        alert('コピーに失敗しました');
-      });
-    }
     
     function refreshFiles() {
       console.log('ファイルリストを更新中...');
@@ -1930,16 +1835,7 @@
       }
       
       // 認証状態をチェック
-      if (!checkAuthentication()) {
-        // 招待コード入力フィールドにフォーカス
-        setTimeout(() => {
-          const inviteCodeInput = document.getElementById('inviteCodeInput');
-          if (inviteCodeInput) {
-            inviteCodeInput.focus();
-            console.log('📝 招待コード入力フィールドにフォーカス設定');
-          }
-        }, 100);
-      }
+      checkAuthentication();
       
       // 一定時間後にファイル表示を開始（認証状態に関係なく）
       setTimeout(() => {
@@ -1948,17 +1844,7 @@
       }, 1000);
     });
 
-    // 招待コード入力でEnterキー対応
-    document.addEventListener('DOMContentLoaded', function() {
-      const inviteCodeInput = document.getElementById('inviteCodeInput');
-      if (inviteCodeInput) {
-        inviteCodeInput.addEventListener('keypress', function(e) {
-          if (e.key === 'Enter') {
-            checkInviteCode();
-          }
-        });
-      }
-    });
+    // 旧 招待コード入力のEnter対応は廃止
 
     // 従来の認証システム用（開発・テスト用）
     document.addEventListener('DOMContentLoaded', function() {
@@ -1973,74 +1859,24 @@
     });
 
     // グローバル関数として公開
-    window.checkInviteCode = checkInviteCode;
-    window.backToInviteCode = backToInviteCode;
+    // 旧 招待コード系の公開関数は廃止
     window.signInWithGoogle = signInWithGoogle;
     window.signOutUser = signOutUser;
     window.authenticate = authenticate;
     window.generateNewSession = generateNewSession;
     window.copyQRUrl = copyQRUrl;
-    window.openPCShare = openPCShare;
+    // PC間共有関数の公開は不要
     window.refreshFiles = refreshFiles;
-    window.downloadFile = downloadFile;
-    window.copyToClipboard = copyToClipboard;
+    // download/copy は ui.js からインポートした実装をマッピング
     window.createTestData = createTestData;
     window.viewFullImage = viewFullImage;
     window.closeImageModal = closeImageModal;
     window.downloadModalImage = downloadModalImage;
+    window.downloadFile = downloadFile;
+    window.copyToClipboard = copyToClipboard;
 
-    // 画像プレビュー機能
-    let currentImageData = null;
-    let currentImageName = null;
-    
-    function viewFullImage(imageData, imageName) {
-      currentImageData = imageData;
-      currentImageName = imageName;
-      
-      const modal = document.getElementById('imageModal');
-      const modalImage = document.getElementById('modalImage');
-      const modalTitle = document.getElementById('modalTitle');
-      
-      modalImage.src = imageData;
-      modalTitle.textContent = imageName;
-      
-      modal.classList.add('show');
-      
-      // ESCキーで閉じる
-      document.addEventListener('keydown', handleEscKey);
-      // モーダル背景クリックで閉じる
-      modal.addEventListener('click', handleModalClick);
-    }
-    
-    function closeImageModal() {
-      const modal = document.getElementById('imageModal');
-      modal.classList.remove('show');
-      
-      currentImageData = null;
-      currentImageName = null;
-      
-      // イベントリスナーを削除
-      document.removeEventListener('keydown', handleEscKey);
-      modal.removeEventListener('click', handleModalClick);
-    }
-    
-    function downloadModalImage() {
-      if (currentImageData && currentImageName) {
-        downloadFile(null, currentImageName, currentImageData);
-      }
-    }
-    
-    function handleEscKey(e) {
-      if (e.key === 'Escape') {
-        closeImageModal();
-      }
-    }
-    
-    function handleModalClick(e) {
-      if (e.target.id === 'imageModal') {
-        closeImageModal();
-      }
-    }
+    // 画像プレビュー機能は js/ui.js に委譲
   </script>
 </body>
 </html>
+    // 参加専用ページへの導線のみ表示（トップでのPIN入力は行わない）

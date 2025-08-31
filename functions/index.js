@@ -1,66 +1,56 @@
-const functions = require('firebase-functions');
-const admin = require('firebase-admin');
+import { onSchedule } from 'firebase-functions/v2/scheduler';
+import { initializeApp } from 'firebase-admin/app';
+import { getDatabase } from 'firebase-admin/database';
 
-admin.initializeApp();
+// Initialize Admin SDK
+initializeApp();
 
-// 10分後にファイルを自動削除（より頻繁にチェック）
-exports.cleanupOldFiles = functions.pubsub.schedule('every 2 minutes').onRun(async (context) => {
-  const db = admin.database();
+const TTL_MS = 10 * 60 * 1000; // 10 minutes
+
+async function cleanupPath(db, rootPath) {
   const now = Date.now();
-  const tenMinutesAgo = now - (10 * 60 * 1000); // 10分前
-  
-  let deletedCount = 0;
-  
-  // files/ 配下の古いデータを削除
-  const filesRef = db.ref('files');
-  const filesSnapshot = await filesRef.once('value');
-  
-  if (filesSnapshot.exists()) {
-    const deletePromises = [];
-    
-    filesSnapshot.forEach((sessionSnap) => {
-      sessionSnap.forEach((fileSnap) => {
-        const fileData = fileSnap.val();
-        if (fileData.timestamp < tenMinutesAgo) {
-          deletePromises.push(fileSnap.ref.remove());
-          deletedCount++;
-          console.log(`Deleted old file: ${fileData.name} from session ${sessionSnap.key}`);
-        }
-      });
-      
-      // セッション内にファイルがなくなったらセッション自体も削除
-      sessionSnap.forEach((fileSnap) => {
-        const fileData = fileSnap.val();
-        if (fileData.timestamp >= tenMinutesAgo) {
-          return; // まだ有効なファイルがある
-        }
-      });
-    });
-    
-    await Promise.all(deletePromises);
+  const cutoff = now - TTL_MS;
+  const rootRef = db.ref(rootPath);
+  const snap = await rootRef.get();
+  if (!snap.exists()) return 0;
+
+  let removed = 0;
+
+  const sessions = snap.val();
+  const updates = {};
+
+  for (const [sessionId, children] of Object.entries(sessions)) {
+    if (!children || typeof children !== 'object') continue;
+    let hasRemaining = false;
+    for (const [childId, value] of Object.entries(children)) {
+      const ts = value?.timestamp;
+      if (typeof ts === 'number' && ts < cutoff) {
+        updates[`${sessionId}/${childId}`] = null; // delete
+        removed++;
+      } else {
+        hasRemaining = true;
+      }
+    }
+    // If everything under the session expired, remove the session node as well
+    if (!hasRemaining) {
+      updates[sessionId] = null;
+    }
   }
-  
-  // pc-share/ 配下の古いデータも削除
-  const pcShareRef = db.ref('pc-share');
-  const pcShareSnapshot = await pcShareRef.once('value');
-  
-  if (pcShareSnapshot.exists()) {
-    const deletePromises = [];
-    
-    pcShareSnapshot.forEach((sessionSnap) => {
-      sessionSnap.forEach((fileSnap) => {
-        const fileData = fileSnap.val();
-        if (fileData.timestamp < tenMinutesAgo) {
-          deletePromises.push(fileSnap.ref.remove());
-          deletedCount++;
-          console.log(`Deleted old PC share file: ${fileData.name} from session ${sessionSnap.key}`);
-        }
-      });
-    });
-    
-    await Promise.all(deletePromises);
+
+  if (Object.keys(updates).length > 0) {
+    await rootRef.update(updates);
   }
-  
-  console.log(`Cleanup completed - Deleted ${deletedCount} files older than 10 minutes`);
-  return null;
+
+  return removed;
+}
+
+export const cleanupOldEntries = onSchedule('every 1 minutes', async (event) => {
+  const db = getDatabase();
+  const removedFiles = await cleanupPath(db, 'files');
+  const removedPcShare = await cleanupPath(db, 'pc-share');
+  return {
+    removedFiles,
+    removedPcShare,
+    at: new Date().toISOString(),
+  };
 });

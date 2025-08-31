@@ -1,0 +1,13 @@
+{
+  "name": "sharetto-functions",
+  "private": true,
+  "engines": {
+    "node": "^18"
+  },
+  "type": "module",
+  "dependencies": {
+    "firebase-admin": "^12.6.0",
+    "firebase-functions": "^4.9.0"
+  }
+}
+

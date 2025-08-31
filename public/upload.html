@@ -4,6 +4,8 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>モバイルアップロード - シェアっと (Liquid Glass)</title>
+  <link rel="stylesheet" href="css/theme.css">
+  <link rel="stylesheet" href="css/components.css">
   <style>
     * {
       margin: 0;
@@ -13,14 +15,6 @@
     
     body {
       font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-      background: linear-gradient(135deg, 
-        #667eea 0%, 
-        #764ba2 25%, 
-        #f093fb 50%, 
-        #f5576c 75%, 
-        #4facfe 100%);
-      background-size: 400% 400%;
-      animation: gradientShift 15s ease infinite;
       min-height: 100vh;
       overflow-x: hidden;
     }
@@ -235,13 +229,7 @@
       font-size: 48px;
       font-weight: 800;
       margin-bottom: 16px;
-      background: linear-gradient(135deg, 
-        rgba(255, 255, 255, 0.9), 
-        rgba(255, 255, 255, 0.6));
-      -webkit-background-clip: text;
-      -webkit-text-fill-color: transparent;
-      background-clip: text;
-      text-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+      color: #111111;
     }
     
     .header p {
@@ -467,6 +455,19 @@
       color: #f87171;
     }
     
+    /* Mobile sticky action button */
+    @media (max-width: 768px) {
+      .btn-sticky { 
+        position: fixed; 
+        left: 12px;
+        right: 12px;
+        bottom: max(12px, env(safe-area-inset-bottom)); 
+        width: auto;
+        z-index: 110;
+      }
+      .main-content { padding-bottom: 96px; }
+    }
+    
     /* URL Input */
     .url-input-container {
       margin: 20px 0;
@@ -576,6 +577,60 @@
         padding: 12px 8px;
       }
     }
+  /* Apple-like design tokens and overrides */
+  :root {
+    --accent: #0a84ff;
+    --accent-pressed: #0066cc;
+    --text-primary: rgba(255, 255, 255, 0.92);
+    --text-secondary: rgba(255, 255, 255, 0.72);
+    --border: rgba(255, 255, 255, 0.16);
+    --border-strong: rgba(255, 255, 255, 0.24);
+    --surface: rgba(255, 255, 255, 0.10);
+    --radius-lg: 20px;
+    --radius-xl: 24px;
+  }
+
+  body { background: linear-gradient(180deg, #0b0f14, #11151b); color: var(--text-primary); }
+  .glass-container { background: var(--surface); border-color: var(--border); border-radius: var(--radius-xl); }
+  .tab-container { background: rgba(255,255,255,0.08); border-color: var(--border); }
+  .tab-button.active { color: #fff; }
+  .upload-area { background: rgba(255,255,255,0.05); border-color: var(--border); }
+  .btn-primary { background: var(--accent); border-color: transparent; color: #fff; }
+  .btn-primary:hover { background: var(--accent-pressed); }
+  .url-link { color: var(--accent); }
+  </style>
+  <!-- Material theme overrides: fixed light scheme across pages -->
+  <style>
+    :root { --md-bg:#f6f7f9; --md-surface:#ffffff; --md-surface-variant:#f2f4f7; --md-outline:#d0d7e2; --md-outline-variant:#e3e8f1; --md-on-bg:#111111; --md-on-surface:#111111; --md-on-surface-variant:#4a5568; --md-primary:#2962ff; --md-primary-pressed:#0039cb; }
+    body { background: var(--md-bg) !important; color: var(--md-on-bg); color-scheme: light; }
+    .glass-container { background: var(--md-surface) !important; border:1px solid var(--md-outline-variant) !important; }
+    .tab-container { background: var(--md-surface-variant) !important; border:1px solid var(--md-outline) !important; }
+    .action-button, .btn, .auth-button, .download-btn { background: var(--md-primary) !important; color:#fff !important; border-color: transparent !important; }
+    .btn:hover, .download-btn:hover, .auth-button:hover { background: var(--md-primary-pressed) !important; }
+    .upload-area { background: var(--md-surface) !important; border-color: var(--md-outline) !important; }
+    .header h1, .files-header h3 { color: var(--md-on-surface) !important; }
+    .file-item, .url-item { background: var(--md-surface-variant) !important; border:1px solid var(--md-outline) !important; }
+    .header p, .file-meta, .file-size, .file-date, .status { color: var(--md-on-surface-variant) !important; }
+  </style>
+  <style>
+  :root {
+    --bg-start: var(--md-bg); --bg-end: var(--md-bg); --surface: var(--md-surface);
+    --border: var(--md-outline-variant); --border-strong: var(--md-outline);
+    --text-primary: var(--md-on-surface); --text-secondary: var(--md-on-surface-variant);
+    --accent: var(--md-primary); --accent-pressed: var(--md-primary-pressed);
+    --radius-lg: 16px; --radius-xl: 24px;
+  }
+  body { background: linear-gradient(180deg, var(--bg-start), var(--bg-end)); color: var(--text-primary); }
+  .glass-container { background: var(--surface); border-color: var(--border); border-radius: var(--radius-xl); }
+  .tab-container { background: var(--surface); border-color: var(--border); }
+  .tab-button { color: var(--text-secondary); }
+  .tab-button.active { color: var(--text-primary); }
+  .upload-area { background: rgba(0,0,0,0.02); border-color: var(--border); }
+  .btn-primary { background: var(--accent); color: #fff; border-color: transparent; min-height: 44px; border-radius: var(--radius-lg); }
+  .btn-primary:hover { background: var(--accent-pressed); }
+  .url-input { background: var(--surface); border-color: var(--border); color: var(--text-primary); }
+  .url-input::placeholder { color: var(--text-secondary); }
+  .url-input:focus { border-color: var(--border-strong); box-shadow: 0 0 0 4px rgba(10,132,255,.15); }
   </style>
 </head>
 <body>
@@ -593,6 +648,9 @@
 
   <!-- メインコンテンツ -->
   <div id="mainContent" class="main-content">
+    <div class="topbar" style="position:sticky;top:0;z-index:120;background:var(--md-surface);border-bottom:1px solid var(--md-outline);padding:8px 12px;">
+      <a href="/" style="color:#9ecbff;text-decoration:underline">← トップへ戻る</a>
+    </div>
     <div class="header">
       <h1>シェアっと</h1>
       <p>美しいファイル共有体験</p>
@@ -624,7 +682,7 @@
           </div>
         </div>
         
-        <button class="btn btn-primary" id="upload-btn" disabled>アップロード</button>
+        <button class="btn btn-primary btn-sticky" id="upload-btn" disabled>アップロード</button>
         
         <div class="status" id="status"></div>
       </div>
@@ -652,7 +710,7 @@
           </div>
         </div>
         
-        <button class="btn btn-primary" id="url-share-btn" disabled>URLを共有</button>
+        <button class="btn btn-primary btn-sticky" id="url-share-btn" disabled>URLを共有</button>
         
         <div class="status" id="url-status"></div>
       </div>
@@ -665,61 +723,86 @@
   </div>
 
   <script type="module">
-    // Firebase SDKをインポート
-    import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
-    import { getDatabase, ref as dbRef, push, set } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-database.js";
+    // Add cache-busting query to ensure latest modules load in browsers
+    import { initFirebase, dbRef, onValue, off, get, update } from './js/firebase.js?v=20250831a';
+    import { encodeFileAsDataURL, putFile, putUrl } from './js/files-save.js?v=20250831a';
+    import { firebaseConfig } from './config.js';
 
-    // Firebaseの設定（元の設定を使用）
-    const firebaseConfig = {
-      apiKey: "AIzaSyBfQL3uQps2xRvfJn7CWaa-7KNmvNopARA",
-      authDomain: "sharetto-app.firebaseapp.com",
-      databaseURL: "https://sharetto-app-default-rtdb.asia-southeast1.firebasedatabase.app",
-      projectId: "sharetto-app",
-      storageBucket: "sharetto-app.firebasestorage.app",
-      messagingSenderId: "41080814725",
-      appId: "1:41080814725:web:9e08830290acdb28903dec"
-    };
+    const { db } = initFirebase(firebaseConfig);
+    console.log('Upload page version: v20250831a');
 
-    // Firebaseの初期化
-    const app = initializeApp(firebaseConfig);
-    const db = getDatabase(app);
+    // Realtime Database connection warm-up to reduce first-write stalls
+    (function warmUpRealtime() {
+      try {
+        const infoRef = dbRef(db, '.info/connected');
+        onValue(infoRef, (snap) => {
+          console.log('Realtime DB connected:', !!snap.val());
+          try { off(infoRef); } catch {}
+        });
+      } catch (e) {
+        console.debug('Warm-up listener error', e);
+      }
+      try {
+        // Fire a no-op read to establish transport
+        get(dbRef(db, 'ping')).catch(() => {});
+      } catch {}
+    })();
 
     // セッション管理の定数
     const AUTH_SESSION_KEY = 'auth_session';
     const AUTH_EXPIRES_KEY = 'auth_expires';
     const SESSION_DURATION = 24 * 60 * 60 * 1000; // 24時間
 
-    // URLからセッションIDを取得
+    // URLからセッション情報を取得
     const urlParams = new URLSearchParams(window.location.search);
-    const sessionId = urlParams.get('session') || 'default';
+    let sessionId = urlParams.get('session') || null;
+    const encCt = urlParams.get('ct');
+    const encIv = urlParams.get('iv');
+    const encSalt = urlParams.get('salt');
     
     console.log('セッション情報:');
     console.log('URL:', window.location.href);
     console.log('URLパラメータ:', urlParams.toString());
-    console.log('セッションID:', sessionId);
+    console.log('セッションID(初期):', sessionId);
 
     // 認証システム
-    function authenticate() {
+    async function authenticate() {
       const password = document.getElementById('authInput').value;
       const errorDiv = document.getElementById('authError');
       
+      // 暗号化URL → PINとして復号
+      if (encCt && encIv && encSalt) {
+        try {
+          const sid = await decryptSessionId(password, encCt, encIv, encSalt);
+          if (!sid || sid.length < 6) throw new Error('invalid sid');
+          sessionId = sid;
+          const expires = Date.now() + SESSION_DURATION;
+          localStorage.setItem(AUTH_SESSION_KEY, 'authenticated');
+          localStorage.setItem(AUTH_EXPIRES_KEY, expires.toString());
+          showMainContent();
+          errorDiv.style.display = 'none';
+          return;
+        } catch (e) {
+          console.error('復号失敗', e);
+          errorDiv.textContent = 'PINが違います';
+          errorDiv.style.display = 'block';
+          document.getElementById('authInput').value = '';
+          setTimeout(() => { errorDiv.style.display = 'none'; }, 3000);
+          return;
+        }
+      }
+
+      // 互換: 簡易パスワード
       if (password === 'sharetto') {
-        // 認証成功
         const expires = Date.now() + SESSION_DURATION;
         localStorage.setItem(AUTH_SESSION_KEY, 'authenticated');
         localStorage.setItem(AUTH_EXPIRES_KEY, expires.toString());
-        
         showMainContent();
         errorDiv.style.display = 'none';
       } else {
-        // 認証失敗
         errorDiv.style.display = 'block';
         document.getElementById('authInput').value = '';
-        
-        // エラーを一定時間後に隠す
-        setTimeout(() => {
-          errorDiv.style.display = 'none';
-        }, 3000);
+        setTimeout(() => { errorDiv.style.display = 'none'; }, 3000);
       }
     }
 
@@ -730,16 +813,16 @@
 
     function checkAuthentication() {
       // URLパラメータから自動認証をチェック
-      const urlParams = new URLSearchParams(window.location.search);
-      const sessionId = urlParams.get('session');
-      
-      // QRコードからのアクセスの場合は自動認証
       if (sessionId && sessionId.length >= 6) {
         const expiresAt = Date.now() + SESSION_DURATION;
         localStorage.setItem(AUTH_SESSION_KEY, 'authenticated');
         localStorage.setItem(AUTH_EXPIRES_KEY, expiresAt.toString());
         showMainContent();
         return true;
+      }
+      // 暗号化URLは手動でPIN入力
+      if (encCt && encIv && encSalt) {
+        return false;
       }
       
       // 通常の認証チェック
@@ -800,11 +883,37 @@
     });
 
     // Enterキーでログイン
-    document.getElementById('authInput').addEventListener('keypress', function(e) {
+    document.getElementById('authInput').addEventListener('keypress', async function(e) {
       if (e.key === 'Enter') {
-        authenticate();
+        await authenticate();
       }
     });
+
+    // Decryption helpers
+    function fromB64url(str) {
+      const b64 = str.replace(/-/g,'+').replace(/_/g,'/');
+      const pad = '='.repeat((4 - (b64.length % 4)) % 4);
+      const bin = atob(b64 + pad);
+      const bytes = new Uint8Array(bin.length);
+      for (let i=0;i<bin.length;i++) bytes[i] = bin.charCodeAt(i);
+      return bytes;
+    }
+    async function decryptSessionId(pin, ct, iv, salt) {
+      const keyMaterial = await crypto.subtle.importKey('raw', new TextEncoder().encode(pin), 'PBKDF2', false, ['deriveKey']);
+      const key = await crypto.subtle.deriveKey(
+        { name: 'PBKDF2', salt: fromB64url(salt), iterations: 200000, hash: 'SHA-256' },
+        keyMaterial,
+        { name: 'AES-GCM', length: 256 },
+        false,
+        ['decrypt']
+      );
+      const plainBuf = await crypto.subtle.decrypt(
+        { name: 'AES-GCM', iv: fromB64url(iv) },
+        key,
+        fromB64url(ct)
+      );
+      return new TextDecoder().decode(plainBuf);
+    }
 
     // ファイルアップロード機能
     uploadArea.addEventListener('click', () => {
@@ -845,6 +954,10 @@
         
         // アップロードボタンの有効化
         uploadBtn.disabled = false;
+        uploadBtn.classList.add('btn-sticky');
+      } else {
+        uploadBtn.disabled = true;
+        uploadBtn.classList.remove('btn-sticky');
       }
     }
 
@@ -862,7 +975,7 @@
     // アップロードボタンのクリックイベント
     uploadBtn.addEventListener('click', uploadFile);
 
-    function uploadFile() {
+    async function uploadFile() {
       if (fileInput.files.length === 0) return;
       
       const file = fileInput.files[0];
@@ -877,81 +990,64 @@
         return;
       }
       
-      // ファイルサイズ制限 (100MB)
-      if (file.size > 100 * 1024 * 1024) {
-        status.textContent = 'ファイルサイズが大きすぎます (最大100MB)';
+      // ファイルサイズ制限 (50MB)
+      if (file.size > 50 * 1024 * 1024) {
+        status.textContent = 'ファイルサイズが大きすぎます (最大50MB)';
         status.classList.add('error');
         return;
       }
       
-      // アップロードボタンの無効化
+      // UI準備
       uploadBtn.disabled = true;
-      
-      // プログレスバーの表示
       progressContainer.style.display = 'block';
       progressBar.style.width = '0%';
-      
-      // ステータスの更新
       status.textContent = 'ファイルを読み込み中...';
       status.classList.remove('success', 'error');
-      
-      // ファイルをBase64に変換
-      const reader = new FileReader();
-      reader.onload = function(e) {
-        // プログレス更新
+
+      try {
+        const dataUrl = await encodeFileAsDataURL(file);
         progressBar.style.width = '50%';
         status.textContent = 'アップロード中...';
-        
-        // ファイルIDの生成
-        const fileId = Math.random().toString(36).substring(2, 10);
-        
-        // ファイルデータを元の構造に合わせて保存
-        const fileData = {
-          type: 'file',
-          name: file.name,
-          size: file.size,
-          mimeType: file.type,
-          data: e.target.result, // Base64データ
-          timestamp: Date.now()
-        };
-        
-        console.log('保存するファイルデータ:', {
-          ...fileData,
-          data: 'Base64データ（省略）'
-        });
-        console.log('データベースパス:', `files/${sessionId}/${fileId}`);
-        
-        // Realtime Databaseにファイル情報を保存
-        const fileDbRef = dbRef(db, `files/${sessionId}/${fileId}`);
-        set(fileDbRef, fileData).then(() => {
-          console.log('ファイル保存成功');
-          // アップロード成功
+        const payload = { type:'file', name:file.name, size:file.size, mimeType:file.type, data:dataUrl, timestamp:Date.now() };
+        await putFile(db, sessionId, payload);
+        progressBar.style.width = '100%';
+        status.textContent = 'アップロード完了！';
+        status.classList.add('success');
+        fileInput.value = '';
+        filePreview.style.display = 'none';
+        uploadBtn.disabled = true;
+        uploadBtn.classList.remove('btn-sticky');
+        setTimeout(()=>{ progressContainer.style.display='none'; status.textContent='別のファイルをアップロードできます'; },1500);
+      } catch (error) {
+        console.error('ファイルアップロードエラー(1次):', error);
+        // Fallback: parent-level update
+        try {
+          const dataUrl = await encodeFileAsDataURL(file);
+          const payload = { type:'file', name:file.name, size:file.size, mimeType:file.type, data:dataUrl, timestamp:Date.now() };
+          const fileId = Math.random().toString(36).substring(2, 10);
+          const parentRef = dbRef(db, `files/${sessionId}`);
+          const updates = {};
+          updates[fileId] = payload;
+          updates['timestamp'] = payload.timestamp;
+          updates['size'] = payload.size;
+          console.log('ファイル保存フォールバック(update)を実行');
+          await update(parentRef, updates);
           progressBar.style.width = '100%';
           status.textContent = 'アップロード完了！';
           status.classList.add('success');
-          
-          // 入力フィールドのリセット
           fileInput.value = '';
           filePreview.style.display = 'none';
-          uploadBtn.disabled = false;
-          
-          // 2秒後にプログレスバーを非表示
-          setTimeout(() => {
-            progressContainer.style.display = 'none';
-            status.textContent = '別のファイルをアップロードできます';
-          }, 2000);
-          
-        }).catch((error) => {
-          // アップロード失敗
-          console.error('ファイルアップロードエラー:', error);
-          status.textContent = 'アップロードに失敗しました: ' + error.message;
+          uploadBtn.disabled = true;
+          uploadBtn.classList.remove('btn-sticky');
+          setTimeout(()=>{ progressContainer.style.display='none'; status.textContent='別のファイルをアップロードできます'; },1500);
+        } catch (e2) {
+          console.error('ファイルアップロードエラー(フォールバック失敗):', e2);
+          status.textContent = 'アップロードに失敗しました: ' + (e2 && e2.message ? e2.message : 'unknown');
           status.classList.add('error');
           uploadBtn.disabled = false;
           progressContainer.style.display = 'none';
-        });
-      };
-      
-      reader.readAsDataURL(file);
+        }
+      }
     }
 
     // URL共有機能（基本的な実装）
@@ -964,9 +1060,11 @@
       const url = this.value.trim();
       if (url && isValidURL(url)) {
         urlShareBtn.disabled = false;
+        urlShareBtn.classList.add('btn-sticky');
         showUrlPreview(url);
       } else {
         urlShareBtn.disabled = true;
+        urlShareBtn.classList.remove('btn-sticky');
         urlPreview.classList.remove('show');
       }
     });
@@ -987,7 +1085,7 @@
       urlPreview.classList.add('show');
     }
 
-    urlShareBtn.addEventListener('click', function() {
+    urlShareBtn.addEventListener('click', async function() {
       const url = urlInput.value.trim();
       if (!url) return;
 
@@ -1005,43 +1103,56 @@
       urlStatus.textContent = 'URL共有中...';
       urlStatus.classList.remove('success', 'error');
 
-      // URLをデータベースに保存（filesパスに統一）
-      const urlId = Math.random().toString(36).substring(2, 10);
-      const urlDbRef = dbRef(db, `files/${sessionId}/${urlId}`);
-      
-      const urlObj = new URL(url);
-      const urlData = {
-        type: 'url',
-        url: url,
-        title: urlObj.hostname,
-        description: 'リンク',
-        hostname: urlObj.hostname,
-        timestamp: Date.now()
-      };
-      
-      console.log('保存するURLデータ:', urlData);
-      console.log('データベースパス:', `files/${sessionId}/${urlId}`);
-      
-      set(urlDbRef, urlData).then(() => {
+      try {
+        // First, try the shared module implementation
+        await putUrl(db, sessionId, url);
         console.log('URL保存成功');
         urlStatus.textContent = 'URL共有完了！';
         urlStatus.classList.add('success');
         urlInput.value = '';
         urlPreview.classList.remove('show');
         urlShareBtn.disabled = true;
-        
-        // フォームをリセット
-        setTimeout(() => {
-          urlStatus.textContent = '';
-          urlStatus.classList.remove('success');
-        }, 2000);
-        
-      }).catch((error) => {
-        console.error('URL保存エラー:', error);
-        urlStatus.textContent = 'URL共有に失敗しました: ' + error.message;
-        urlStatus.classList.add('error');
-        urlShareBtn.disabled = false;
-      });
+        urlShareBtn.classList.remove('btn-sticky');
+        setTimeout(()=>{ urlStatus.textContent=''; urlStatus.classList.remove('success'); },1500);
+      } catch (error) {
+        console.error('URL保存エラー(1次):', error);
+        // Fallback: write via parent-level update to satisfy stricter rules
+        try {
+          const urlId = Math.random().toString(36).substring(2, 10);
+          const u = new URL(url);
+          const payload = {
+            type: 'url',
+            url,
+            title: u.hostname,
+            name: u.hostname,
+            description: 'リンク',
+            hostname: u.hostname,
+            size: 0,
+            mimeType: 'text/url',
+            timestamp: Date.now(),
+          };
+          const parentRef = dbRef(db, `files/${sessionId}`);
+          const updates = {};
+          updates[urlId] = payload;
+          updates['timestamp'] = payload.timestamp;
+          updates['size'] = payload.size;
+          console.log('URL保存フォールバック(update)を実行');
+          await update(parentRef, updates);
+          console.log('URL保存成功(フォールバック)');
+          urlStatus.textContent = 'URL共有完了！';
+          urlStatus.classList.add('success');
+          urlInput.value = '';
+          urlPreview.classList.remove('show');
+          urlShareBtn.disabled = true;
+          urlShareBtn.classList.remove('btn-sticky');
+          setTimeout(()=>{ urlStatus.textContent=''; urlStatus.classList.remove('success'); },1500);
+        } catch (e2) {
+          console.error('URL保存エラー(フォールバック失敗):', e2);
+          urlStatus.textContent = 'URL共有に失敗しました: ' + (e2 && e2.message ? e2.message : 'unknown');
+          urlStatus.classList.add('error');
+          urlShareBtn.disabled = false;
+        }
+      }
     });
 
     // グローバル関数として認証関数を公開

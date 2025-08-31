@@ -1,26 +1,33 @@
 {
   "rules": {
-    ".read": "auth != null",
-    ".write": "auth != null",
-    "files": {
-      "$sessionId": {
-        ".read": "($sessionId.length == 13) && (data.exists())",
-        ".write": "($sessionId.length == 13) && (!data.exists() || (now - data.child('timestamp').val() < 600000)) && (newData.child('size').val() <= 52428800)",
-        "$fileId": {
-          ".read": "($fileId.length >= 8) && (root.child('files').child($sessionId).exists()) && (now - data.child('timestamp').val() < 600000)",
-          ".write": "($fileId.length >= 8) && (!data.exists() || (now - data.child('timestamp').val() < 600000)) && (newData.child('size').val() <= 52428800)",
-          ".validate": "newData.hasChildren(['type', 'name', 'timestamp']) && (newData.child('timestamp').val() <= now) && (newData.child('timestamp').val() > (now - 60000))"
-        }
+    "codes": {
+      ".read": true,
+      ".write": true,
+      "$code": {
+        // 読み取りはPIN入力端末でも可（TTL判定はクライアント側も実施）
+        ".read": "($code.length == 6) && ($code.matches(/^[0-9]{6}$/))",
+        // 書き込みは許可（PIN→sessionの一時マッピング）。セッション側は別ルールで保護。
+        ".write": "true",
+        // 最低限の検証: sessionId 形式と timestamp の妥当性
+        ".validate": "newData.hasChildren(['sessionId','timestamp']) && (newData.child('sessionId').isString()) && (newData.child('sessionId').val().matches(/^[a-z0-9]{13}$/)) && (newData.child('timestamp').val() <= now) && (newData.child('timestamp').val() > now - 60000)"
       }
     },
-    "pc-share": {
+    "files": {
       "$sessionId": {
-        ".read": "($sessionId.length == 6) && ($sessionId.matches(/^[0-9]{6}$/)) && (data.exists())",
-        ".write": "($sessionId.length == 6) && ($sessionId.matches(/^[0-9]{6}$/)) && (!data.exists() || (now - data.child('timestamp').val() < 600000)) && (newData.child('size').val() <= 52428800)",
+        ".read": "$sessionId.matches(/^[a-z0-9]{13}$/)",
+        ".write": "$sessionId.matches(/^[a-z0-9]{13}$/)",
+        "timestamp": {
+          ".write": "true",
+          ".validate": "newData.isNumber() && (newData.val() <= now) && (newData.val() > now - 300000)"
+        },
+        "size": {
+          ".write": "true",
+          ".validate": "newData.isNumber() && (newData.val() >= 0) && (newData.val() <= 52428800)"
+        },
         "$fileId": {
-          ".read": "($fileId.length >= 8) && (root.child('pc-share').child($sessionId).exists()) && (data.exists()) && (now - data.child('timestamp').val() < 600000)",
-          ".write": "($fileId.length >= 8) && (!data.exists() || (now - data.child('timestamp').val() < 600000)) && (newData.child('size').val() <= 52428800)",
-          ".validate": "newData.hasChildren(['type', 'name', 'timestamp']) && (newData.child('timestamp').val() <= now) && (newData.child('timestamp').val() > (now - 60000))"
+          ".read": "($fileId.length >= 8) && (root.child('files').child($sessionId).exists()) && (now - data.child('timestamp').val() < 600000)",
+          ".write": "($fileId.length >= 8) && (!data.exists() || (now - data.child('timestamp').val() < 600000)) && (!newData.child('size').exists() || (newData.child('size').isNumber() && newData.child('size').val() <= 52428800))",
+          ".validate": "newData.hasChildren(['type', 'name', 'timestamp']) && (newData.child('timestamp').val() <= now) && (newData.child('timestamp').val() > now - 300000)"
         }
       }
     }
