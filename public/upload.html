@@ -465,7 +465,8 @@
         width: auto;
         z-index: 110;
       }
-      .main-content { padding-bottom: 96px; }
+      .main-content { padding-bottom: 140px; }
+      .url-input-container { margin-bottom: 120px; }
     }
     
     /* URL Input */
@@ -532,6 +533,11 @@
       word-break: break-all;
       font-family: monospace;
     }
+
+    /* File preview readability */
+    .file-preview .file-name,
+    .file-preview .file-size { color: #111; }
+    .file-preview { margin-bottom: 12px; }
     
     /* Footer */
     .footer {
@@ -653,7 +659,7 @@
 
   <!-- メインコンテンツ -->
   <div id="mainContent" class="main-content">
-    <div class="topbar" style="position:sticky;top:0;z-index:120;background:var(--md-surface);border-bottom:1px solid var(--md-outline);padding:8px 12px;">
+    <div class="topbar" style="position:sticky;top:0;z-index:120;max-width:960px;margin:12px auto;background:var(--md-surface);border:1px solid var(--md-outline-variant);padding:8px 12px;border-radius:24px;box-shadow:0 4px 12px rgba(0,0,0,.04);">
       <a href="/" style="color:#9ecbff;text-decoration:underline">← トップへ戻る</a>
     </div>
     <div class="header">
