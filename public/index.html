@@ -1217,23 +1217,27 @@
     import { attachFilesListener } from './js/files-view.js';
     import { firebaseConfig } from './config.js';
 
-    // Firebaseの初期化
-    const { app, db, auth } = initFirebase(firebaseConfig);
-    
-    // Google認証プロバイダーをグローバルに設定
-    // quiet logs
-
-    // セッション管理の定数
+    // 定数定義
     const AUTH_SESSION_KEY = 'auth_session';
     const AUTH_EXPIRES_KEY = 'auth_expires';
-    const SESSION_DURATION = 24 * 60 * 60 * 1000; // 24時間
+    const AUTH_SESSION_DURATION_MS = 24 * 60 * 60 * 1000; // 24時間
+    const SESSION_DURATION_MS = 10 * 60 * 1000; // 10分間
+    const SESSION_WARNING_THRESHOLD_MS = 3 * 60 * 1000; // 3分
+    const SESSION_CRITICAL_THRESHOLD_MS = 1 * 60 * 1000; // 1分
+    const PIN_CODE_LENGTH = 6;
+    const SESSION_ID_LENGTH = 13;
+    const PBKDF2_ITERATIONS = 200000;
+    const SALT_LENGTH = 16;
+    const IV_LENGTH = 12;
+
+    // Firebaseの初期化
+    const { app, db, auth } = initFirebase(firebaseConfig);
 
     let currentSessionId = null;
-    let currentJoinCode = null; // PINと同じ6桁を表示
+    let currentJoinCode = null;
     let currentUser = null;
     let sessionStartTime = null;
     let sessionTimer = null;
-    const SESSION_DURATION_MS = 10 * 60 * 1000; // 10分間
     let currentFilesRef = null;
 
     // 招待コードUIは廃止（Firebase Authで保護）
@@ -1241,19 +1245,13 @@
     // Googleログイン機能
     async function signInWithGoogle() {
       try {
-        // quiet logs
-        
         // Google認証プロバイダーの設定
         const provider = new GoogleAuthProvider();
         provider.addScope('email');
         provider.addScope('profile');
-        
-        // quiet logs
-        
+
         const result = await signInWithPopup(auth, provider);
         const user = result.user;
-        
-        // quiet logs
         
         // ユーザー情報を保存
         currentUser = user;
@@ -1322,13 +1320,13 @@
       try {
         await signOut(auth);
         currentUser = null;
-        
+
         // すべての認証情報をクリア
         localStorage.removeItem(AUTH_SESSION_KEY);
         localStorage.removeItem(AUTH_EXPIRES_KEY);
         sessionStorage.removeItem('inviteCodeValid');
         sessionStorage.removeItem('usedInviteCode');
-        
+
         // 認証画面に戻る
         const overlay = document.getElementById('authOverlay');
         if (overlay) overlay.style.display = 'flex';
@@ -1336,8 +1334,6 @@
         if (main) main.classList.remove('authenticated');
         const loginError = document.getElementById('googleLoginError');
         if (loginError) loginError.style.display = 'none';
-        
-        // quiet logs
       } catch (error) {
         console.error('ログアウトエラー:', error);
       }
@@ -1345,47 +1341,16 @@
 
     // 認証状態の監視
     onAuthStateChanged(auth, (user) => {
-      // quiet logs
-      
       if (user) {
-        // ログイン済み
         currentUser = user;
-        // quiet logs
         showMainContent();
         generateQRCode();
       } else {
-        // ログアウト状態
         currentUser = null;
-        // quiet logs
         checkAuthentication();
       }
     });
 
-    // 従来の認証システム（パスワード認証）
-    function authenticate() {
-      const password = document.getElementById('authInput').value;
-      const errorDiv = document.getElementById('authError');
-      
-      if (password === 'sharetto') {
-        // 認証成功
-        const expires = Date.now() + SESSION_DURATION;
-        localStorage.setItem(AUTH_SESSION_KEY, 'authenticated');
-        localStorage.setItem(AUTH_EXPIRES_KEY, expires.toString());
-        
-        showMainContent();
-        generateQRCode();
-        errorDiv.style.display = 'none';
-      } else {
-        // 認証失敗
-        errorDiv.style.display = 'block';
-        document.getElementById('authInput').value = '';
-        
-        // エラーを一定時間後に隠す
-        setTimeout(() => {
-          errorDiv.style.display = 'none';
-        }, 3000);
-      }
-    }
 
     function showMainContent() {
       document.getElementById('authOverlay').style.display = 'none';
@@ -1407,11 +1372,10 @@
       return false;
     }
 
-    // 13文字のセッションIDを生成（小文字英数）
+    // セッションIDを生成（小文字英数）
     function generateSessionId() {
-      // 時刻 + 乱数で十分な長さを作り、13文字に切り詰め
       const seed = (Date.now().toString(36) + Math.random().toString(36).slice(2)).replace(/[^a-z0-9]/g,'');
-      return seed.slice(0, 13);
+      return seed.slice(0, SESSION_ID_LENGTH);
     }
 
     // QRコード生成機能
@@ -1436,10 +1400,10 @@
         const qr = qrcode(0, 'M');
         qr.addData(currentUrl);
         qr.make();
-        
+
         // SVGとして生成
         const qrSvg = qr.createSvgTag(4, 4);
-        
+
         // 白い背景を持つコンテナを作成
         const qrContainer = document.createElement('div');
         qrContainer.style.cssText = `
@@ -1451,12 +1415,10 @@
           display: inline-block;
         `;
         qrContainer.innerHTML = qrSvg;
-        
+
         // 要素をクリアして追加
         qrElement.innerHTML = '';
         qrElement.appendChild(qrContainer);
-        
-        // quiet logs
         
         // タイマー開始
         startSessionTimer();
@@ -1479,7 +1441,7 @@
       updateJoinCodeUI();
     }
 
-    // --- Encryption helpers (Web Crypto) ---
+    // 暗号化ヘルパー（Web Crypto API）
     function toUint8(str) { return new TextEncoder().encode(str); }
     function b64url(buf) {
       let bin = '';
@@ -1488,11 +1450,11 @@
       return btoa(bin).replace(/\+/g,'-').replace(/\//g,'_').replace(/=+$/,'');
     }
     async function encryptSessionId(sessionId, pin) {
-      const salt = crypto.getRandomValues(new Uint8Array(16));
-      const iv = crypto.getRandomValues(new Uint8Array(12));
+      const salt = crypto.getRandomValues(new Uint8Array(SALT_LENGTH));
+      const iv = crypto.getRandomValues(new Uint8Array(IV_LENGTH));
       const keyMaterial = await crypto.subtle.importKey('raw', toUint8(pin), 'PBKDF2', false, ['deriveKey']);
       const key = await crypto.subtle.deriveKey(
-        { name: 'PBKDF2', salt, iterations: 200000, hash: 'SHA-256' },
+        { name: 'PBKDF2', salt, iterations: PBKDF2_ITERATIONS, hash: 'SHA-256' },
         keyMaterial,
         { name: 'AES-GCM', length: 256 },
         false,
@@ -1503,9 +1465,9 @@
     }
 
     function generatePin() {
-      // 6桁の数字PIN（000000は避ける）
-      let pin = String(Math.floor(100000 + Math.random() * 900000));
-      return pin;
+      const min = Math.pow(10, PIN_CODE_LENGTH - 1);
+      const max = Math.pow(10, PIN_CODE_LENGTH) - 1;
+      return String(Math.floor(min + Math.random() * (max - min + 1)));
     }
     // QR URL コピー機能
     function copyQRUrl() {
@@ -1515,11 +1477,11 @@
       });
     }
 
-    // 参加コードの生成・保存（共通モジュール利用）
+    // 参加コードの生成・保存
     import { issueJoinCode } from './js/session.js';
     async function ensureJoinCodeForSession(pin) {
       const ok = await issueJoinCode(db, currentSessionId, pin);
-      currentJoinCode = ok ? String(pin).slice(0,6) : null;
+      currentJoinCode = ok ? String(pin).slice(0, PIN_CODE_LENGTH) : null;
       return ok;
     }
 
@@ -1582,10 +1544,10 @@
       // 警告レベルに応じてスタイル変更
       if (timerElement) {
         timerElement.className = 'session-timer';
-        
-        if (remaining <= 60000) { // 1分以下
+
+        if (remaining <= SESSION_CRITICAL_THRESHOLD_MS) {
           timerElement.classList.add('critical');
-        } else if (remaining <= 180000) { // 3分以下
+        } else if (remaining <= SESSION_WARNING_THRESHOLD_MS) {
           timerElement.classList.add('warning');
         }
       }
@@ -1620,64 +1582,6 @@
       generateQRCode();
     }
 
-    // テストデータ作成機能
-    function createTestData() {
-      console.log('テストデータを作成中...');
-      
-      if (!currentSessionId) {
-        alert('セッションがありません。QRを生成してからテストしてください。');
-        return;
-      }
-      
-      // テストファイルデータ
-      const testFileData = {
-        type: 'file',
-        name: 'test-file.txt',
-        size: 1024,
-        mimeType: 'text/plain',
-        data: 'data:text/plain;base64,SGVsbG8gV29ybGQ=', // "Hello World"
-        timestamp: Date.now()
-      };
-      
-      // テスト画像データ（小さな赤い四角）
-      const testImageData = {
-        type: 'file',
-        name: 'test-image.png',
-        size: 2048,
-        mimeType: 'image/png',
-        data: 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8/5+hHgAHggJ/PchI7wAAAABJRU5ErkJggg==',
-        timestamp: Date.now() + 1000
-      };
-      
-      // テストURLデータ
-      const testUrlData = {
-        type: 'url',
-        url: 'https://example.com',
-        title: 'Example',
-        name: 'Example',
-        description: 'テストURL',
-        hostname: 'example.com',
-        timestamp: Date.now() + 2000
-      };
-      
-      // Firebaseに保存
-      const fileRef = dbRef(db, `files/${currentSessionId}/test-file`);
-      const imageRef = dbRef(db, `files/${currentSessionId}/test-image`);
-      const urlRef = dbRef(db, `files/${currentSessionId}/test-url`);
-      
-      Promise.all([
-        set(fileRef, testFileData),
-        set(imageRef, testImageData),
-        set(urlRef, testUrlData)
-      ]).then(() => {
-        console.log('テストデータ保存完了');
-        alert('✅ テストデータを作成しました！（ファイル、画像、URL）');
-        displayFiles();
-      }).catch((error) => {
-        console.error('テストデータ保存エラー:', error);
-        alert('❌ テストデータの作成に失敗しました');
-      });
-    }
 
     // ファイル表示機能
     let detachFiles = null;
@@ -1698,24 +1602,25 @@
     function createFileItem(file) {
       const div = document.createElement('div');
       div.className = 'file-item';
-      
+
       const fileSize = formatFileSize(file.size);
       const fileDate = new Date(file.timestamp).toLocaleString('ja-JP');
       const isImage = file.mimeType && file.mimeType.startsWith('image/');
       const safeName = escapeHTML(file.name || '');
-      const safeNameForAttr = (file.name || '').replace(/'/g, "\\'");
-      
+
       // 画像の場合はサムネイル表示
-      let thumbnailHtml = '';
       let fileIcon = '📄';
-      
+
       if (isImage) {
         fileIcon = '🖼️';
-        thumbnailHtml = `
-          <div class="file-thumbnail">
-            <img src="${file.data}" alt="${file.name}" onclick="viewFullImage('${file.data}', '${file.name}')">
-          </div>
-        `;
+        const thumbnailDiv = document.createElement('div');
+        thumbnailDiv.className = 'file-thumbnail';
+        const img = document.createElement('img');
+        img.src = file.data;
+        img.alt = file.name;
+        img.addEventListener('click', () => viewFullImage(file.data, file.name));
+        thumbnailDiv.appendChild(img);
+        div.appendChild(thumbnailDiv);
       } else {
         // ファイルタイプに応じてアイコンを変更
         if (file.mimeType) {
@@ -1726,54 +1631,92 @@
           else if (file.mimeType.includes('text')) fileIcon = '📝';
         }
       }
-      
-      div.innerHTML = `
-        <div class="file-info">
-          ${thumbnailHtml}
-          <div class="file-details">
-            <div class="file-name">${fileIcon} ${safeName}</div>
-            <div class="file-size">サイズ: ${fileSize}</div>
-            <div class="file-date">アップロード: ${fileDate}</div>
-          </div>
-          <div class="file-actions">
-            <button class="download-btn" onclick="downloadFile('${file.id}', '${safeNameForAttr}', '${file.data}')">
-              ⬇️ ダウンロード
-            </button>
-            ${isImage ? `<button class="download-btn view-btn" onclick="viewFullImage('${file.data}', '${safeNameForAttr}')">👁️ プレビュー</button>` : ''}
-          </div>
-        </div>
+
+      const fileInfo = document.createElement('div');
+      fileInfo.className = 'file-info';
+
+      const fileDetails = document.createElement('div');
+      fileDetails.className = 'file-details';
+      fileDetails.innerHTML = `
+        <div class="file-name">${fileIcon} ${safeName}</div>
+        <div class="file-size">サイズ: ${fileSize}</div>
+        <div class="file-date">アップロード: ${fileDate}</div>
       `;
-      
+
+      const fileActions = document.createElement('div');
+      fileActions.className = 'file-actions';
+
+      const downloadBtn = document.createElement('button');
+      downloadBtn.className = 'download-btn';
+      downloadBtn.textContent = '⬇️ ダウンロード';
+      downloadBtn.addEventListener('click', () => downloadFile(file.id, file.name, file.data));
+      fileActions.appendChild(downloadBtn);
+
+      if (isImage) {
+        const viewBtn = document.createElement('button');
+        viewBtn.className = 'download-btn view-btn';
+        viewBtn.textContent = '👁️ プレビュー';
+        viewBtn.addEventListener('click', () => viewFullImage(file.data, file.name));
+        fileActions.appendChild(viewBtn);
+      }
+
+      fileInfo.appendChild(fileDetails);
+      fileInfo.appendChild(fileActions);
+      div.appendChild(fileInfo);
+
       return div;
     }
     
     function createUrlItem(url) {
       const div = document.createElement('div');
       div.className = 'url-item';
-      
+
       const urlDate = new Date(url.timestamp).toLocaleString('ja-JP');
       const safeTitle = escapeHTML(url.title || url.hostname || 'リンク');
       const safeUrl = String(url.url || '');
       const isHttp = /^https?:\/\//i.test(safeUrl);
       const displayUrl = escapeHTML(safeUrl);
-      
-      div.innerHTML = `
-        <div class="file-info">
-          <div class="file-details">
-            <div class="file-name">🔗 ${safeTitle}</div>
-            <div class="file-meta">
-              <span>共有: ${urlDate}</span>
-            </div>
-            ${isHttp ? `<a href="${displayUrl}" target="_blank" rel="noopener" class="url-link">${displayUrl}</a>` : `<span class="url-link">${displayUrl}</span>`}
-          </div>
-          <div class="file-actions">
-            <button class="download-btn" onclick="copyToClipboard('${safeUrl.replace(/'/g, "\\'")}')">
-              📋 コピー
-            </button>
-          </div>
-        </div>
-      `;
-      
+
+      const fileInfo = document.createElement('div');
+      fileInfo.className = 'file-info';
+
+      const fileDetails = document.createElement('div');
+      fileDetails.className = 'file-details';
+
+      const fileName = document.createElement('div');
+      fileName.className = 'file-name';
+      fileName.textContent = `🔗 ${url.title || url.hostname || 'リンク'}`;
+
+      const fileMeta = document.createElement('div');
+      fileMeta.className = 'file-meta';
+      fileMeta.innerHTML = `<span>共有: ${urlDate}</span>`;
+
+      const urlLink = document.createElement(isHttp ? 'a' : 'span');
+      urlLink.className = 'url-link';
+      urlLink.textContent = safeUrl;
+      if (isHttp) {
+        urlLink.href = safeUrl;
+        urlLink.target = '_blank';
+        urlLink.rel = 'noopener noreferrer';
+      }
+
+      fileDetails.appendChild(fileName);
+      fileDetails.appendChild(fileMeta);
+      fileDetails.appendChild(urlLink);
+
+      const fileActions = document.createElement('div');
+      fileActions.className = 'file-actions';
+
+      const copyBtn = document.createElement('button');
+      copyBtn.className = 'download-btn';
+      copyBtn.textContent = '📋 コピー';
+      copyBtn.addEventListener('click', () => copyToClipboard(safeUrl));
+      fileActions.appendChild(copyBtn);
+
+      fileInfo.appendChild(fileDetails);
+      fileInfo.appendChild(fileActions);
+      div.appendChild(fileInfo);
+
       return div;
     }
 
@@ -1797,44 +1740,21 @@
     
     // 初期化
     document.addEventListener('DOMContentLoaded', function() {
-      // 認証状態をチェック
       checkAuthentication();
-      // 一定時間後にファイル表示を開始（認証状態に関係なく）
       setTimeout(() => { displayFiles(); }, 1000);
     });
 
-    // 旧 招待コード入力のEnter対応は廃止
-
-    // 従来の認証システム用（開発・テスト用）
-    document.addEventListener('DOMContentLoaded', function() {
-      const authInput = document.getElementById('authInput');
-      if (authInput) {
-        authInput.addEventListener('keypress', function(e) {
-          if (e.key === 'Enter') {
-            authenticate();
-          }
-        });
-      }
-    });
-
-    // グローバル関数として公開
-    // 旧 招待コード系の公開関数は廃止
+    // グローバル関数として公開（HTMLから呼び出されるため必要）
     window.signInWithGoogle = signInWithGoogle;
     window.signOutUser = signOutUser;
-    window.authenticate = authenticate;
     window.generateNewSession = generateNewSession;
     window.copyQRUrl = copyQRUrl;
-    // PC間共有関数の公開は不要
     window.refreshFiles = refreshFiles;
-    // download/copy は ui.js からインポートした実装をマッピング
-    window.createTestData = createTestData;
     window.viewFullImage = viewFullImage;
     window.closeImageModal = closeImageModal;
     window.downloadModalImage = downloadModalImage;
     window.downloadFile = downloadFile;
     window.copyToClipboard = copyToClipboard;
-
-    // 画像プレビュー機能は js/ui.js に委譲
   </script>
 </body>
 </html>

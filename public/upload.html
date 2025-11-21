@@ -736,31 +736,30 @@
   </div>
 
   <script type="module">
-    // Add cache-busting query to ensure latest modules load in browsers
     import { initFirebase, dbRef, onValue, off, get, update } from './js/firebase.js?v=20250831a';
     import { encodeFileAsDataURL, putFile, putUrl } from './js/files-save.js?v=20250831a';
     import { firebaseConfig } from './config.js';
 
+    // 定数定義
+    const AUTH_SESSION_KEY = 'auth_session';
+    const AUTH_EXPIRES_KEY = 'auth_expires';
+    const AUTH_SESSION_DURATION_MS = 24 * 60 * 60 * 1000; // 24時間
+    const MAX_FILE_SIZE_MB = 50;
+    const MAX_FILE_SIZE_BYTES = MAX_FILE_SIZE_MB * 1024 * 1024;
+    const PBKDF2_ITERATIONS = 200000;
+
     const { db } = initFirebase(firebaseConfig);
 
-    // Realtime Database connection warm-up to reduce first-write stalls
+    // Realtime Database connection warm-up
     (function warmUpRealtime() {
       try {
         const infoRef = dbRef(db, '.info/connected');
         onValue(infoRef, (snap) => { try { off(infoRef); } catch {} });
-      } catch (e) {
-        // no-op
-      }
+      } catch (e) {}
       try {
-        // Fire a no-op read to establish transport
         get(dbRef(db, 'ping')).catch(() => {});
       } catch {}
     })();
-
-    // セッション管理の定数
-    const AUTH_SESSION_KEY = 'auth_session';
-    const AUTH_EXPIRES_KEY = 'auth_expires';
-    const SESSION_DURATION = 24 * 60 * 60 * 1000; // 24時間
 
     // URLからセッション情報を取得
     const urlParams = new URLSearchParams(window.location.search);
@@ -768,8 +767,6 @@
     const encCt = urlParams.get('ct');
     const encIv = urlParams.get('iv');
     const encSalt = urlParams.get('salt');
-    
-    // quiet logs
 
     // 認証システム
     async function authenticate() {
@@ -782,7 +779,7 @@
           const sid = await decryptSessionId(password, encCt, encIv, encSalt);
           if (!sid || sid.length < 6) throw new Error('invalid sid');
           sessionId = sid;
-          const expires = Date.now() + SESSION_DURATION;
+          const expires = Date.now() + AUTH_SESSION_DURATION_MS;
           localStorage.setItem(AUTH_SESSION_KEY, 'authenticated');
           localStorage.setItem(AUTH_EXPIRES_KEY, expires.toString());
           showMainContent();
@@ -800,7 +797,7 @@
 
       // 互換: 簡易パスワード
       if (password === 'sharetto') {
-        const expires = Date.now() + SESSION_DURATION;
+        const expires = Date.now() + AUTH_SESSION_DURATION_MS;
         localStorage.setItem(AUTH_SESSION_KEY, 'authenticated');
         localStorage.setItem(AUTH_EXPIRES_KEY, expires.toString());
         showMainContent();
@@ -820,7 +817,7 @@
     function checkAuthentication() {
       // URLパラメータから自動認証をチェック
       if (sessionId && sessionId.length >= 6) {
-        const expiresAt = Date.now() + SESSION_DURATION;
+        const expiresAt = Date.now() + AUTH_SESSION_DURATION_MS;
         localStorage.setItem(AUTH_SESSION_KEY, 'authenticated');
         localStorage.setItem(AUTH_EXPIRES_KEY, expiresAt.toString());
         showMainContent();
@@ -830,15 +827,15 @@
       if (encCt && encIv && encSalt) {
         return false;
       }
-      
+
       // 通常の認証チェック
       const authSession = localStorage.getItem(AUTH_SESSION_KEY);
       const authExpires = localStorage.getItem(AUTH_EXPIRES_KEY);
-      
+
       if (authSession === 'authenticated' && authExpires) {
         const expiresAt = parseInt(authExpires);
         const now = Date.now();
-        
+
         if (now < expiresAt) {
           showMainContent();
           return true;
@@ -847,7 +844,7 @@
           localStorage.removeItem(AUTH_EXPIRES_KEY);
         }
       }
-      
+
       return false;
     }
 
@@ -895,7 +892,7 @@
       }
     });
 
-    // Decryption helpers
+    // 復号ヘルパー（Web Crypto API）
     function fromB64url(str) {
       const b64 = str.replace(/-/g,'+').replace(/_/g,'/');
       const pad = '='.repeat((4 - (b64.length % 4)) % 4);
@@ -907,7 +904,7 @@
     async function decryptSessionId(pin, ct, iv, salt) {
       const keyMaterial = await crypto.subtle.importKey('raw', new TextEncoder().encode(pin), 'PBKDF2', false, ['deriveKey']);
       const key = await crypto.subtle.deriveKey(
-        { name: 'PBKDF2', salt: fromB64url(salt), iterations: 200000, hash: 'SHA-256' },
+        { name: 'PBKDF2', salt: fromB64url(salt), iterations: PBKDF2_ITERATIONS, hash: 'SHA-256' },
         keyMaterial,
         { name: 'AES-GCM', length: 256 },
         false,
@@ -983,21 +980,19 @@
 
     async function uploadFile() {
       if (fileInput.files.length === 0) return;
-      
+
       const file = fileInput.files[0];
-      
-      // quiet logs
-      
+
       if (!sessionId) {
         status.textContent = 'エラー: セッションIDが見つかりません';
         status.classList.add('error');
         console.error('セッションIDなし');
         return;
       }
-      
-      // ファイルサイズ制限 (50MB)
-      if (file.size > 50 * 1024 * 1024) {
-        status.textContent = 'ファイルサイズが大きすぎます (最大50MB)';
+
+      // ファイルサイズ制限
+      if (file.size > MAX_FILE_SIZE_BYTES) {
+        status.textContent = `ファイルサイズが大きすぎます (最大${MAX_FILE_SIZE_MB}MB)`;
         status.classList.add('error');
         return;
       }
@@ -1094,8 +1089,6 @@
       const url = urlInput.value.trim();
       if (!url) return;
 
-      // quiet logs
-      
       if (!sessionId) {
         urlStatus.textContent = 'エラー: セッションIDが見つかりません';
         urlStatus.classList.add('error');
