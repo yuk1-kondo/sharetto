@@ -1099,26 +1099,19 @@
   </style>
 </head>
 <body>
-  <!-- 認証オーバーレイ（Googleログインのみ） -->
-  <div id="authOverlay" class="auth-overlay">
+  <!-- 任意: Googleログイン（アカウントなしでも利用可） -->
+  <div id="authOverlay" class="auth-overlay" style="display:none">
     <div id="googleLoginScreen" class="auth-container">
-      <h1 style="font-size:32px;font-weight:800;margin-bottom:8px;letter-spacing:.5px;">シェアっと</h1>
-      <h2 class="auth-title">🔐 Googleログイン</h2>
-      <p class="auth-subtitle">Googleアカウントでログインしてください</p>
-      <button onclick="signInWithGoogle()" class="auth-button google-login-btn">
-        <span class="google-login-icon">🔑</span>
-        Googleでログイン
-      </button>
-      <div id="googleLoginError" class="auth-error">ログインに失敗しました</div>
-      <div class="auth-info">💡 ログイン後にQRコードが表示されます</div>
-
-      <div style="margin:16px 0; opacity:.7; font-size:14px;">— または —</div>
-      <a href="/join.html" class="auth-button" style="display:block;text-align:center">🧩 参加専用ページへ</a>
+      <h2 class="auth-title">🔐 Googleログイン（任意）</h2>
+      <p class="auth-subtitle">ログインしなくてもファイル受信できます</p>
+      <button onclick="signInWithGoogle()" class="auth-button google-login-btn">Googleでログイン</button>
+      <div id="googleLoginError" class="auth-error"></div>
+      <button onclick="document.getElementById('authOverlay').style.display='none'" class="auth-button" style="margin-top:12px;background:var(--md-surface-variant)!important;color:var(--md-on-surface)!important">スキップ</button>
     </div>
   </div>
 
   <!-- メインコンテンツ -->
-  <div id="mainContent" class="main-content">
+  <div id="mainContent" class="main-content authenticated">
     <div class="topbar glass-container" style="margin: 0 auto 12px; max-width: 960px; background: transparent; border: none; box-shadow: none;">
       <div class="topbar-inner" style="display:grid;grid-template-columns:1fr auto 1fr;align-items:center;">
         <div style="grid-column:2;justify-self:center;text-align:center;">
@@ -1126,12 +1119,33 @@
           <div style="opacity:.8;font-size:14px;margin-top:2px;">美しいファイル共有体験</div>
         </div>
         <div style="grid-column:3;display:flex;gap:8px;flex-wrap:wrap;justify-content:flex-end;align-items:center;">
-          <button onclick="signOutUser()" class="action-button">🚪 ログアウト</button>
+          <a href="/join.html" class="action-button" style="text-decoration:none">🧩 参加</a>
+          <button type="button" onclick="document.getElementById('authOverlay').style.display='flex'" class="action-button">🔑 ログイン</button>
+          <div id="googleLoginBar" style="display:none;align-items:center;gap:8px">
+            <button onclick="signOutUser()" class="action-button">🚪 ログアウト</button>
+          </div>
         </div>
       </div>
     </div>
 
     <div class="glass-container" style="max-width:960px">
+      <!-- 転送モード A/B -->
+      <div class="transfer-mode-tabs tab-container" style="margin-bottom:16px">
+        <button type="button" class="tab-button active" data-transfer-mode="p2p">⚡ 直接接続</button>
+        <button type="button" class="tab-button" data-transfer-mode="relay">☁️ サーバー経由</button>
+      </div>
+      <p id="relayModeNote" hidden style="font-size:13px;color:var(--md-on-surface-variant);margin-bottom:12px">サーバー経由: 確実ですが速度は遅め。NAT越えできない場合のフォールバックにも使えます。</p>
+
+      <!-- 接続状態 -->
+      <div class="connection-panel">
+        <span id="connectionBadge" class="connection-badge" data-state="idle">準備中</span>
+        <span id="connectionDetail" class="connection-detail"></span>
+        <div class="connection-progress-track"><div id="connectionProgress" class="connection-progress-bar" hidden></div></div>
+      </div>
+
+      <!-- Three.js ビジュアル -->
+      <div id="visualCanvas" class="visual-canvas" aria-hidden="true"></div>
+
       <!-- QRコード表示 -->
       <div class="qr-section">
         <div class="qr-header">

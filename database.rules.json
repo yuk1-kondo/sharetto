@@ -4,12 +4,21 @@
       ".read": true,
       ".write": true,
       "$code": {
-        // 読み取りはPIN入力端末でも可（TTL判定はクライアント側も実施）
         ".read": "($code.length == 6) && ($code.matches(/^[0-9]{6}$/))",
-        // 書き込みは許可（PIN→sessionの一時マッピング）。セッション側は別ルールで保護。
         ".write": "true",
-        // 最低限の検証: sessionId 形式と timestamp の妥当性
         ".validate": "newData.hasChildren(['sessionId','timestamp']) && (newData.child('sessionId').isString()) && (newData.child('sessionId').val().matches(/^[a-z0-9]{13}$/)) && (newData.child('timestamp').val() <= now) && (newData.child('timestamp').val() > now - 60000)"
+      }
+    },
+    "signaling": {
+      "$sessionId": {
+        ".read": "$sessionId.matches(/^[a-z0-9]{13}$/)",
+        ".write": "$sessionId.matches(/^[a-z0-9]{13}$/)",
+        "peers": {
+          "$peerId": {
+            ".read": "$sessionId.matches(/^[a-z0-9]{13}$/)",
+            ".write": "$sessionId.matches(/^[a-z0-9]{13}$/)"
+          }
+        }
       }
     },
     "files": {

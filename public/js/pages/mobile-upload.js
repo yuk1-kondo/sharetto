@@ -12,10 +12,24 @@ import {
   AUTH_SESSION_DURATION_MS,
   MAX_FILE_SIZE_BYTES,
   MAX_FILE_SIZE_MB,
+  TRANSFER_MODE,
+  CONNECTION_STATE,
 } from '../constants.js';
+import { createP2PGuest, sendFileOverChannel, sendTextOverChannel } from '../webrtc/guest.js';
+import { setConnectionState, subscribeConnectionState, setTransferProgress } from '../connection-state.js';
 import { firebaseConfig } from '../../config.js';
 
 const { db } = initFirebase(firebaseConfig);
+
+const urlParams = new URLSearchParams(window.location.search);
+let sessionId = urlParams.get('session') || null;
+const encCt = urlParams.get('ct');
+const encIv = urlParams.get('iv');
+const encSalt = urlParams.get('salt');
+
+let transferMode = urlParams.get('mode') === 'relay' ? TRANSFER_MODE.RELAY : TRANSFER_MODE.P2P;
+let p2pGuest = null;
+let dataChannel = null;
 
 (function warmUpRealtime() {
   try {
@@ -27,11 +41,44 @@ const { db } = initFirebase(firebaseConfig);
   } catch { /* noop */ }
 })();
 
-const urlParams = new URLSearchParams(window.location.search);
-let sessionId = urlParams.get('session') || null;
-const encCt = urlParams.get('ct');
-const encIv = urlParams.get('iv');
-const encSalt = urlParams.get('salt');
+function updateMobileConnectionUI(snap) {
+  const badge = document.getElementById('mobileConnectionBadge');
+  const detail = document.getElementById('mobileConnectionDetail');
+  if (badge) { badge.textContent = snap.label; badge.dataset.state = snap.state; }
+  if (detail) detail.textContent = snap.detail || '';
+}
+
+function switchToRelayMode(reason) {
+  transferMode = TRANSFER_MODE.RELAY;
+  p2pGuest?.stop();
+  p2pGuest = null;
+  dataChannel = null;
+  const fb = document.getElementById('fallbackRelayBtn');
+  if (fb) fb.hidden = true;
+  showToast(reason || 'サーバー経由モードに切り替えました', 'info', 3500);
+  setConnectionState(CONNECTION_STATE.WAITING, { detail: 'サーバー経由で送信できます' });
+}
+
+async function initP2PConnection() {
+  if (transferMode !== TRANSFER_MODE.P2P || !sessionId) return;
+  const fb = document.getElementById('fallbackRelayBtn');
+  if (fb) fb.hidden = false;
+  p2pGuest = createP2PGuest({
+    db, sessionId,
+    onConnected: (ch) => { dataChannel = ch; showToast('直接接続しました', 'success'); },
+    onFailed: () => switchToRelayMode('直接接続できませんでした'),
+  });
+  try {
+    dataChannel = await p2pGuest.connect();
+  } catch (e) {
+    console.warn('[mobile] P2P failed', e);
+    switchToRelayMode('直接接続できませんでした');
+  }
+}
+
+function isP2PReady() {
+  return transferMode === TRANSFER_MODE.P2P && dataChannel?.readyState === 'open';
+}
 
 const fileInput = document.getElementById('file-input');
 const uploadBtn = document.getElementById('upload-btn');
@@ -184,7 +231,15 @@ async function uploadFile() {
 
   try {
     progressBar.style.width = '30%';
-    await uploadFileWithFallback(file);
+    if (isP2PReady()) {
+      setConnectionState(CONNECTION_STATE.TRANSFERRING, { detail: file.name });
+      await sendFileOverChannel(dataChannel, file, (p) => {
+        progressBar.style.width = `${Math.round(p * 100)}%`;
+        setTransferProgress(p, file.name);
+      });
+    } else {
+      await uploadFileWithFallback(file);
+    }
     progressBar.style.width = '100%';
     status.textContent = 'アップロード完了！';
     status.classList.add('success');
@@ -264,8 +319,13 @@ async function shareUrl() {
   urlStatus.classList.remove('success', 'error');
 
   try {
-    await shareUrlWithFallback(url);
-    urlStatus.textContent = 'URL共有完了！';
+    if (isP2PReady()) {
+      sendTextOverChannel(dataChannel, url);
+      urlStatus.textContent = 'URL送信完了！';
+    } else {
+      await shareUrlWithFallback(url);
+      urlStatus.textContent = 'URL共有完了！';
+    }
     urlStatus.classList.add('success');
     showToast('URLを共有しました', 'success');
     urlInput.value = '';
@@ -317,11 +377,27 @@ document.getElementById('authInput')?.addEventListener('keypress', (e) => {
   if (e.key === 'Enter') authenticate();
 });
 
-document.addEventListener('DOMContentLoaded', () => {
+document.addEventListener('DOMContentLoaded', async () => {
   initTabs();
-  if (!checkAuthentication()) {
+  subscribeConnectionState(updateMobileConnectionUI);
+  if (checkAuthentication()) {
+    await initP2PConnection();
+  } else {
     document.getElementById('authInput')?.focus();
   }
+  document.getElementById('fallbackRelayBtn')?.addEventListener('click', () => switchToRelayMode());
+  document.getElementById('text-send-btn')?.addEventListener('click', async () => {
+    const text = document.getElementById('text-input')?.value?.trim();
+    if (!text) return;
+    if (isP2PReady()) {
+      sendTextOverChannel(dataChannel, text);
+      showToast('テキストを送信しました', 'success');
+      document.getElementById('text-input').value = '';
+    } else {
+      showToast('直接接続が必要です。サーバー経由ではテキストのみURLタブをご利用ください', 'info');
+    }
+  });
 });
 
 window.authenticate = authenticate;
+window.switchToRelayMode = switchToRelayMode;

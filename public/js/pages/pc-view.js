@@ -1,28 +1,21 @@
 /**
- * PC側メインページ (index.html) のエントリポイント
+ * PC側メインページ (index.html) — A/B転送 + 接続状態 + Three.js
  */
+import { initFirebase, GoogleAuthProvider, signInWithPopup, onAuthStateChanged, signOut } from '../firebase.js';
 import {
-  initFirebase,
-  GoogleAuthProvider,
-  signInWithPopup,
-  onAuthStateChanged,
-  signOut,
-} from '../firebase.js';
-import {
-  viewFullImage,
-  closeImageModal,
-  downloadModalImage,
-  downloadFile,
-  copyToClipboard,
+  viewFullImage, closeImageModal, downloadModalImage, downloadFile, copyToClipboard,
 } from '../ui.js';
 import { attachFilesListener } from '../files-view.js';
 import { issueJoinCode } from '../session.js';
 import { createFileItem, createUrlItem } from '../file-items.js';
 import { createSessionTimer } from '../session-timer.js';
 import { renderQRCode } from '../qr-display.js';
-import { generateSessionId, generatePin } from '../utils.js';
+import { generateSessionId, generatePin, formatFileSize } from '../utils.js';
 import { showToast } from '../toast.js';
-import { PIN_CODE_LENGTH } from '../constants.js';
+import { PIN_CODE_LENGTH, TRANSFER_MODE, CONNECTION_STATE } from '../constants.js';
+import { subscribeConnectionState, setConnectionState, resetConnectionState } from '../connection-state.js';
+import { createP2PHost } from '../webrtc/host.js';
+import { initParticleScene } from '../visual/particle-scene.js';
 import { firebaseConfig } from '../../config.js';
 
 const { db, auth } = initFirebase(firebaseConfig);
@@ -31,6 +24,9 @@ let currentSessionId = null;
 let currentJoinCode = null;
 let currentUser = null;
 let detachFiles = null;
+let p2pHost = null;
+let transferMode = TRANSFER_MODE.P2P;
+let visualScene = null;
 
 const timer = createSessionTimer({
   onExpire: () => setTimeout(generateNewSession, 5000),
@@ -47,114 +43,165 @@ const itemHandlers = {
   onCopy: (text) => copyToClipboard(text, 'URLをコピーしました'),
 };
 
-async function signInWithGoogle() {
-  const errorEl = document.getElementById('googleLoginError');
-  try {
-    const provider = new GoogleAuthProvider();
-    provider.addScope('email');
-    provider.addScope('profile');
-
-    const result = await signInWithPopup(auth, provider);
-    currentUser = result.user;
-
-    errorEl.textContent = `✅ ログイン成功！ようこそ ${result.user.displayName || result.user.email} さん`;
-    errorEl.style.color = '#4ade80';
-    errorEl.style.display = 'block';
-
-    setTimeout(() => {
-      showMainContent();
-      generateQRCode();
-      errorEl.style.display = 'none';
-      errorEl.style.color = '#ff6b6b';
-    }, 1500);
-  } catch (error) {
-    console.error('Googleログインエラー:', error);
-
-    const messages = {
-      'auth/popup-blocked': 'ポップアップがブロックされました。ブラウザの設定を確認してください。',
-      'auth/popup-closed-by-user': 'ログインがキャンセルされました。',
-      'auth/unauthorized-domain': 'このドメインは認証が許可されていません。',
-      'auth/operation-not-allowed': 'Googleログインが有効になっていません。',
-      'auth/network-request-failed': 'ネットワークエラーが発生しました。インターネット接続を確認してください。',
-      'auth/too-many-requests': 'リクエストが多すぎます。しばらく待ってから再試行してください。',
-    };
-
-    errorEl.textContent = messages[error.code] || `ログインエラー: ${error.message}`;
-    errorEl.style.display = 'block';
-    setTimeout(() => { errorEl.style.display = 'none'; }, 10000);
-  }
-}
-
-async function signOutUser() {
-  try {
-    await signOut(auth);
-    currentUser = null;
-    sessionStorage.removeItem('inviteCodeValid');
-    sessionStorage.removeItem('usedInviteCode');
-
-    document.getElementById('authOverlay').style.display = 'flex';
-    document.getElementById('mainContent').classList.remove('authenticated');
-    document.getElementById('googleLoginError').style.display = 'none';
-  } catch (error) {
-    console.error('ログアウトエラー:', error);
-  }
-}
-
 function showMainContent() {
   document.getElementById('authOverlay').style.display = 'none';
   document.getElementById('mainContent').classList.add('authenticated');
 }
 
-function checkAuthentication() {
-  if (currentUser) {
-    showMainContent();
-    generateQRCode();
-    return true;
+function startSession() {
+  showMainContent();
+  if (!currentSessionId) generateQRCode();
+}
+
+async function signInWithGoogle() {
+  const errorEl = document.getElementById('googleLoginError');
+  try {
+    const provider = new GoogleAuthProvider();
+    const result = await signInWithPopup(auth, provider);
+    currentUser = result.user;
+    errorEl.textContent = `✅ ${result.user.displayName || result.user.email} でログイン`;
+    errorEl.style.color = '#4ade80';
+    errorEl.style.display = 'block';
+    setTimeout(() => { errorEl.style.display = 'none'; startSession(); }, 800);
+  } catch (error) {
+    errorEl.textContent = error.code === 'auth/popup-closed-by-user'
+      ? 'ログインがキャンセルされました'
+      : `ログインエラー: ${error.message}`;
+    errorEl.style.display = 'block';
   }
-  document.getElementById('authOverlay').style.display = 'flex';
-  document.getElementById('googleLoginScreen')?.classList.remove('hidden-screen');
-  document.getElementById('mainContent').classList.remove('authenticated');
-  return false;
+}
+
+async function signOutUser() {
+  await signOut(auth);
+  currentUser = null;
+  document.getElementById('googleLoginBar').style.display = 'none';
+  showToast('ログアウトしました', 'info');
+}
+
+function setTransferMode(mode) {
+  transferMode = mode;
+  document.querySelectorAll('[data-transfer-mode]').forEach((btn) => {
+    btn.classList.toggle('active', btn.dataset.transferMode === mode);
+  });
+  const relayNote = document.getElementById('relayModeNote');
+  if (relayNote) relayNote.hidden = mode !== TRANSFER_MODE.RELAY;
+  if (currentSessionId) restartTransferLayer();
+}
+
+function appendP2PFile(file, peerId) {
+  const filesList = document.getElementById('filesList');
+  const noFiles = filesList.querySelector('.no-files');
+  if (noFiles) noFiles.remove();
+
+  const url = URL.createObjectURL(file.blob);
+  const div = document.createElement('div');
+  div.className = 'file-item';
+  const isImage = file.mimeType?.startsWith('image/');
+  const date = new Date().toLocaleString('ja-JP');
+  div.innerHTML = `
+    <div class="file-info">
+      <div class="file-details">
+        <div class="file-name">${isImage ? '🖼️' : '📄'} ${file.name} <span style="font-size:12px;opacity:.7">(直接)</span></div>
+        <div class="file-size">サイズ: ${formatFileSize(file.size)} · 送信元: ${peerId.slice(0, 4)}</div>
+        <div class="file-date">受信: ${date}</div>
+      </div>
+      <div class="file-actions">
+        <button class="download-btn p2p-dl">⬇️ ダウンロード</button>
+      </div>
+    </div>`;
+  div.querySelector('.p2p-dl').addEventListener('click', () => {
+    downloadFile(file.id, file.name, url);
+  });
+  if (isImage) {
+    const thumb = document.createElement('div');
+    thumb.className = 'file-thumbnail';
+    const img = document.createElement('img');
+    img.src = url;
+    img.alt = file.name;
+    img.addEventListener('click', () => viewFullImage(url, file.name));
+    thumb.appendChild(img);
+    div.querySelector('.file-info').prepend(thumb);
+  }
+  filesList.prepend(div);
+  showToast(`${file.name} を直接受信しました`, 'success');
+}
+
+function appendP2PText(text, peerId) {
+  const urlsList = document.getElementById('urlsList');
+  const empty = urlsList.querySelector('.no-files');
+  if (empty) empty.remove();
+  const div = document.createElement('div');
+  div.className = 'url-item';
+  div.innerHTML = `
+    <div class="file-info">
+      <div class="file-details">
+        <div class="file-name">💬 テキスト <span style="font-size:12px;opacity:.7">(直接 · ${peerId.slice(0, 4)})</span></div>
+        <div class="file-meta"><span>${new Date().toLocaleString('ja-JP')}</span></div>
+        <span class="url-link">${text.replace(/</g, '&lt;')}</span>
+      </div>
+      <div class="file-actions">
+        <button class="download-btn p2p-copy">📋 コピー</button>
+      </div>
+    </div>`;
+  div.querySelector('.p2p-copy').addEventListener('click', () => copyToClipboard(text));
+  urlsList.prepend(div);
+}
+
+async function restartTransferLayer() {
+  p2pHost?.stop();
+  p2pHost = null;
+  if (detachFiles) { try { detachFiles(); } catch { /* noop */ } detachFiles = null; }
+
+  if (transferMode === TRANSFER_MODE.P2P && currentSessionId) {
+    p2pHost = createP2PHost({
+      db,
+      sessionId: currentSessionId,
+      onFile: appendP2PFile,
+      onText: appendP2PText,
+    });
+    await p2pHost.start();
+  } else if (currentSessionId) {
+    resetConnectionState();
+    setConnectionState(CONNECTION_STATE.WAITING, { detail: 'サーバー経由で受信待機中' });
+    displayFilesRelay();
+  }
 }
 
 async function generateQRCode() {
+  p2pHost?.stop();
+  if (detachFiles) { try { detachFiles(); } catch { /* noop */ } detachFiles = null; }
+
   currentSessionId = generateSessionId();
-  const uploadUrl = `${window.location.origin}/upload.html?session=${currentSessionId}`;
+  const modeParam = transferMode === TRANSFER_MODE.P2P ? 'p2p' : 'relay';
+  const uploadUrl = `${window.location.origin}/upload.html?session=${currentSessionId}&mode=${modeParam}`;
   const pin = generatePin();
 
+  resetConnectionState();
   try {
     renderQRCode(document.getElementById('qrcode'), uploadUrl);
     timer.start();
-    displayFiles();
-  } catch {
-    return;
-  }
+  } catch { return; }
 
   document.getElementById('qrUrl').textContent = uploadUrl;
-
   const ok = await issueJoinCode(db, currentSessionId, pin);
   currentJoinCode = ok ? String(pin).slice(0, PIN_CODE_LENGTH) : null;
-  if (!ok) {
-    showToast('参加コードの発行に失敗しました。ページを更新してください', 'error', 4000);
-  }
+  if (!ok) showToast('参加コードの発行に失敗しました', 'error', 4000);
   updateJoinCodeUI();
+  await restartTransferLayer();
 }
 
 function updateJoinCodeUI() {
   const el = document.getElementById('joinCode');
   if (el) el.textContent = currentJoinCode || '------';
-  const copyBtn = document.getElementById('copyJoinCodeBtn');
-  if (copyBtn) copyBtn.disabled = !currentJoinCode;
+  document.getElementById('copyJoinCodeBtn') && (document.getElementById('copyJoinCodeBtn').disabled = !currentJoinCode);
 }
 
 function copyQRUrl() {
-  const url = document.getElementById('qrUrl').textContent;
-  copyToClipboard(url, 'URLをコピーしました');
+  copyToClipboard(document.getElementById('qrUrl').textContent, 'URLをコピーしました');
 }
 
 function copyJoinCode() {
-  if (!currentJoinCode) return;
-  copyToClipboard(currentJoinCode, '参加コードをコピーしました');
+  if (currentJoinCode) copyToClipboard(currentJoinCode, '参加コードをコピーしました');
 }
 
 function generateNewSession() {
@@ -162,44 +209,59 @@ function generateNewSession() {
   generateQRCode();
 }
 
-function displayFiles() {
+function displayFilesRelay() {
   if (!currentSessionId) return;
-  const filesList = document.getElementById('filesList');
-  const urlsList = document.getElementById('urlsList');
-  if (detachFiles) {
-    try { detachFiles(); } catch { /* noop */ }
-  }
   detachFiles = attachFilesListener(db, currentSessionId, {
-    filesList,
-    urlsList,
-    createFileItem: (file) => createFileItem(file, itemHandlers),
-    createUrlItem: (url) => createUrlItem(url, itemHandlers),
+    filesList: document.getElementById('filesList'),
+    urlsList: document.getElementById('urlsList'),
+    createFileItem: (f) => createFileItem(f, itemHandlers),
+    createUrlItem: (u) => createUrlItem(u, itemHandlers),
   });
 }
 
 function refreshFiles() {
-  displayFiles();
+  if (transferMode === TRANSFER_MODE.RELAY) displayFilesRelay();
   showToast('一覧を更新しました', 'info', 1500);
 }
 
-onAuthStateChanged(auth, (user) => {
-  if (user) {
-    currentUser = user;
-    showMainContent();
-    generateQRCode();
-  } else {
-    currentUser = null;
-    checkAuthentication();
+function updateConnectionUI(snap) {
+  const badge = document.getElementById('connectionBadge');
+  const detail = document.getElementById('connectionDetail');
+  const bar = document.getElementById('connectionProgress');
+  if (badge) {
+    badge.textContent = snap.label;
+    badge.dataset.state = snap.state;
   }
+  if (detail) detail.textContent = snap.detail || '';
+  if (bar) {
+    bar.style.width = `${Math.round((snap.progress || 0) * 100)}%`;
+    bar.hidden = snap.state !== CONNECTION_STATE.TRANSFERRING && snap.progress <= 0;
+  }
+}
+
+onAuthStateChanged(auth, (user) => {
+  currentUser = user;
+  const bar = document.getElementById('googleLoginBar');
+  if (bar) bar.style.display = user ? 'flex' : 'none';
 });
 
 document.getElementById('copyJoinCodeBtn')?.addEventListener('click', copyJoinCode);
-
-document.addEventListener('DOMContentLoaded', () => {
-  checkAuthentication();
+document.querySelectorAll('[data-transfer-mode]').forEach((btn) => {
+  btn.addEventListener('click', () => setTransferMode(btn.dataset.transferMode));
 });
 
-// HTML onclick 互換
+subscribeConnectionState(updateConnectionUI);
+
+document.addEventListener('DOMContentLoaded', async () => {
+  startSession();
+  visualScene = await initParticleScene(document.getElementById('visualCanvas'));
+});
+
+window.addEventListener('beforeunload', () => {
+  p2pHost?.stop();
+  visualScene?.destroy();
+});
+
 window.signInWithGoogle = signInWithGoogle;
 window.signOutUser = signOutUser;
 window.generateNewSession = generateNewSession;

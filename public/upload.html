@@ -661,7 +661,12 @@
 
   <!-- メインコンテンツ -->
   <div id="mainContent" class="main-content">
-    <div class="topbar" style="position:sticky;top:0;z-index:120;display:inline-block;margin:8px 12px;background:var(--md-surface);border:1px solid var(--md-outline-variant);padding:6px 10px;border-radius:16px;box-shadow:0 4px 12px rgba(0,0,0,.04);">
+    <div class="topbar" style="position:sticky;top:0;z-index:120;margin:8px 12px;max-width:600px;margin-left:auto;margin-right:auto">
+      <div class="connection-panel" style="margin-bottom:8px">
+        <span id="mobileConnectionBadge" class="connection-badge" data-state="idle">準備中</span>
+        <span id="mobileConnectionDetail" class="connection-detail"></span>
+      </div>
+      <button type="button" id="fallbackRelayBtn" class="btn btn-primary" hidden style="margin-bottom:8px;width:100%">☁️ サーバー経由に切り替え</button>
       <a href="/" style="color:#9ecbff;text-decoration:underline">← トップへ戻る</a>
     </div>
     <div class="header">
@@ -674,6 +679,7 @@
       <div class="tab-container">
         <button class="tab-button active" data-tab="file">📁 ファイル</button>
         <button class="tab-button" data-tab="url">🔗 URL</button>
+        <button class="tab-button" data-tab="text">💬 テキスト</button>
       </div>
 
       <!-- ファイルアップロードタブ -->
@@ -681,7 +687,7 @@
         <div class="upload-area" id="upload-area">
           <div class="upload-icon">+</div>
           <p>タップしてファイルを選択<br>または<br>ファイルをドラッグ＆ドロップ</p>
-          <input type="file" id="file-input" class="file-input">
+          <input type="file" id="file-input" class="file-input" accept="image/*,video/*,*/*">
         </div>
         
         <div class="file-preview" id="file-preview">
@@ -726,6 +732,12 @@
         <button class="btn btn-primary btn-sticky" id="url-share-btn" disabled>URLを共有</button>
         
         <div class="status" id="url-status"></div>
+      </div>
+
+      <!-- テキスト送信タブ（直接接続時） -->
+      <div class="tab-content" id="text-tab">
+        <textarea id="text-input" class="url-input" rows="4" placeholder="送りたいテキストを入力"></textarea>
+        <button class="btn btn-primary btn-sticky" id="text-send-btn">テキストを送信</button>
       </div>
     </div>
 
