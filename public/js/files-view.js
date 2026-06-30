@@ -1,12 +1,11 @@
 import { dbRef, onValue, off } from './firebase.js';
 
+const EMPTY_FILE_MSG = '<div class="no-files">まだファイルがアップロードされていません</div>';
+const EMPTY_URL_MSG = '<div class="no-files">まだURLが共有されていません</div>';
+
 /**
  * Attach realtime listener to files/{sessionId} and render into containers.
- * Returns an unsubscribe function.
- *
- * @param {import('./firebase.js').Database} db
- * @param {string} sessionId
- * @param {{ filesList: HTMLElement, urlsList: HTMLElement, createFileItem: Function, createUrlItem: Function }} opts
+ * @returns {() => void} unsubscribe
  */
 export function attachFilesListener(db, sessionId, opts) {
   const { filesList, urlsList, createFileItem, createUrlItem } = opts;
@@ -20,8 +19,8 @@ export function attachFilesListener(db, sessionId, opts) {
     urlsList.innerHTML = '';
 
     if (!data) {
-      filesList.innerHTML = '<div class="no-files">まだファイルがアップロードされていません</div>';
-      urlsList.innerHTML = '<div class="no-files">まだURLが共有されていません</div>';
+      filesList.innerHTML = EMPTY_FILE_MSG;
+      urlsList.innerHTML = EMPTY_URL_MSG;
       return;
     }
 
@@ -33,7 +32,7 @@ export function attachFilesListener(db, sessionId, opts) {
     });
 
     if (files.length === 0) {
-      filesList.innerHTML = '<div class="no-files">まだファイルがアップロードされていません</div>';
+      filesList.innerHTML = EMPTY_FILE_MSG;
     } else {
       files.sort((a, b) => b.timestamp - a.timestamp).forEach((f) => {
         const el = createFileItem(f);
@@ -42,7 +41,7 @@ export function attachFilesListener(db, sessionId, opts) {
     }
 
     if (urls.length === 0) {
-      urlsList.innerHTML = '<div class="no-files">まだURLが共有されていません</div>';
+      urlsList.innerHTML = EMPTY_URL_MSG;
     } else {
       urls.sort((a, b) => b.timestamp - a.timestamp).forEach((u) => {
         const el = createUrlItem(u);
@@ -52,7 +51,5 @@ export function attachFilesListener(db, sessionId, opts) {
   };
 
   onValue(filesRef, handler);
-  // return unsubscribe
   return () => off(filesRef);
 }
-
