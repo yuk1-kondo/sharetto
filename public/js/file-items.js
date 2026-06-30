@@ -112,3 +112,43 @@ export function createUrlItem(url, { onCopy }) {
 
   return div;
 }
+
+/** テキストメッセージ一覧用 */
+export function createTextItem(item, { onCopy }) {
+  const div = document.createElement('div');
+  div.className = 'url-item';
+  const date = new Date(item.timestamp).toLocaleString('ja-JP');
+  const text = String(item.text || item.title || '');
+
+  const fileInfo = document.createElement('div');
+  fileInfo.className = 'file-info';
+  const fileDetails = document.createElement('div');
+  fileDetails.className = 'file-details';
+
+  const titleEl = document.createElement('div');
+  titleEl.className = 'file-name';
+  titleEl.textContent = '💬 テキスト';
+
+  const fileMeta = document.createElement('div');
+  fileMeta.className = 'file-meta';
+  fileMeta.innerHTML = `<span>共有: ${date}</span>`;
+
+  const body = document.createElement('span');
+  body.className = 'url-link';
+  body.textContent = text;
+
+  fileDetails.append(titleEl, fileMeta, body);
+
+  const copyBtn = document.createElement('button');
+  copyBtn.className = 'download-btn';
+  copyBtn.textContent = '📋 コピー';
+  copyBtn.addEventListener('click', () => onCopy?.(text));
+
+  const fileActions = document.createElement('div');
+  fileActions.className = 'file-actions';
+  fileActions.appendChild(copyBtn);
+
+  fileInfo.append(fileDetails, fileActions);
+  div.appendChild(fileInfo);
+  return div;
+}

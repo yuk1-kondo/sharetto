@@ -10,32 +10,30 @@ export async function attachIceHandlers(pc, onCandidate) {
   };
 }
 
-export function waitForDataChannel(pc, label = 'sharetto') {
-  return new Promise((resolve, reject) => {
-    const timeout = setTimeout(() => reject(new Error('DataChannel timeout')), 20000);
-    pc.ondatachannel = (ev) => {
-      clearTimeout(timeout);
-      ev.channel.binaryType = 'arraybuffer';
-      resolve(ev.channel);
-    };
-    try {
-      const ch = pc.createDataChannel(label, { ordered: true });
-      ch.binaryType = 'arraybuffer';
-      ch.addEventListener('open', () => {
-        clearTimeout(timeout);
-        resolve(ch);
-      }, { once: true });
-    } catch (e) {
-      clearTimeout(timeout);
-      reject(e);
-    }
-  });
-}
-
 export function openDataChannel(pc, label = 'sharetto') {
   const ch = pc.createDataChannel(label, { ordered: true });
   ch.binaryType = 'arraybuffer';
   return ch;
+}
+
+function waitForBuffer(channel, maxBytes = CHUNK_SIZE_BYTES) {
+  if (channel.bufferedAmount <= maxBytes) return Promise.resolve();
+  channel.bufferedAmountLowThreshold = maxBytes;
+  return new Promise((resolve) => {
+    const onLow = () => {
+      if (channel.bufferedAmount <= maxBytes) {
+        channel.removeEventListener('bufferedamountlow', onLow);
+        resolve();
+      }
+    };
+    channel.addEventListener('bufferedamountlow', onLow);
+    setTimeout(onLow, 500);
+  });
+}
+
+async function sendWithBackpressure(channel, payload) {
+  await waitForBuffer(channel);
+  channel.send(payload);
 }
 
 export async function sendFileOverChannel(channel, file, onProgress) {
@@ -43,7 +41,7 @@ export async function sendFileOverChannel(channel, file, onProgress) {
   const buffer = await file.arrayBuffer();
   const totalChunks = Math.ceil(buffer.byteLength / CHUNK_SIZE_BYTES) || 1;
 
-  channel.send(JSON.stringify({
+  await sendWithBackpressure(channel, JSON.stringify({
     type: MSG.FILE_START,
     id: fid,
     name: file.name,
@@ -55,13 +53,12 @@ export async function sendFileOverChannel(channel, file, onProgress) {
   for (let i = 0; i < totalChunks; i++) {
     const start = i * CHUNK_SIZE_BYTES;
     const chunk = buffer.slice(start, start + CHUNK_SIZE_BYTES);
-    channel.send(JSON.stringify({ type: MSG.FILE_CHUNK, id: fid, index: i, total: totalChunks }));
-    channel.send(chunk);
+    await sendWithBackpressure(channel, JSON.stringify({ type: MSG.FILE_CHUNK, id: fid, index: i, total: totalChunks }));
+    await sendWithBackpressure(channel, chunk);
     onProgress?.((i + 1) / totalChunks, file.name);
-    await new Promise((r) => setTimeout(r, 0));
   }
 
-  channel.send(JSON.stringify({ type: MSG.FILE_END, id: fid, name: file.name }));
+  await sendWithBackpressure(channel, JSON.stringify({ type: MSG.FILE_END, id: fid, name: file.name }));
   return fid;
 }
 
@@ -91,6 +88,7 @@ export function createFileReceiver(onFile, onText, onProgress) {
         onFile?.({ id: msg.id, name: meta.name || msg.name, blob, size: blob.size, mimeType: meta.mimeType });
         buffers.delete(msg.id);
         metas.delete(msg.id);
+        pendingMeta = null;
         onProgress?.(1, meta.name);
       } else if (msg.type === MSG.TEXT) {
         onText?.(msg.body);

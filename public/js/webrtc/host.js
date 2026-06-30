@@ -24,15 +24,14 @@ function stripIce(cand) {
   return rest;
 }
 
-/**
- * PC側（受信ホスト）: 複数ピアの WebRTC 接続を管理
- */
 export function createP2PHost({ db, sessionId, onFile, onText }) {
   const peers = new Map();
+  const processing = new Set();
   let stopWatch = null;
 
   async function handlePeer(peerId, data) {
-    if (peers.has(peerId)) return;
+    if (peers.has(peerId) || processing.has(peerId)) return;
+    processing.add(peerId);
 
     setConnectionState(CONNECTION_STATE.CONNECTING, { detail: `端末 ${peerId.slice(0, 4)} と接続中` });
 
@@ -57,25 +56,27 @@ export function createP2PHost({ db, sessionId, onFile, onText }) {
       };
     });
 
-    await attachIceHandlers(pc, (candidate) => {
-      addIceCandidate(db, sessionId, peerId, 'host', candidate);
-    });
-
-    await pc.setRemoteDescription(data.offer);
-    const answer = await pc.createAnswer();
-    await pc.setLocalDescription(answer);
-    await publishAnswer(db, sessionId, peerId, answer);
-    await markPeerAnswered(db, sessionId, peerId);
-
-    const stopIce = watchRemoteIce(db, sessionId, peerId, 'guest', async (cand) => {
-      try {
-        await pc.addIceCandidate(stripIce(cand));
-      } catch (e) {
-        console.warn('[p2p-host] ICE', e);
-      }
-    });
+    let stopIce = null;
 
     try {
+      await attachIceHandlers(pc, (candidate) => {
+        addIceCandidate(db, sessionId, peerId, 'host', candidate);
+      });
+
+      await pc.setRemoteDescription(data.offer);
+      const answer = await pc.createAnswer();
+      await pc.setLocalDescription(answer);
+      await publishAnswer(db, sessionId, peerId, answer);
+      await markPeerAnswered(db, sessionId, peerId);
+
+      stopIce = watchRemoteIce(db, sessionId, peerId, 'guest', async (cand) => {
+        try {
+          await pc.addIceCandidate(stripIce(cand));
+        } catch (e) {
+          console.warn('[p2p-host] ICE', e);
+        }
+      });
+
       await channelPromise;
       incrementPeerCount(1);
       setConnectionState(CONNECTION_STATE.CONNECTED, {
@@ -83,15 +84,15 @@ export function createP2PHost({ db, sessionId, onFile, onText }) {
         peerCount: peers.size + 1,
       });
       await setSignalingStatus(db, sessionId, 'connected');
+      peers.set(peerId, { pc, stopIce });
     } catch (e) {
-      console.warn('[p2p-host] channel failed', e);
+      console.warn('[p2p-host] peer failed', e);
       setConnectionState(CONNECTION_STATE.FAILED, { detail: '直接接続に失敗しました' });
-      stopIce();
+      stopIce?.();
       pc.close();
-      return;
+    } finally {
+      processing.delete(peerId);
     }
-
-    peers.set(peerId, { pc, stopIce });
   }
 
   return {
@@ -109,6 +110,7 @@ export function createP2PHost({ db, sessionId, onFile, onText }) {
         pc.close();
       });
       peers.clear();
+      processing.clear();
     },
   };
 }

@@ -3,7 +3,11 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>シェアっと - PC ログイン (Liquid Glass)</title>
+  <meta name="theme-color" content="#ffb300">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <link rel="manifest" href="/manifest.webmanifest">
+  <link rel="icon" href="/icons/icon.svg" type="image/svg+xml">
+  <title>シェアっと - ファイル共有</title>
   <link rel="stylesheet" href="css/theme.css">
   <link rel="stylesheet" href="css/components.css">
   <style>
@@ -1158,6 +1162,7 @@
           <p class="qr-url" id="qrUrl"></p>
           <div class="qr-actions">
             <button onclick="copyQRUrl()" class="action-button">📋 URLをコピー</button>
+            <button onclick="shareToPhone()" class="action-button">📲 スマホに送る</button>
             <button onclick="generateNewSession()" class="action-button">🔄 新しいQRコード</button>
           </div>
           <div class="join-code-wrap" style="margin-top:16px;text-align:center;">
@@ -1184,8 +1189,11 @@
     <!-- アップロードされたファイル表示 -->
     <div class="glass-container" style="max-width:960px">
       <div class="files-header">
-        <h3>📁 アップロードされたファイル</h3>
-        <button onclick="refreshFiles()" class="action-button">🔄 更新</button>
+        <h3>📁 受信ファイル</h3>
+        <div style="display:flex;gap:8px;flex-wrap:wrap">
+          <button id="downloadZipBtn" type="button" onclick="downloadZip()" class="action-button" disabled>📦 まとめてZIP</button>
+          <button onclick="refreshFiles()" class="action-button">🔄 更新</button>
+        </div>
       </div>
       <div id="filesList" class="files-list">
         <div class="no-files">まだファイルがアップロードされていません</div>

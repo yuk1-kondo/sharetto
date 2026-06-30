@@ -8,8 +8,9 @@ const EMPTY_URL_MSG = '<div class="no-files">まだURLが共有されていま�
  * @returns {() => void} unsubscribe
  */
 export function attachFilesListener(db, sessionId, opts) {
-  const { filesList, urlsList, createFileItem, createUrlItem } = opts;
+  const { filesList, urlsList, createFileItem, createUrlItem, onNewFile, onNewText } = opts;
   const filesRef = dbRef(db, `files/${sessionId}`);
+  const seen = new Set();
 
   const handler = (snapshot) => {
     const data = snapshot.val();
@@ -26,25 +27,38 @@ export function attachFilesListener(db, sessionId, opts) {
 
     const files = [];
     const urls = [];
+    const texts = [];
     Object.entries(data).forEach(([id, value]) => {
-      if (value && value.type === 'file') files.push({ id, ...value });
-      else if (value && value.type === 'url') urls.push({ id, ...value });
+      if (!value || typeof value !== 'object') return;
+      if (value.type === 'file') files.push({ id, ...value });
+      else if (value.type === 'url') urls.push({ id, ...value });
+      else if (value.type === 'text') texts.push({ id, ...value });
     });
 
     if (files.length === 0) {
       filesList.innerHTML = EMPTY_FILE_MSG;
     } else {
       files.sort((a, b) => b.timestamp - a.timestamp).forEach((f) => {
+        if (!seen.has(f.id)) {
+          seen.add(f.id);
+          onNewFile?.(f);
+        }
         const el = createFileItem(f);
         if (el) filesList.appendChild(el);
       });
     }
 
-    if (urls.length === 0) {
+    const urlItems = [...urls, ...texts];
+    if (urlItems.length === 0) {
       urlsList.innerHTML = EMPTY_URL_MSG;
     } else {
-      urls.sort((a, b) => b.timestamp - a.timestamp).forEach((u) => {
-        const el = createUrlItem(u);
+      urlItems.sort((a, b) => b.timestamp - a.timestamp).forEach((u) => {
+        if (!seen.has(u.id)) {
+          seen.add(u.id);
+          if (u.type === 'text') onNewText?.(u);
+          else onNewFile?.(u);
+        }
+        const el = u.type === 'text' ? createTextItem?.(u) : createUrlItem(u);
         if (el) urlsList.appendChild(el);
       });
     }

@@ -1,5 +1,5 @@
 /**
- * PC側メインページ (index.html) — A/B転送 + 接続状態 + Three.js
+ * PC側メインページ (index.html) — A/B転送 + 接続状態 + Three.js + ZIP
  */
 import { initFirebase, GoogleAuthProvider, signInWithPopup, onAuthStateChanged, signOut } from '../firebase.js';
 import {
@@ -7,7 +7,7 @@ import {
 } from '../ui.js';
 import { attachFilesListener } from '../files-view.js';
 import { issueJoinCode } from '../session.js';
-import { createFileItem, createUrlItem } from '../file-items.js';
+import { createFileItem, createUrlItem, createTextItem } from '../file-items.js';
 import { createSessionTimer } from '../session-timer.js';
 import { renderQRCode } from '../qr-display.js';
 import { generateSessionId, generatePin, formatFileSize } from '../utils.js';
@@ -16,6 +16,11 @@ import { PIN_CODE_LENGTH, TRANSFER_MODE, CONNECTION_STATE } from '../constants.j
 import { subscribeConnectionState, setConnectionState, resetConnectionState } from '../connection-state.js';
 import { createP2PHost } from '../webrtc/host.js';
 import { initParticleScene } from '../visual/particle-scene.js';
+import {
+  addReceivedBlob, addReceivedFromDataUrl, getReceivedFiles, subscribeReceivedStore, clearReceivedStore,
+} from '../received-store.js';
+import { downloadFilesAsZip } from '../zip-save.js';
+import { registerServiceWorker } from '../pwa.js';
 import { firebaseConfig } from '../../config.js';
 
 const { db, auth } = initFirebase(firebaseConfig);
@@ -40,7 +45,7 @@ const timer = createSessionTimer({
 const itemHandlers = {
   onDownload: downloadFile,
   onViewImage: viewFullImage,
-  onCopy: (text) => copyToClipboard(text, 'URLをコピーしました'),
+  onCopy: (text) => copyToClipboard(text, 'コピーしました'),
 };
 
 function showMainContent() {
@@ -88,7 +93,17 @@ function setTransferMode(mode) {
   if (currentSessionId) restartTransferLayer();
 }
 
+function updateZipButton({ count }) {
+  const btn = document.getElementById('downloadZipBtn');
+  if (btn) {
+    btn.disabled = count === 0;
+    btn.textContent = count > 0 ? `📦 まとめてZIP (${count})` : '📦 まとめてZIP';
+  }
+}
+
 function appendP2PFile(file, peerId) {
+  addReceivedBlob({ name: file.name, blob: file.blob, mimeType: file.mimeType, source: 'p2p', peerId });
+
   const filesList = document.getElementById('filesList');
   const noFiles = filesList.querySelector('.no-files');
   if (noFiles) noFiles.remove();
@@ -101,7 +116,7 @@ function appendP2PFile(file, peerId) {
   div.innerHTML = `
     <div class="file-info">
       <div class="file-details">
-        <div class="file-name">${isImage ? '🖼️' : '📄'} ${file.name} <span style="font-size:12px;opacity:.7">(直接)</span></div>
+        <div class="file-name">${isImage ? '🖼️' : '📄'} ${file.name} <span class="tag-direct">直接</span></div>
         <div class="file-size">サイズ: ${formatFileSize(file.size)} · 送信元: ${peerId.slice(0, 4)}</div>
         <div class="file-date">受信: ${date}</div>
       </div>
@@ -109,9 +124,7 @@ function appendP2PFile(file, peerId) {
         <button class="download-btn p2p-dl">⬇️ ダウンロード</button>
       </div>
     </div>`;
-  div.querySelector('.p2p-dl').addEventListener('click', () => {
-    downloadFile(file.id, file.name, url);
-  });
+  div.querySelector('.p2p-dl').addEventListener('click', () => downloadFile(file.id, file.name, url));
   if (isImage) {
     const thumb = document.createElement('div');
     thumb.className = 'file-thumbnail';
@@ -130,21 +143,17 @@ function appendP2PText(text, peerId) {
   const urlsList = document.getElementById('urlsList');
   const empty = urlsList.querySelector('.no-files');
   if (empty) empty.remove();
-  const div = document.createElement('div');
-  div.className = 'url-item';
-  div.innerHTML = `
-    <div class="file-info">
-      <div class="file-details">
-        <div class="file-name">💬 テキスト <span style="font-size:12px;opacity:.7">(直接 · ${peerId.slice(0, 4)})</span></div>
-        <div class="file-meta"><span>${new Date().toLocaleString('ja-JP')}</span></div>
-        <span class="url-link">${text.replace(/</g, '&lt;')}</span>
-      </div>
-      <div class="file-actions">
-        <button class="download-btn p2p-copy">📋 コピー</button>
-      </div>
-    </div>`;
-  div.querySelector('.p2p-copy').addEventListener('click', () => copyToClipboard(text));
-  urlsList.prepend(div);
+  const el = createTextItem({ text, timestamp: Date.now() }, itemHandlers);
+  if (el) {
+    el.querySelector('.file-name').innerHTML = `💬 テキスト <span class="tag-direct">直接 · ${peerId.slice(0, 4)}</span>`;
+    urlsList.prepend(el);
+  }
+}
+
+async function onRelayFile(file) {
+  if (file.type === 'file' && file.data) {
+    await addReceivedFromDataUrl({ name: file.name, dataUrl: file.data, mimeType: file.mimeType, source: 'relay' });
+  }
 }
 
 async function restartTransferLayer() {
@@ -171,6 +180,10 @@ async function generateQRCode() {
   p2pHost?.stop();
   if (detachFiles) { try { detachFiles(); } catch { /* noop */ } detachFiles = null; }
 
+  clearReceivedStore();
+  document.getElementById('filesList').innerHTML = '<div class="no-files">まだファイルがアップロードされていません</div>';
+  document.getElementById('urlsList').innerHTML = '<div class="no-files">まだURLが共有されていません</div>';
+
   currentSessionId = generateSessionId();
   const modeParam = transferMode === TRANSFER_MODE.P2P ? 'p2p' : 'relay';
   const uploadUrl = `${window.location.origin}/upload.html?session=${currentSessionId}&mode=${modeParam}`;
@@ -193,11 +206,29 @@ async function generateQRCode() {
 function updateJoinCodeUI() {
   const el = document.getElementById('joinCode');
   if (el) el.textContent = currentJoinCode || '------';
-  document.getElementById('copyJoinCodeBtn') && (document.getElementById('copyJoinCodeBtn').disabled = !currentJoinCode);
+  const copyBtn = document.getElementById('copyJoinCodeBtn');
+  if (copyBtn) copyBtn.disabled = !currentJoinCode;
 }
 
 function copyQRUrl() {
   copyToClipboard(document.getElementById('qrUrl').textContent, 'URLをコピーしました');
+}
+
+async function shareToPhone() {
+  const url = document.getElementById('qrUrl').textContent;
+  const code = currentJoinCode;
+  const shareData = {
+    title: 'シェアっと',
+    text: code ? `参加コード: ${code}` : 'ファイルを送ってください',
+    url,
+  };
+  if (navigator.share) {
+    try {
+      await navigator.share(shareData);
+      return;
+    } catch { /* cancelled */ }
+  }
+  copyQRUrl();
 }
 
 function copyJoinCode() {
@@ -216,12 +247,18 @@ function displayFilesRelay() {
     urlsList: document.getElementById('urlsList'),
     createFileItem: (f) => createFileItem(f, itemHandlers),
     createUrlItem: (u) => createUrlItem(u, itemHandlers),
+    createTextItem: (t) => createTextItem(t, itemHandlers),
+    onNewFile: onRelayFile,
   });
 }
 
 function refreshFiles() {
   if (transferMode === TRANSFER_MODE.RELAY) displayFilesRelay();
   showToast('一覧を更新しました', 'info', 1500);
+}
+
+function downloadZip() {
+  downloadFilesAsZip(getReceivedFiles());
 }
 
 function updateConnectionUI(snap) {
@@ -246,11 +283,15 @@ onAuthStateChanged(auth, (user) => {
 });
 
 document.getElementById('copyJoinCodeBtn')?.addEventListener('click', copyJoinCode);
+document.getElementById('downloadZipBtn')?.addEventListener('click', downloadZip);
 document.querySelectorAll('[data-transfer-mode]').forEach((btn) => {
   btn.addEventListener('click', () => setTransferMode(btn.dataset.transferMode));
 });
 
 subscribeConnectionState(updateConnectionUI);
+subscribeReceivedStore(updateZipButton);
+
+registerServiceWorker();
 
 document.addEventListener('DOMContentLoaded', async () => {
   startSession();
@@ -266,8 +307,10 @@ window.signInWithGoogle = signInWithGoogle;
 window.signOutUser = signOutUser;
 window.generateNewSession = generateNewSession;
 window.copyQRUrl = copyQRUrl;
+window.shareToPhone = shareToPhone;
 window.copyJoinCode = copyJoinCode;
 window.refreshFiles = refreshFiles;
+window.downloadZip = downloadZip;
 window.viewFullImage = viewFullImage;
 window.closeImageModal = closeImageModal;
 window.downloadModalImage = downloadModalImage;

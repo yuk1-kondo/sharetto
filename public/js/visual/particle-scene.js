@@ -140,7 +140,13 @@ export async function initParticleScene(container) {
 
   let transferring = false;
   function snapTransferring() { return transferring; }
-  subscribeConnectionState((s) => { transferring = s.state === CONNECTION_STATE.TRANSFERRING; });
+  subscribeConnectionState((s) => {
+    transferring = s.state === CONNECTION_STATE.TRANSFERRING;
+    if (transferring) {
+      speed = Math.max(speed, 3);
+      material.opacity = 0.95;
+    }
+  });
 
   animate();
 

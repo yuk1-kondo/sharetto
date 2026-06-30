@@ -3,7 +3,10 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>モバイルアップロード - シェアっと (Liquid Glass)</title>
+  <meta name="theme-color" content="#ffb300">
+  <link rel="manifest" href="/manifest.webmanifest">
+  <link rel="icon" href="/icons/icon.svg" type="image/svg+xml">
+  <title>送信 - シェアっと</title>
   <link rel="stylesheet" href="css/theme.css">
   <link rel="stylesheet" href="css/components.css">
   <style>
@@ -687,7 +690,7 @@
         <div class="upload-area" id="upload-area">
           <div class="upload-icon">+</div>
           <p>タップしてファイルを選択<br>または<br>ファイルをドラッグ＆ドロップ</p>
-          <input type="file" id="file-input" class="file-input" accept="image/*,video/*,*/*">
+          <input type="file" id="file-input" class="file-input" accept="image/*,video/*,*/*" multiple>
         </div>
         
         <div class="file-preview" id="file-preview">

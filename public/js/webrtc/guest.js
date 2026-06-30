@@ -11,20 +11,37 @@ import {
   watchAnswer,
   watchRemoteIce,
 } from './signaling.js';
-import { P2P_CONNECT_TIMEOUT_MS } from '../constants.js';
-import {
-  setConnectionState,
-} from '../connection-state.js';
-import { CONNECTION_STATE } from '../constants.js';
+import { P2P_CONNECT_TIMEOUT_MS, CONNECTION_STATE } from '../constants.js';
+import { setConnectionState } from '../connection-state.js';
 
 function stripIce(cand) {
   const { at, ...rest } = cand || {};
   return rest;
 }
 
-/**
- * モバイル側（送信ゲスト）: PC へ WebRTC 接続
- */
+function waitForIceConnected(pc, timeoutMs) {
+  return new Promise((resolve, reject) => {
+    const deadline = Date.now() + timeoutMs;
+    const check = () => {
+      const s = pc.iceConnectionState;
+      if (s === 'connected' || s === 'completed') {
+        resolve();
+        return;
+      }
+      if (s === 'failed' || s === 'closed') {
+        reject(new Error(`ICE ${s}`));
+        return;
+      }
+      if (Date.now() > deadline) {
+        reject(new Error('ICE timeout'));
+        return;
+      }
+      setTimeout(check, 200);
+    };
+    check();
+  });
+}
+
 export function createP2PGuest({ db, sessionId, onConnected, onFailed }) {
   const peerId = Math.random().toString(36).slice(2, 10);
   let pc = null;
@@ -41,10 +58,12 @@ export function createP2PGuest({ db, sessionId, onConnected, onFailed }) {
       pc = createPeerConnection();
       channel = openDataChannel(pc);
 
+      let answerApplied = false;
       stopAnswer = watchAnswer(db, sessionId, peerId, async (answer) => {
-        if (pc.signalingState === 'stable' && pc.remoteDescription) return;
+        if (answerApplied) return;
         try {
           await pc.setRemoteDescription(answer);
+          answerApplied = true;
         } catch (e) {
           console.warn('[p2p-guest] setRemoteDescription', e);
         }
@@ -62,21 +81,13 @@ export function createP2PGuest({ db, sessionId, onConnected, onFailed }) {
       await pc.setLocalDescription(offer);
       await publishOffer(db, sessionId, peerId, offer);
 
-      await new Promise((resolve, reject) => {
-        const deadline = Date.now() + P2P_CONNECT_TIMEOUT_MS;
-        const tick = () => {
-          if (pc.connectionState === 'connected' || pc.iceConnectionState === 'connected') {
-            resolve();
-            return;
-          }
-          if (Date.now() > deadline) {
-            reject(new Error('P2P connect timeout'));
-            return;
-          }
-          setTimeout(tick, 250);
-        };
-        tick();
-      });
+      const answerDeadline = Date.now() + P2P_CONNECT_TIMEOUT_MS;
+      while (!answerApplied && Date.now() < answerDeadline) {
+        await new Promise((r) => setTimeout(r, 200));
+      }
+      if (!answerApplied) throw new Error('answer timeout');
+
+      await waitForIceConnected(pc, P2P_CONNECT_TIMEOUT_MS);
 
       if (channel.readyState !== 'open') {
         await new Promise((resolve, reject) => {

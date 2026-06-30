@@ -1,12 +1,7 @@
-import { dbRef, set, update } from './firebase.js';
+import { dbRef, update } from './firebase.js';
 
 async function withRetry(fn, options = {}) {
-  const {
-    retries = 3,
-    baseDelayMs = 150,
-    factor = 2,
-  } = options;
-
+  const { retries = 3, baseDelayMs = 150, factor = 2 } = options;
   let attempt = 0;
   let lastError;
   while (attempt <= retries) {
@@ -15,12 +10,15 @@ async function withRetry(fn, options = {}) {
     } catch (e) {
       lastError = e;
       if (attempt === retries) break;
-      const delay = baseDelayMs * Math.pow(factor, attempt);
-      await new Promise((r) => setTimeout(r, delay));
+      await new Promise((r) => setTimeout(r, baseDelayMs * Math.pow(factor, attempt)));
       attempt += 1;
     }
   }
   throw lastError;
+}
+
+function randomId() {
+  return Math.random().toString(36).substring(2, 10);
 }
 
 export async function encodeFileAsDataURL(file) {
@@ -32,23 +30,21 @@ export async function encodeFileAsDataURL(file) {
   });
 }
 
-export async function putFile(db, sessionId, payload) {
-  const fileId = Math.random().toString(36).substring(2, 10);
+async function putEntry(db, sessionId, payload) {
+  const entryId = randomId();
   const parentRef = dbRef(db, `files/${sessionId}`);
-  const updates = {};
-  updates[fileId] = payload;
-  // Keep parent metadata updated to satisfy strict rules in production
-  updates['timestamp'] = payload.timestamp;
-  if (typeof payload.size === 'number') updates['size'] = payload.size;
+  const updates = { [entryId]: payload, timestamp: payload.timestamp, size: payload.size ?? 0 };
   await withRetry(() => update(parentRef, updates));
-  return fileId;
+  return entryId;
+}
+
+export async function putFile(db, sessionId, payload) {
+  return putEntry(db, sessionId, payload);
 }
 
 export async function putUrl(db, sessionId, urlString) {
-  const urlId = Math.random().toString(36).substring(2, 10);
-  const parentRef = dbRef(db, `files/${sessionId}`);
   const u = new URL(urlString);
-  const payload = {
+  return putEntry(db, sessionId, {
     type: 'url',
     url: urlString,
     title: u.hostname,
@@ -58,11 +54,19 @@ export async function putUrl(db, sessionId, urlString) {
     size: 0,
     mimeType: 'text/url',
     timestamp: Date.now(),
-  };
-  const updates = {};
-  updates[urlId] = payload;
-  updates['timestamp'] = payload.timestamp;
-  updates['size'] = payload.size;
-  await withRetry(() => update(parentRef, updates));
-  return urlId;
+  });
+}
+
+export async function putText(db, sessionId, text) {
+  const preview = String(text).slice(0, 120);
+  return putEntry(db, sessionId, {
+    type: 'text',
+    text,
+    name: 'テキスト',
+    title: preview,
+    description: 'テキスト',
+    size: new TextEncoder().encode(text).length,
+    mimeType: 'text/plain',
+    timestamp: Date.now(),
+  });
 }

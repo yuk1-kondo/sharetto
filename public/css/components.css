@@ -83,6 +83,11 @@
 .connection-progress-bar { height:100%; width:0; background:var(--md-primary); transition:width .2s ease; }
 .transfer-mode-tabs .tab-button { font-size:14px; }
 .visual-canvas { width:100%; height:180px; border-radius:16px; overflow:hidden; margin-bottom:16px; background:linear-gradient(180deg,#eef2ff,#f8fafc); border:1px solid var(--md-outline-variant); }
+.tag-direct { font-size:12px; opacity:.75; font-weight:600; }
+
+@media (prefers-reduced-motion: reduce) {
+  .visual-canvas { display: none !important; }
+}
 
 .join-code-actions { display: flex; gap: 8px; justify-content: center; flex-wrap: wrap; margin-top: 8px; }
 .join-code-actions .action-button { min-width: auto; padding: 8px 14px; font-size: 13px; }
