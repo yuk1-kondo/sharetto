@@ -132,6 +132,7 @@ Functions を利用する場合は、後述の「自動削除(10分)」セクシ
 │   ├── index.js
 │   └── package.json
 ├── cost-optimization-plan.md   # コスト最適化方針
+├── limitations-spec.md         # 制限事項・既知の制約 仕様書
 ├── icon-design-brief.md        # アイコンデザイン企画
 └── README.md                   # このファイル
 ```

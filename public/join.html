@@ -3,6 +3,8 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <link rel="manifest" href="/manifest.webmanifest">
+  <link rel="icon" href="/icons/icon.svg" type="image/svg+xml">
   <title>参加コードで参加 - シェアっと</title>
   <link rel="stylesheet" href="css/theme.css" />
   <link rel="stylesheet" href="css/components.css" />
@@ -36,60 +38,6 @@
     <div id="status" class="status"></div>
   </div>
 
-  <script type="module">
-    import { initFirebase, dbRef, get } from './js/firebase.js';
-    import { firebaseConfig } from './config.js';
-
-    const { db } = initFirebase(firebaseConfig);
-
-    const input = document.getElementById('code');
-    const btn = document.getElementById('joinBtn');
-    const statusEl = document.getElementById('status');
-
-    function extractDigits(s) { return (s || '').replace(/[^0-9]/g,'').slice(0,6); }
-
-    function update() {
-      const digits = extractDigits(input.value);
-      btn.disabled = !/^\d{6}$/.test(digits);
-      statusEl.textContent = '';
-    }
-    input.addEventListener('input', update);
-    input.addEventListener('paste', () => setTimeout(update));
-    input.addEventListener('keypress', (e)=>{ if(e.key==='Enter' && !btn.disabled){ join(); }});
-    btn.addEventListener('click', join);
-
-    async function join() {
-      const code = extractDigits(input.value);
-      if (!/^\d{6}$/.test(code)) return;
-      statusEl.textContent = '照会中...';
-    // quiet logs
-      for (let i=0;i<10;i++) {
-        try {
-          const snap = await get(dbRef(db, `codes/${code}`));
-          // quiet logs
-          if (snap.exists()) {
-            const { sessionId, timestamp } = snap.val();
-            // quiet logs
-            // 10分TTLのクライアント側確認（念のため）
-            if (Date.now() - (timestamp||0) < 600000) {
-              // quiet logs
-              location.href = `upload.html?session=${sessionId}`;
-              return;
-            }
-          }
-        } catch (e) {
-          console.warn('codes読み取りエラー', e);
-          statusEl.textContent = '権限エラーが発生しました。しばらくしてからお試しください。';
-        }
-        await new Promise(r=>setTimeout(r, 700));
-      }
-      statusEl.textContent = 'コードが見つからないか、有効期限が切れました。PC側で新しいコードを発行してください。';
-    }
-
-    // URLに ?code=123456 があればセット
-    const urlCode = new URLSearchParams(location.search).get('code');
-    if (urlCode) { input.value = urlCode; update(); }
-    input.focus();
-  </script>
+  <script type="module" src="./js/pages/join.js"></script>
 </body>
 </html>

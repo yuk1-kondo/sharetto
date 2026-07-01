@@ -3,7 +3,10 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>モバイルアップロード - シェアっと (Liquid Glass)</title>
+  <meta name="theme-color" content="#ffb300">
+  <link rel="manifest" href="/manifest.webmanifest">
+  <link rel="icon" href="/icons/icon.svg" type="image/svg+xml">
+  <title>送信 - シェアっと</title>
   <link rel="stylesheet" href="css/theme.css">
   <link rel="stylesheet" href="css/components.css">
   <style>
@@ -661,7 +664,12 @@
 
   <!-- メインコンテンツ -->
   <div id="mainContent" class="main-content">
-    <div class="topbar" style="position:sticky;top:0;z-index:120;display:inline-block;margin:8px 12px;background:var(--md-surface);border:1px solid var(--md-outline-variant);padding:6px 10px;border-radius:16px;box-shadow:0 4px 12px rgba(0,0,0,.04);">
+    <div class="topbar" style="position:sticky;top:0;z-index:120;margin:8px 12px;max-width:600px;margin-left:auto;margin-right:auto">
+      <div class="connection-panel" style="margin-bottom:8px">
+        <span id="mobileConnectionBadge" class="connection-badge" data-state="idle">準備中</span>
+        <span id="mobileConnectionDetail" class="connection-detail"></span>
+      </div>
+      <button type="button" id="fallbackRelayBtn" class="btn btn-primary" hidden style="margin-bottom:8px;width:100%">☁️ サーバー経由に切り替え</button>
       <a href="/" style="color:#9ecbff;text-decoration:underline">← トップへ戻る</a>
     </div>
     <div class="header">
@@ -674,6 +682,7 @@
       <div class="tab-container">
         <button class="tab-button active" data-tab="file">📁 ファイル</button>
         <button class="tab-button" data-tab="url">🔗 URL</button>
+        <button class="tab-button" data-tab="text">💬 テキスト</button>
       </div>
 
       <!-- ファイルアップロードタブ -->
@@ -681,7 +690,7 @@
         <div class="upload-area" id="upload-area">
           <div class="upload-icon">+</div>
           <p>タップしてファイルを選択<br>または<br>ファイルをドラッグ＆ドロップ</p>
-          <input type="file" id="file-input" class="file-input">
+          <input type="file" id="file-input" class="file-input" accept="image/*,video/*,*/*" multiple>
         </div>
         
         <div class="file-preview" id="file-preview">
@@ -727,6 +736,12 @@
         
         <div class="status" id="url-status"></div>
       </div>
+
+      <!-- テキスト送信タブ（直接接続時） -->
+      <div class="tab-content" id="text-tab">
+        <textarea id="text-input" class="url-input" rows="4" placeholder="送りたいテキストを入力"></textarea>
+        <button class="btn btn-primary btn-sticky" id="text-send-btn">テキストを送信</button>
+      </div>
     </div>
 
     <div class="footer">
@@ -735,428 +750,6 @@
     </div>
   </div>
 
-  <script type="module">
-    // Add cache-busting query to ensure latest modules load in browsers
-    import { initFirebase, dbRef, onValue, off, get, update } from './js/firebase.js?v=20250831a';
-    import { encodeFileAsDataURL, putFile, putUrl } from './js/files-save.js?v=20250831a';
-    import { firebaseConfig } from './config.js';
-
-    const { db } = initFirebase(firebaseConfig);
-
-    // Realtime Database connection warm-up to reduce first-write stalls
-    (function warmUpRealtime() {
-      try {
-        const infoRef = dbRef(db, '.info/connected');
-        onValue(infoRef, (snap) => { try { off(infoRef); } catch {} });
-      } catch (e) {
-        // no-op
-      }
-      try {
-        // Fire a no-op read to establish transport
-        get(dbRef(db, 'ping')).catch(() => {});
-      } catch {}
-    })();
-
-    // セッション管理の定数
-    const AUTH_SESSION_KEY = 'auth_session';
-    const AUTH_EXPIRES_KEY = 'auth_expires';
-    const SESSION_DURATION = 24 * 60 * 60 * 1000; // 24時間
-
-    // URLからセッション情報を取得
-    const urlParams = new URLSearchParams(window.location.search);
-    let sessionId = urlParams.get('session') || null;
-    const encCt = urlParams.get('ct');
-    const encIv = urlParams.get('iv');
-    const encSalt = urlParams.get('salt');
-    
-    // quiet logs
-
-    // 認証システム
-    async function authenticate() {
-      const password = document.getElementById('authInput').value;
-      const errorDiv = document.getElementById('authError');
-      
-      // 暗号化URL → PINとして復号
-      if (encCt && encIv && encSalt) {
-        try {
-          const sid = await decryptSessionId(password, encCt, encIv, encSalt);
-          if (!sid || sid.length < 6) throw new Error('invalid sid');
-          sessionId = sid;
-          const expires = Date.now() + SESSION_DURATION;
-          localStorage.setItem(AUTH_SESSION_KEY, 'authenticated');
-          localStorage.setItem(AUTH_EXPIRES_KEY, expires.toString());
-          showMainContent();
-          errorDiv.style.display = 'none';
-          return;
-        } catch (e) {
-          console.error('復号失敗', e);
-          errorDiv.textContent = '参加コードが違います';
-          errorDiv.style.display = 'block';
-          document.getElementById('authInput').value = '';
-          setTimeout(() => { errorDiv.style.display = 'none'; }, 3000);
-          return;
-        }
-      }
-
-      // 互換: 簡易パスワード
-      if (password === 'sharetto') {
-        const expires = Date.now() + SESSION_DURATION;
-        localStorage.setItem(AUTH_SESSION_KEY, 'authenticated');
-        localStorage.setItem(AUTH_EXPIRES_KEY, expires.toString());
-        showMainContent();
-        errorDiv.style.display = 'none';
-      } else {
-        errorDiv.style.display = 'block';
-        document.getElementById('authInput').value = '';
-        setTimeout(() => { errorDiv.style.display = 'none'; }, 3000);
-      }
-    }
-
-    function showMainContent() {
-      document.getElementById('authOverlay').style.display = 'none';
-      document.getElementById('mainContent').classList.add('authenticated');
-    }
-
-    function checkAuthentication() {
-      // URLパラメータから自動認証をチェック
-      if (sessionId && sessionId.length >= 6) {
-        const expiresAt = Date.now() + SESSION_DURATION;
-        localStorage.setItem(AUTH_SESSION_KEY, 'authenticated');
-        localStorage.setItem(AUTH_EXPIRES_KEY, expiresAt.toString());
-        showMainContent();
-        return true;
-      }
-      // 暗号化URLは手動でPIN入力
-      if (encCt && encIv && encSalt) {
-        return false;
-      }
-      
-      // 通常の認証チェック
-      const authSession = localStorage.getItem(AUTH_SESSION_KEY);
-      const authExpires = localStorage.getItem(AUTH_EXPIRES_KEY);
-      
-      if (authSession === 'authenticated' && authExpires) {
-        const expiresAt = parseInt(authExpires);
-        const now = Date.now();
-        
-        if (now < expiresAt) {
-          showMainContent();
-          return true;
-        } else {
-          localStorage.removeItem(AUTH_SESSION_KEY);
-          localStorage.removeItem(AUTH_EXPIRES_KEY);
-        }
-      }
-      
-      return false;
-    }
-
-    // DOM要素の取得
-    const fileInput = document.getElementById('file-input');
-    const uploadBtn = document.getElementById('upload-btn');
-    const uploadArea = document.getElementById('upload-area');
-    const filePreview = document.getElementById('file-preview');
-    const fileName = document.getElementById('file-name');
-    const fileSize = document.getElementById('file-size');
-    const progressContainer = document.getElementById('progress-container');
-    const progressBar = document.getElementById('progress-bar');
-    const status = document.getElementById('status');
-
-    // タブ切り替え機能
-    document.addEventListener('DOMContentLoaded', function() {
-      const tabButtons = document.querySelectorAll('.tab-button');
-      const tabContents = document.querySelectorAll('.tab-content');
-
-      tabButtons.forEach(button => {
-        button.addEventListener('click', function() {
-          const targetTab = this.getAttribute('data-tab');
-
-          // すべてのタブボタンからactiveクラスを削除
-          tabButtons.forEach(btn => btn.classList.remove('active'));
-          // すべてのタブコンテンツからactiveクラスを削除
-          tabContents.forEach(content => content.classList.remove('active'));
-
-          // クリックされたタブボタンとコンテンツにactiveクラスを追加
-          this.classList.add('active');
-          document.getElementById(targetTab + '-tab').classList.add('active');
-        });
-      });
-
-      // 認証チェック
-      if (!checkAuthentication()) {
-        document.getElementById('authInput').focus();
-      }
-    });
-
-    // Enterキーでログイン
-    document.getElementById('authInput').addEventListener('keypress', async function(e) {
-      if (e.key === 'Enter') {
-        await authenticate();
-      }
-    });
-
-    // Decryption helpers
-    function fromB64url(str) {
-      const b64 = str.replace(/-/g,'+').replace(/_/g,'/');
-      const pad = '='.repeat((4 - (b64.length % 4)) % 4);
-      const bin = atob(b64 + pad);
-      const bytes = new Uint8Array(bin.length);
-      for (let i=0;i<bin.length;i++) bytes[i] = bin.charCodeAt(i);
-      return bytes;
-    }
-    async function decryptSessionId(pin, ct, iv, salt) {
-      const keyMaterial = await crypto.subtle.importKey('raw', new TextEncoder().encode(pin), 'PBKDF2', false, ['deriveKey']);
-      const key = await crypto.subtle.deriveKey(
-        { name: 'PBKDF2', salt: fromB64url(salt), iterations: 200000, hash: 'SHA-256' },
-        keyMaterial,
-        { name: 'AES-GCM', length: 256 },
-        false,
-        ['decrypt']
-      );
-      const plainBuf = await crypto.subtle.decrypt(
-        { name: 'AES-GCM', iv: fromB64url(iv) },
-        key,
-        fromB64url(ct)
-      );
-      return new TextDecoder().decode(plainBuf);
-    }
-
-    // ファイルアップロード機能
-    uploadArea.addEventListener('click', () => {
-      fileInput.click();
-    });
-
-    // ドラッグ&ドロップイベント
-    uploadArea.addEventListener('dragover', (e) => {
-      e.preventDefault();
-      uploadArea.classList.add('dragover');
-    });
-
-    uploadArea.addEventListener('dragleave', () => {
-      uploadArea.classList.remove('dragover');
-    });
-
-    uploadArea.addEventListener('drop', (e) => {
-      e.preventDefault();
-      uploadArea.classList.remove('dragover');
-      
-      if (e.dataTransfer.files.length > 0) {
-        fileInput.files = e.dataTransfer.files;
-        handleFileSelect();
-      }
-    });
-
-    // ファイル選択イベント
-    fileInput.addEventListener('change', handleFileSelect);
-
-    function handleFileSelect() {
-      if (fileInput.files.length > 0) {
-        const file = fileInput.files[0];
-        
-        // ファイル情報の表示
-        fileName.textContent = file.name;
-        fileSize.textContent = formatFileSize(file.size);
-        filePreview.style.display = 'block';
-        
-        // アップロードボタンの有効化
-        uploadBtn.disabled = false;
-        uploadBtn.classList.add('btn-sticky');
-      } else {
-        uploadBtn.disabled = true;
-        uploadBtn.classList.remove('btn-sticky');
-      }
-    }
-
-    // ファイルサイズのフォーマット
-    function formatFileSize(bytes) {
-      if (bytes === 0) return '0 Bytes';
-      
-      const k = 1024;
-      const sizes = ['Bytes', 'KB', 'MB', 'GB'];
-      const i = Math.floor(Math.log(bytes) / Math.log(k));
-      
-      return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
-    }
-
-    // アップロードボタンのクリックイベント
-    uploadBtn.addEventListener('click', uploadFile);
-
-    async function uploadFile() {
-      if (fileInput.files.length === 0) return;
-      
-      const file = fileInput.files[0];
-      
-      // quiet logs
-      
-      if (!sessionId) {
-        status.textContent = 'エラー: セッションIDが見つかりません';
-        status.classList.add('error');
-        console.error('セッションIDなし');
-        return;
-      }
-      
-      // ファイルサイズ制限 (50MB)
-      if (file.size > 50 * 1024 * 1024) {
-        status.textContent = 'ファイルサイズが大きすぎます (最大50MB)';
-        status.classList.add('error');
-        return;
-      }
-      
-      // UI準備
-      uploadBtn.disabled = true;
-      progressContainer.style.display = 'block';
-      progressBar.style.width = '0%';
-      status.textContent = 'ファイルを読み込み中...';
-      status.classList.remove('success', 'error');
-
-      try {
-        const dataUrl = await encodeFileAsDataURL(file);
-        progressBar.style.width = '50%';
-        status.textContent = 'アップロード中...';
-        const payload = { type:'file', name:file.name, size:file.size, mimeType:file.type, data:dataUrl, timestamp:Date.now() };
-        await putFile(db, sessionId, payload);
-        progressBar.style.width = '100%';
-        status.textContent = 'アップロード完了！';
-        status.classList.add('success');
-        fileInput.value = '';
-        filePreview.style.display = 'none';
-        uploadBtn.disabled = true;
-        uploadBtn.classList.remove('btn-sticky');
-        setTimeout(()=>{ progressContainer.style.display='none'; status.textContent='別のファイルをアップロードできます'; },1500);
-      } catch (error) {
-        console.error('ファイルアップロードエラー(1次):', error);
-        // Fallback: parent-level update
-        try {
-          const dataUrl = await encodeFileAsDataURL(file);
-          const payload = { type:'file', name:file.name, size:file.size, mimeType:file.type, data:dataUrl, timestamp:Date.now() };
-          const fileId = Math.random().toString(36).substring(2, 10);
-          const parentRef = dbRef(db, `files/${sessionId}`);
-          const updates = {};
-          updates[fileId] = payload;
-          updates['timestamp'] = payload.timestamp;
-          updates['size'] = payload.size;
-          // fallback path
-          await update(parentRef, updates);
-          progressBar.style.width = '100%';
-          status.textContent = 'アップロード完了！';
-          status.classList.add('success');
-          fileInput.value = '';
-          filePreview.style.display = 'none';
-          uploadBtn.disabled = true;
-          uploadBtn.classList.remove('btn-sticky');
-          setTimeout(()=>{ progressContainer.style.display='none'; status.textContent='別のファイルをアップロードできます'; },1500);
-        } catch (e2) {
-          console.error('ファイルアップロードエラー(フォールバック失敗):', e2);
-          status.textContent = 'アップロードに失敗しました: ' + (e2 && e2.message ? e2.message : 'unknown');
-          status.classList.add('error');
-          uploadBtn.disabled = false;
-          progressContainer.style.display = 'none';
-        }
-      }
-    }
-
-    // URL共有機能（基本的な実装）
-    const urlInput = document.getElementById('url-input');
-    const urlShareBtn = document.getElementById('url-share-btn');
-    const urlStatus = document.getElementById('url-status');
-    const urlPreview = document.getElementById('url-preview');
-
-    urlInput.addEventListener('input', function() {
-      const url = this.value.trim();
-      if (url && isValidURL(url)) {
-        urlShareBtn.disabled = false;
-        urlShareBtn.classList.add('btn-sticky');
-        showUrlPreview(url);
-      } else {
-        urlShareBtn.disabled = true;
-        urlShareBtn.classList.remove('btn-sticky');
-        urlPreview.classList.remove('show');
-      }
-    });
-
-    function isValidURL(string) {
-      try {
-        new URL(string);
-        return true;
-      } catch (_) {
-        return false;
-      }
-    }
-
-    function showUrlPreview(url) {
-      document.getElementById('url-preview-title').textContent = 'URL共有';
-      document.getElementById('url-preview-description').textContent = 'このURLが共有されます';
-      document.getElementById('url-preview-url').textContent = url;
-      urlPreview.classList.add('show');
-    }
-
-    urlShareBtn.addEventListener('click', async function() {
-      const url = urlInput.value.trim();
-      if (!url) return;
-
-      // quiet logs
-      
-      if (!sessionId) {
-        urlStatus.textContent = 'エラー: セッションIDが見つかりません';
-        urlStatus.classList.add('error');
-        console.error('セッションIDなし');
-        return;
-      }
-
-      urlShareBtn.disabled = true;
-      urlStatus.textContent = 'URL共有中...';
-      urlStatus.classList.remove('success', 'error');
-
-      try {
-        await putUrl(db, sessionId, url);
-        urlStatus.textContent = 'URL共有完了！';
-        urlStatus.classList.add('success');
-        urlInput.value = '';
-        urlPreview.classList.remove('show');
-        urlShareBtn.disabled = true;
-        urlShareBtn.classList.remove('btn-sticky');
-        setTimeout(()=>{ urlStatus.textContent=''; urlStatus.classList.remove('success'); },1500);
-      } catch (error) {
-        console.error('URL共有エラー:', error);
-        // Fallback: write via parent-level update to satisfy stricter rules
-        try {
-          const urlId = Math.random().toString(36).substring(2, 10);
-          const u = new URL(url);
-          const payload = {
-            type: 'url',
-            url,
-            title: u.hostname,
-            name: u.hostname,
-            description: 'リンク',
-            hostname: u.hostname,
-            size: 0,
-            mimeType: 'text/url',
-            timestamp: Date.now(),
-          };
-          const parentRef = dbRef(db, `files/${sessionId}`);
-          const updates = {};
-          updates[urlId] = payload;
-          updates['timestamp'] = payload.timestamp;
-          updates['size'] = payload.size;
-          await update(parentRef, updates);
-          urlStatus.textContent = 'URL共有完了！';
-          urlStatus.classList.add('success');
-          urlInput.value = '';
-          urlPreview.classList.remove('show');
-          urlShareBtn.disabled = true;
-          urlShareBtn.classList.remove('btn-sticky');
-          setTimeout(()=>{ urlStatus.textContent=''; urlStatus.classList.remove('success'); },1500);
-        } catch (e2) {
-          console.error('URL共有エラー(フォールバック):', e2);
-          urlStatus.textContent = 'URL共有に失敗しました: ' + (e2 && e2.message ? e2.message : 'unknown');
-          urlStatus.classList.add('error');
-          urlShareBtn.disabled = false;
-        }
-      }
-    });
-
-    // グローバル関数として認証関数を公開
-    window.authenticate = authenticate;
-  </script>
+  <script type="module" src="./js/pages/mobile-upload.js"></script>
 </body>
 </html>

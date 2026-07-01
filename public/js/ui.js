@@ -1,5 +1,7 @@
 // UI utility helpers for Sharetto
 
+import { showToast } from './toast.js';
+
 let currentImageData = null;
 let currentImageName = null;
 
@@ -41,21 +43,22 @@ export function downloadFile(_id, fileName, fileData) {
     document.body.appendChild(a);
     a.click();
     document.body.removeChild(a);
+    showToast('ダウンロードを開始しました', 'success');
   } catch (e) {
     console.error('download error', e);
-    alert('ダウンロードに失敗しました');
+    showToast('ダウンロードに失敗しました', 'error');
   }
 }
 
-export function copyToClipboard(text) {
-  navigator.clipboard.writeText(text).then(() => {
-    alert('✅ コピーしました！');
-  }).catch((err) => {
+export async function copyToClipboard(text, successMessage = 'コピーしました') {
+  try {
+    await navigator.clipboard.writeText(text);
+    showToast(`✅ ${successMessage}`, 'success');
+  } catch (err) {
     console.error('copy error', err);
-    alert('コピーに失敗しました');
-  });
+    showToast('コピーに失敗しました', 'error');
+  }
 }
 
 function handleEscKey(e) { if (e.key === 'Escape') closeImageModal(); }
 function handleModalClick(e) { if (e.target && e.target.id === 'imageModal') closeImageModal(); }
-
