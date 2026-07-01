@@ -1132,7 +1132,7 @@
       </div>
     </div>
 
-    <div class="glass-container" style="max-width:960px">
+    <div class="glass-container transfer-workspace" style="max-width:960px">
       <!-- 転送モード A/B -->
       <div class="transfer-mode-tabs tab-container" style="margin-bottom:16px">
         <button type="button" class="tab-button active" data-transfer-mode="p2p">⚡ 直接接続</button>
@@ -1140,42 +1140,47 @@
       </div>
       <p id="relayModeNote" hidden style="font-size:13px;color:var(--md-on-surface-variant);margin-bottom:12px">サーバー経由: 確実ですが速度は遅め。NAT越えできない場合のフォールバックにも使えます。</p>
 
-      <!-- 接続状態 -->
-      <div class="connection-panel">
-        <span id="connectionBadge" class="connection-badge" data-state="idle">準備中</span>
-        <span id="connectionDetail" class="connection-detail"></span>
-        <div class="connection-progress-track"><div id="connectionProgress" class="connection-progress-bar" hidden></div></div>
-      </div>
-
-      <!-- Three.js ビジュアル -->
-      <div id="visualCanvas" class="visual-canvas" aria-hidden="true"></div>
-
-      <!-- QRコード表示 -->
-      <div class="qr-section">
-        <div class="qr-header">
-          <h3>📱 スマートフォンでアクセス</h3>
-          <p>下のQRコードをスマートフォンで読み取ってファイルをアップロードしてください</p>
-        </div>
-      <div class="qr-container">
-        <div id="qrcode" class="qr-display"></div>
-        <div class="qr-info">
-          <p class="qr-url" id="qrUrl"></p>
-          <div class="qr-actions">
-            <button onclick="copyQRUrl()" class="action-button">📋 URLをコピー</button>
-            <button onclick="shareToPhone()" class="action-button">📲 スマホに送る</button>
-            <button onclick="generateNewSession()" class="action-button">🔄 新しいQRコード</button>
+      <!-- 2カラム: キャラクター演出 + 共有パネル -->
+      <div class="transfer-hero">
+        <div class="transfer-hero__visual">
+          <h2 class="transfer-hero__title">📦 ファイルをお届け中</h2>
+          <p class="transfer-hero__desc">ポリゴンキャラが転送をお手伝いします。ドラッグして自由に動かせます。</p>
+          <div class="status-stack">
+            <div class="connection-panel" style="margin-bottom:0">
+              <span id="connectionBadge" class="connection-badge" data-state="idle">準備中</span>
+              <span id="connectionDetail" class="connection-detail"></span>
+              <div class="connection-progress-track"><div id="connectionProgress" class="connection-progress-bar" hidden></div></div>
+            </div>
           </div>
-          <div class="join-code-wrap" style="margin-top:16px;text-align:center;">
-            <div style="font-weight:700; font-size:14px; opacity:.85;">🧩 参加コード</div>
-            <div id="joinCode" style="font-family:monospace;letter-spacing:3px;font-size:28px; margin-top:4px;">------</div>
-            <div class="join-code-actions">
-              <button id="copyJoinCodeBtn" type="button" class="action-button" disabled>📋 コードをコピー</button>
+          <div id="visualCanvas" class="visual-canvas" role="img" aria-label="ファイル転送を演出するポリゴンキャラクター。ドラッグで動かせます。">
+            <span class="visual-hint">👆 ドラッグして動かす</span>
+          </div>
+        </div>
+
+        <div class="transfer-hero__share">
+          <h2 class="transfer-hero__title">📱 スマホから送る</h2>
+          <p class="transfer-hero__desc">QRコードを読み取るか、URL・参加コードを共有してファイルを受け取りましょう。</p>
+          <div class="share-panel">
+            <div class="share-panel__qr">
+              <div id="qrcode" class="qr-display"></div>
+            </div>
+            <div id="qrUrl" class="share-panel__url"></div>
+            <div class="share-panel__actions">
+              <button onclick="copyQRUrl()" class="action-button">📋 URLをコピー</button>
+              <button onclick="shareToPhone()" class="action-button">📲 スマホに送る</button>
+              <button onclick="generateNewSession()" class="action-button">🔄 新しいセッション</button>
+            </div>
+            <div class="join-code-block">
+              <div class="join-code-block__label">🧩 参加コード</div>
+              <div id="joinCode" class="join-code-block__code">------</div>
+              <div class="join-code-actions">
+                <button id="copyJoinCodeBtn" type="button" class="action-button" disabled>📋 コードをコピー</button>
+              </div>
             </div>
           </div>
         </div>
       </div>
-    </div>
-      
+
       <!-- セッションタイマー表示 -->
       <div id="sessionTimer" class="session-timer" style="display: none;">
         <div class="timer-text">
@@ -1186,11 +1191,11 @@
       </div>
     </div>
 
-    <!-- アップロードされたファイル表示 -->
-    <div class="glass-container" style="max-width:960px">
-      <div class="files-header">
+    <!-- 受信ファイル -->
+    <div class="glass-container files-panel" style="max-width:960px">
+      <div class="files-panel__toolbar">
         <h3>📁 受信ファイル</h3>
-        <div style="display:flex;gap:8px;flex-wrap:wrap">
+        <div class="files-panel__actions">
           <button id="downloadZipBtn" type="button" onclick="downloadZip()" class="action-button" disabled>📦 まとめてZIP</button>
           <button onclick="refreshFiles()" class="action-button">🔄 更新</button>
         </div>
@@ -1200,11 +1205,13 @@
       </div>
     </div>
 
-    <!-- 共有されたURL表示 -->
-    <div class="glass-container" style="max-width:960px">
-      <div class="files-header">
+    <!-- 共有されたURL -->
+    <div class="glass-container files-panel" style="max-width:960px">
+      <div class="files-panel__toolbar">
         <h3>🔗 共有されたURL</h3>
-        <button onclick="refreshFiles()" class="action-button">🔄 更新</button>
+        <div class="files-panel__actions">
+          <button onclick="refreshFiles()" class="action-button">🔄 更新</button>
+        </div>
       </div>
       <div id="urlsList" class="files-list">
         <div class="no-files">まだURLが共有されていません</div>

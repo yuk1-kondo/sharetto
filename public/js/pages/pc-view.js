@@ -15,7 +15,7 @@ import { showToast } from '../toast.js';
 import { PIN_CODE_LENGTH, TRANSFER_MODE, CONNECTION_STATE } from '../constants.js';
 import { subscribeConnectionState, setConnectionState, resetConnectionState } from '../connection-state.js';
 import { createP2PHost } from '../webrtc/host.js';
-import { initParticleScene } from '../visual/particle-scene.js';
+import { initCharacterScene } from '../visual/character-scene.js';
 import {
   addReceivedBlob, addReceivedFromDataUrl, getReceivedFiles, subscribeReceivedStore, clearReceivedStore,
 } from '../received-store.js';
@@ -295,7 +295,7 @@ registerServiceWorker();
 
 document.addEventListener('DOMContentLoaded', async () => {
   startSession();
-  visualScene = await initParticleScene(document.getElementById('visualCanvas'));
+  visualScene = await initCharacterScene(document.getElementById('visualCanvas'));
 });
 
 window.addEventListener('beforeunload', () => {
