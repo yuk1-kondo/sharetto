@@ -82,11 +82,54 @@
 .connection-progress-track { flex:1 1 100%; height:6px; background:var(--md-outline-variant); border-radius:999px; overflow:hidden; }
 .connection-progress-bar { height:100%; width:0; background:var(--md-primary); transition:width .2s ease; }
 .transfer-mode-tabs .tab-button { font-size:14px; }
-.visual-canvas { width:100%; height:180px; border-radius:16px; overflow:hidden; margin-bottom:16px; background:linear-gradient(180deg,#eef2ff,#f8fafc); border:1px solid var(--md-outline-variant); }
+.visual-canvas { width:100%; height:280px; border-radius:16px; overflow:hidden; background:linear-gradient(180deg,#eef2ff,#f8fafc); border:1px solid var(--md-outline-variant); cursor:grab; position:relative; }
+.visual-canvas:active { cursor:grabbing; }
+.visual-canvas canvas { display:block; width:100%!important; height:100%!important; }
+.visual-hint { position:absolute; bottom:10px; left:50%; transform:translateX(-50%); font-size:12px; font-weight:600; color:var(--md-on-surface-variant); background:rgba(255,255,255,.85); padding:4px 12px; border-radius:999px; pointer-events:none; z-index:2; }
+.visual-fallback { display:flex; align-items:center; justify-content:center; height:100%; font-size:15px; font-weight:700; color:var(--md-on-surface-variant); }
 .tag-direct { font-size:12px; opacity:.75; font-weight:600; }
 
+/* File transfer service layout (WeTransfer / Send Anywhere inspired) */
+.transfer-hero { display:grid; grid-template-columns:1fr 1fr; gap:24px; align-items:stretch; margin-bottom:20px; }
+.transfer-hero__visual { display:flex; flex-direction:column; gap:8px; min-width:0; }
+.transfer-hero__share { display:flex; flex-direction:column; gap:16px; min-width:0; }
+.transfer-hero__title { font-size:20px; font-weight:800; color:var(--md-on-surface); margin:0; }
+.transfer-hero__desc { font-size:14px; color:var(--md-on-surface-variant); margin:0; line-height:1.5; }
+.share-panel { background:var(--md-surface-variant); border:1px solid var(--md-outline-variant); border-radius:16px; padding:20px; display:flex; flex-direction:column; align-items:center; gap:16px; flex:1; }
+.share-panel__qr { background:#fff; border-radius:12px; padding:12px; box-shadow:0 4px 16px rgba(0,0,0,.06); }
+.share-panel__url { width:100%; font-family:ui-monospace,monospace; font-size:12px; word-break:break-all; color:var(--md-on-surface-variant); background:var(--md-surface); border:1px solid var(--md-outline-variant); border-radius:10px; padding:10px 12px; text-align:center; }
+.share-panel__actions { display:flex; flex-wrap:wrap; gap:8px; justify-content:center; width:100%; }
+.share-panel__actions .action-button { flex:1 1 auto; min-width:120px; font-size:13px; padding:10px 14px; }
+.join-code-block { text-align:center; width:100%; padding-top:8px; border-top:1px solid var(--md-outline-variant); }
+.join-code-block__label { font-size:13px; font-weight:700; color:var(--md-on-surface-variant); margin-bottom:4px; }
+.join-code-block__code { font-family:ui-monospace,monospace; letter-spacing:4px; font-size:26px; font-weight:800; color:var(--md-on-surface); }
+.status-stack { display:flex; flex-direction:column; gap:8px; margin-top:4px; }
+
+/* File list — table-like rows */
+.files-panel { margin-top:0; }
+.files-panel__toolbar { display:flex; flex-wrap:wrap; align-items:center; justify-content:space-between; gap:12px; margin-bottom:16px; padding-bottom:12px; border-bottom:1px solid var(--md-outline-variant); }
+.files-panel__toolbar h3 { margin:0; font-size:18px; font-weight:800; }
+.files-panel__actions { display:flex; gap:8px; flex-wrap:wrap; }
+.file-row, .file-item, .url-item { display:flex; align-items:center; gap:12px; padding:12px 14px; border-radius:12px; background:var(--md-surface); border:1px solid var(--md-outline-variant); margin-bottom:8px; transition:background .15s ease; }
+.file-row:hover, .file-item:hover, .url-item:hover { background:var(--md-surface-variant); }
+.file-row__icon { font-size:24px; flex-shrink:0; width:36px; text-align:center; }
+.file-row__body { flex:1; min-width:0; }
+.file-row__name, .file-name { font-weight:700; font-size:14px; color:var(--md-on-surface); overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+.file-row__meta, .file-size, .file-date { font-size:12px; color:var(--md-on-surface-variant); margin-top:2px; }
+.file-row__actions, .file-actions { flex-shrink:0; display:flex; gap:6px; }
+.file-row__actions .download-btn, .file-actions .download-btn { min-height:36px; padding:8px 12px; font-size:13px; }
+.file-thumbnail { flex-shrink:0; width:48px; height:48px; border-radius:8px; overflow:hidden; }
+.file-thumbnail img { width:100%; height:100%; object-fit:cover; cursor:pointer; }
+
+@media (max-width: 768px) {
+  .transfer-hero { grid-template-columns:1fr; }
+  .visual-canvas { height:220px; }
+  .share-panel__actions .action-button { flex:1 1 100%; }
+}
+
 @media (prefers-reduced-motion: reduce) {
-  .visual-canvas { display: none !important; }
+  .visual-canvas { height:120px; cursor:default; }
+  .visual-hint { display:none; }
 }
 
 .join-code-actions { display: flex; gap: 8px; justify-content: center; flex-wrap: wrap; margin-top: 8px; }
