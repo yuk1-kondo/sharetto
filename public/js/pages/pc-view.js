@@ -308,6 +308,7 @@ function downloadZip() {
 }
 
 function updateConnectionUI(snap) {
+  document.body.dataset.connectionState = snap.state;
   const badge = document.getElementById('connectionBadge');
   const detail = document.getElementById('connectionDetail');
   const bar = document.getElementById('connectionProgress');

@@ -44,6 +44,7 @@ let mobileScene = null;
 })();
 
 function updateMobileConnectionUI(snap) {
+  document.body.dataset.connectionState = snap.state;
   const badge = document.getElementById('mobileConnectionBadge');
   const detail = document.getElementById('mobileConnectionDetail');
   if (badge) { badge.textContent = snap.label; badge.dataset.state = snap.state; }

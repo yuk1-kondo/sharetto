@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <meta name="theme-color" content="#ffb300">
+  <meta name="theme-color" content="#0a0e1a">
   <meta name="apple-mobile-web-app-capable" content="yes">
   <link rel="manifest" href="/manifest.webmanifest">
   <link rel="icon" href="/icons/icon.svg" type="image/svg+xml">
@@ -1095,121 +1095,103 @@
   /* Reduce playful motion */
   .upload-area:hover, .tab-button:not(.active):hover { transform: none; box-shadow: none; }
   </style>
+  <link rel="stylesheet" href="css/orbital-ui.css">
 </head>
-<body class="has-3d-scene">
+<body class="has-3d-scene" data-connection-state="idle">
   <div id="scene-bg" aria-hidden="true"></div>
   <div id="mainContent" class="main-content">
-    <header class="app-header">
-      <div class="app-header__inner">
-        <div class="app-header__brand">
+    <header class="orbital-header">
+      <div class="orbital-header__top">
+        <div class="orbital-header__brand">
           <h1>シェアっと</h1>
-          <div class="app-header__tagline">スマホからPCへ、すぐ転送</div>
+          <div class="orbital-header__tagline">Orbital Link — スマホからPCへ、すぐ転送</div>
         </div>
-        <div class="app-header__actions">
-          <a href="/join.html" class="action-button" style="text-decoration:none">🧩 参加</a>
+        <a href="/join.html" class="action-button">参加</a>
+      </div>
+      <div class="status-ribbon">
+        <span id="connectionBadge" class="connection-badge" data-state="idle">準備中</span>
+        <span id="connectionDetail" class="connection-detail"></span>
+        <div id="sessionTimer" class="session-timer" style="display:none">
+          <div class="timer-text">
+            <span class="timer-icon">⏰</span>
+            <span id="timerDisplay">10:00</span>
+          </div>
+          <div class="timer-detail">ファイルは自動的に削除されます</div>
         </div>
+        <div class="connection-progress-track"><div id="connectionProgress" class="connection-progress-bar" hidden></div></div>
       </div>
     </header>
 
-    <div class="app-shell">
-      <div class="app-grid">
-        <!-- 左: 接続・QR -->
-        <aside class="app-panel app-panel--connect">
-          <div class="panel-card">
-            <h2 class="panel-card__title">⚡ 転送モード</h2>
-            <div class="transfer-mode-tabs tab-container">
-              <button type="button" class="tab-button active" data-transfer-mode="p2p">直接接続</button>
-              <button type="button" class="tab-button" data-transfer-mode="relay">サーバー経由</button>
-            </div>
-            <p id="relayModeNote" class="mode-hint" hidden>サーバー経由は確実ですが速度は遅め。NAT越えできない場合のフォールバックにも使えます。</p>
+    <div class="orbital-stage">
+      <aside class="orbital-dock orbital-dock--connect">
+        <div class="glass-panel">
+          <p class="glass-panel__title">Transfer Mode</p>
+          <div class="orbital-tabs transfer-mode-tabs">
+            <button type="button" class="tab-button active" data-transfer-mode="p2p">直接接続</button>
+            <button type="button" class="tab-button" data-transfer-mode="relay">サーバー経由</button>
+          </div>
+          <p id="relayModeNote" class="mode-hint" hidden>サーバー経由は確実ですが速度は遅め。NAT越えできない場合のフォールバックにも使えます。</p>
+
+          <p class="glass-panel__title glass-panel__title--large">スマホを接続</p>
+          <div class="qr-orbit-frame">
+            <div id="qrcode" class="qr-display"></div>
           </div>
 
-          <div class="panel-card">
-            <h2 class="panel-card__title">📡 接続状態</h2>
-            <div class="connection-panel" style="margin-bottom:0">
-              <span id="connectionBadge" class="connection-badge" data-state="idle">準備中</span>
-              <span id="connectionDetail" class="connection-detail"></span>
-              <div class="connection-progress-track"><div id="connectionProgress" class="connection-progress-bar" hidden></div></div>
-            </div>
-            <div id="sessionTimer" class="session-timer" style="display: none; margin-top:12px">
-              <div class="timer-text">
-                <span class="timer-icon">⏰</span>
-                <span id="timerDisplay">10:00</span>
-              </div>
-              <div class="timer-detail">セッションは10分で終了します</div>
-            </div>
+          <div class="join-code-display">
+            <div class="join-code-display__label">参加コード</div>
+            <div id="joinCode" class="join-code-display__code">------</div>
+          </div>
+          <div class="join-code-actions" style="margin-bottom:12px">
+            <button id="copyJoinCodeBtn" type="button" class="action-button" disabled>コードをコピー</button>
           </div>
 
-          <div class="panel-card">
-            <h2 class="panel-card__title">📱 QRコードで接続</h2>
-            <p class="panel-card__subtitle">スマホのカメラで読み取るか、参加コードを入力してください</p>
-            <div class="qr-section" style="padding:0">
-              <div class="qr-container">
-                <div id="qrcode" class="qr-display"></div>
-                <div class="qr-info">
-                  <p class="qr-url" id="qrUrl"></p>
-                  <div class="qr-actions">
-                    <button onclick="copyQRUrl()" class="action-button">📋 URLをコピー</button>
-                    <button onclick="shareToPhone()" class="action-button">📲 スマホに送る</button>
-                    <button onclick="generateNewSession()" class="action-button">🔄 新しいQR</button>
-                  </div>
-                  <div class="join-code-wrap" style="margin-top:16px;text-align:center;">
-                    <div style="font-weight:700;font-size:14px;opacity:.85;">🧩 参加コード</div>
-                    <div id="joinCode" style="font-family:monospace;letter-spacing:3px;font-size:28px;margin-top:4px;">------</div>
-                    <div class="join-code-actions">
-                      <button id="copyJoinCodeBtn" type="button" class="action-button" disabled>📋 コードをコピー</button>
-                    </div>
-                  </div>
-                </div>
-              </div>
+          <p class="qr-url" id="qrUrl"></p>
+          <div class="qr-actions">
+            <button onclick="copyQRUrl()" class="action-button">URLコピー</button>
+            <button onclick="shareToPhone()" class="action-button">スマホに送る</button>
+            <button onclick="generateNewSession()" class="action-button">新しいQR</button>
+          </div>
+        </div>
+      </aside>
+
+      <main class="orbital-dock orbital-dock--inbox">
+        <div class="glass-panel inbox-panel" id="pcSendPanel" hidden style="margin-bottom:16px">
+          <p class="glass-panel__title">Send to Phone</p>
+          <p style="font-size:12px;color:var(--orb-text-muted);margin-bottom:10px">直接接続中のみ</p>
+          <textarea id="pcTextSend" class="url-input" rows="2" placeholder="テキストを入力" style="width:100%;margin-bottom:10px;resize:vertical"></textarea>
+          <div style="display:flex;gap:8px;flex-wrap:wrap">
+            <button id="pcTextSendBtn" type="button" class="action-button">テキスト送信</button>
+            <button id="pcFileSendBtn" type="button" class="action-button">ファイル送信</button>
+            <input type="file" id="pcFileSend" hidden>
+          </div>
+        </div>
+
+        <div class="glass-panel inbox-panel" style="margin-bottom:16px">
+          <div class="receive-toolbar">
+            <h3>受信ファイル</h3>
+            <div class="receive-toolbar__actions">
+              <button id="downloadZipBtn" type="button" onclick="downloadZip()" class="action-button" disabled>ZIP</button>
+              <button onclick="refreshFiles()" class="action-button">更新</button>
             </div>
           </div>
-        </aside>
-
-        <!-- 右: 受信一覧 -->
-        <main class="app-panel app-panel--receive">
-          <div class="panel-card receive-section" id="pcSendPanel" hidden>
-            <div class="receive-toolbar">
-              <h3>📤 スマホへ送信</h3>
-            </div>
-            <p style="font-size:13px;color:var(--md-on-surface-variant);margin-bottom:12px">スマホと直接接続中のみ利用できます</p>
-            <textarea id="pcTextSend" class="url-input" rows="2" placeholder="テキストを入力" style="width:100%;margin-bottom:10px;resize:vertical"></textarea>
-            <div style="display:flex;gap:8px;flex-wrap:wrap">
-              <button id="pcTextSendBtn" type="button" class="action-button">💬 テキスト送信</button>
-              <button id="pcFileSendBtn" type="button" class="action-button">📁 ファイル送信</button>
-              <input type="file" id="pcFileSend" hidden>
-            </div>
+          <div id="filesList" class="files-list">
+            <div class="no-files">まだファイルがありません<br><small>QRを読み取るとここに表示されます</small></div>
           </div>
+        </div>
 
-          <div class="panel-card receive-section">
-            <div class="receive-toolbar">
-              <h3>📁 受信ファイル</h3>
-              <div class="receive-toolbar__actions">
-                <button id="downloadZipBtn" type="button" onclick="downloadZip()" class="action-button" disabled>📦 まとめてZIP</button>
-                <button onclick="refreshFiles()" class="action-button">🔄 更新</button>
-              </div>
-            </div>
-            <div id="filesList" class="files-list">
-              <div class="no-files">まだファイルがありません<br><small>QRコードを読み取るとここに表示されます</small></div>
-            </div>
+        <div class="glass-panel inbox-panel">
+          <div class="receive-toolbar">
+            <h3>URL・テキスト</h3>
+            <button onclick="refreshFiles()" class="action-button">更新</button>
           </div>
-
-          <div class="panel-card receive-section">
-            <div class="receive-toolbar">
-              <h3>🔗 URL・テキスト</h3>
-              <button onclick="refreshFiles()" class="action-button">🔄 更新</button>
-            </div>
-            <div id="urlsList" class="files-list">
-              <div class="no-files">URLやテキストはここに表示されます</div>
-            </div>
+          <div id="urlsList" class="files-list">
+            <div class="no-files">URLやテキストはここに表示されます</div>
           </div>
-        </main>
-      </div>
-
-      <div class="footer" style="margin-top:24px;text-align:center">
-        シェアっと · Develop by YUKI KONDO
-      </div>
+        </div>
+      </main>
     </div>
+
+    <footer class="orbital-footer">シェアっと · Develop by YUKI KONDO</footer>
   </div>
 
   <!-- 画像プレビューモーダル -->
