@@ -8,7 +8,7 @@
   z-index: 0;
   pointer-events: none;
   overflow: hidden;
-  background: radial-gradient(ellipse at 50% 40%, #1a2540 0%, #0a0e1a 70%);
+  background: radial-gradient(ellipse at 50% 40%, #2b1e3e 0%, var(--st-void, #0a0e1a) 72%);
 }
 
 #scene-bg canvas {

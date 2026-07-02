@@ -10,25 +10,25 @@ import { CONNECTION_STATE } from '../constants.js';
 /** 明るい背景でくっきり見える色 */
 const LIGHT_VISUAL = {
   [CONNECTION_STATE.IDLE]: {
-    color: 0x4a6fd4, spinSpeed: 0.28, particleSpeed: 0.3, particleSize: 14, opacity: 0.15, breathe: 0.4,
+    color: 0x4a6fd4, spinSpeed: 0.28, particleSpeed: 0.3, particleSize: 3.0, opacity: 0.15, breathe: 0.4,
   },
   [CONNECTION_STATE.WAITING]: {
-    color: 0x3d5fcc, spinSpeed: 0.38, particleSpeed: 0.38, particleSize: 15, opacity: 0.2, breathe: 0.5,
+    color: 0x3d5fcc, spinSpeed: 0.38, particleSpeed: 0.38, particleSize: 3.2, opacity: 0.2, breathe: 0.5,
   },
   [CONNECTION_STATE.CONNECTING]: {
-    color: 0xc4684a, spinSpeed: 0.65, particleSpeed: 1.0, particleSize: 16, opacity: 0.22, breathe: 1.0,
+    color: 0xc4684a, spinSpeed: 0.65, particleSpeed: 1.0, particleSize: 3.4, opacity: 0.22, breathe: 1.0,
   },
   [CONNECTION_STATE.CONNECTED]: {
-    color: 0x3a9e58, spinSpeed: 0.45, particleSpeed: 0.48, particleSize: 15, opacity: 0.18, breathe: 0.55,
+    color: 0x3a9e58, spinSpeed: 0.45, particleSpeed: 0.48, particleSize: 3.2, opacity: 0.18, breathe: 0.55,
   },
   [CONNECTION_STATE.TRANSFERRING]: {
-    color: 0xd4883a, spinSpeed: 0.9, particleSpeed: 2.2, particleSize: 17, opacity: 0.25, breathe: 1.8,
+    color: 0xd4883a, spinSpeed: 0.9, particleSpeed: 2.2, particleSize: 3.6, opacity: 0.25, breathe: 1.8,
   },
   [CONNECTION_STATE.COMPLETE]: {
-    color: 0xc4684a, spinSpeed: 1.2, particleSpeed: 2.8, particleSize: 18, opacity: 0.28, breathe: 2.2,
+    color: 0xc4684a, spinSpeed: 1.2, particleSpeed: 2.8, particleSize: 3.8, opacity: 0.28, breathe: 2.2,
   },
   [CONNECTION_STATE.FAILED]: {
-    color: 0xb83838, spinSpeed: 0.12, particleSpeed: 0.12, particleSize: 13, opacity: 0.1, breathe: 0.2,
+    color: 0xb83838, spinSpeed: 0.12, particleSpeed: 0.12, particleSize: 2.8, opacity: 0.1, breathe: 0.2,
   },
 };
 

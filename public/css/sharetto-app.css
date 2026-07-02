@@ -28,12 +28,14 @@ body.sharetto-app .app {
 body.sharetto-app .app-header {
   background: var(--st-surface);
   border-bottom: 1px solid var(--st-hairline);
-  padding: 20px 24px 16px;
+  padding: 20px 0 16px;
 }
 
 body.sharetto-app .app-header__inner {
   max-width: var(--st-max);
   margin: 0 auto;
+  padding: 0 24px;
+  width: 100%;
 }
 
 body.sharetto-app .app-header__row {
@@ -219,7 +221,7 @@ body.sharetto-app .app-main {
   max-width: var(--st-max);
   width: 100%;
   margin: 0 auto;
-  padding: 24px;
+  padding: 24px 24px 32px;
   display: grid;
   grid-template-columns: var(--st-sidebar) 1fr;
   gap: 24px;
@@ -557,6 +559,10 @@ body.sharetto-app .close-btn {
 }
 
 @media (max-width: 900px) {
+  body.sharetto-app .app-header__inner {
+    padding: 0 16px;
+  }
+
   body.sharetto-app .app-main {
     grid-template-columns: 1fr;
     padding: 16px;

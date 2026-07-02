@@ -79,12 +79,14 @@
       <section class="app-content">
         <div class="card" id="pcSendPanel" hidden>
           <p class="card__label">Send to Phone</p>
-          <p style="font-size:13px;color:var(--st-muted);margin-bottom:12px">直接接続中のみ</p>
+          <p id="pcSendHint" class="mode-hint" style="margin-bottom:12px">接続中 — PCからスマホへ送信</p>
           <textarea id="pcTextSend" class="url-input" rows="2" placeholder="テキストを入力" style="margin-bottom:12px"></textarea>
+          <input type="url" id="pcUrlSend" class="url-input" placeholder="https://example.com" style="margin-bottom:12px">
           <div class="btn-row">
             <button id="pcTextSendBtn" type="button" class="action-button">テキスト送信</button>
+            <button id="pcUrlSendBtn" type="button" class="action-button btn--ghost">URL送信</button>
             <button id="pcFileSendBtn" type="button" class="action-button btn--ghost">ファイル送信</button>
-            <input type="file" id="pcFileSend" hidden>
+            <input type="file" id="pcFileSend" hidden accept="image/*,video/*,*/*">
           </div>
         </div>
 
