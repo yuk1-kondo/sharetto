@@ -20,8 +20,10 @@ import { createP2PGuest, sendFileOverChannel, sendTextOverChannel } from '../web
 import { setConnectionState, subscribeConnectionState, setTransferProgress } from '../connection-state.js';
 import { firebaseConfig } from '../../config.js';
 import { registerServiceWorker } from '../pwa.js';
+import { initConnectionVisual } from '../visual/connection-visual.js';
 import { normalizeImageFile, isHeicFile } from '../heic-convert.js';
-import { initMobileScene } from '../visual/mobile-scene.js';
+import { announceMobileJoin, clearMobilePresence } from '../relay-presence.js';
+import { attachOutboxListener } from '../relay-outbox.js';
 
 const { db, fs } = initFirebase(firebaseConfig);
 
@@ -31,7 +33,8 @@ let sessionId = urlParams.get('session') || null;
 let transferMode = urlParams.get('mode') === 'relay' ? TRANSFER_MODE.RELAY : TRANSFER_MODE.P2P;
 let p2pGuest = null;
 let dataChannel = null;
-let mobileScene = null;
+let connectionVisual = null;
+let detachOutbox = null;
 
 (function warmUpRealtime() {
   try {
@@ -51,6 +54,8 @@ function updateMobileConnectionUI(snap) {
   if (detail) detail.textContent = snap.detail || '';
 }
 
+let relaySessionStarted = false;
+
 function switchToRelayMode(reason) {
   transferMode = TRANSFER_MODE.RELAY;
   p2pGuest?.stop();
@@ -58,8 +63,47 @@ function switchToRelayMode(reason) {
   dataChannel = null;
   const fb = document.getElementById('fallbackRelayBtn');
   if (fb) fb.hidden = true;
-  showToast(reason || 'サーバー経由モードに切り替えました', 'info', 3500);
-  setConnectionState(CONNECTION_STATE.WAITING, { detail: 'サーバー経由で送信できます' });
+  reassertConnected();
+  if (reason) showToast(reason, 'info', 3000);
+}
+
+function reassertConnected() {
+  const detail = isP2PReady()
+    ? '直接接続済み — 高速で送受信できます'
+    : 'サーバー経由で接続済み — 送受信できます';
+  setConnectionState(CONNECTION_STATE.CONNECTED, { detail });
+}
+
+/** サーバー経由の接続を確立（プレゼンス通知 + 受信待受）。冪等。 */
+async function initRelaySession() {
+  if (!sessionId) return;
+  showMobileReceivePanel();
+  if (!relaySessionStarted) {
+    relaySessionStarted = true;
+    detachOutbox = attachOutboxListener(db, sessionId, {
+      onFile: appendMobileReceivedRelayFile,
+      onUrl: appendMobileReceivedRelayUrl,
+      onText: (item) => appendMobileReceivedText(item.text, 'サーバー経由'),
+    });
+  }
+  try {
+    await announceMobileJoin(db, sessionId);
+  } catch (e) {
+    console.warn('[mobile] presence announce failed', e);
+  }
+  reassertConnected();
+}
+
+/**
+ * QR/コードで参加したら、まずサーバー経由で即「接続済み」にする。
+ * その後、可能なら裏で直接接続(P2P)へ静かにアップグレードする。
+ */
+async function bootstrapSession() {
+  if (!sessionId) return;
+  await initRelaySession();
+  const fb = document.getElementById('fallbackRelayBtn');
+  if (fb) fb.hidden = true;
+  attemptP2PUpgrade();
 }
 
 function showMobileReceivePanel() {
@@ -67,7 +111,7 @@ function showMobileReceivePanel() {
   if (panel) panel.hidden = false;
 }
 
-function appendMobileReceivedFile(file) {
+function appendMobileReceivedFile(file, tag = 'PCから') {
   showMobileReceivePanel();
   const list = document.getElementById('mobileReceiveList');
   const empty = list?.querySelector('.no-files');
@@ -81,7 +125,7 @@ function appendMobileReceivedFile(file) {
   div.innerHTML = `
     <div class="file-info">
       <div class="file-details">
-        <div class="file-name">${isImage ? '🖼️' : '📄'} ${file.name} <span class="tag-direct">PCから</span></div>
+        <div class="file-name">${isImage ? '🖼️' : '📄'} ${file.name} <span class="tag-direct">${tag}</span></div>
         <div class="file-size">${formatFileSize(file.size)}</div>
       </div>
       <div class="file-actions">
@@ -101,7 +145,54 @@ function appendMobileReceivedFile(file) {
   showToast(`${file.name} をPCから受信しました`, 'success');
 }
 
-function appendMobileReceivedText(text) {
+async function appendMobileReceivedRelayFile(item) {
+  try {
+    const res = await fetch(item.data);
+    const blob = await res.blob();
+    appendMobileReceivedFile({
+      name: item.name,
+      blob,
+      mimeType: item.mimeType,
+      size: item.size ?? blob.size,
+    }, 'サーバー経由');
+  } catch (e) {
+    console.warn('[mobile] relay file receive failed', e);
+    showToast('ファイルの受信に失敗しました', 'error');
+  }
+}
+
+function appendMobileReceivedRelayUrl(item) {
+  showMobileReceivePanel();
+  const list = document.getElementById('mobileReceiveList');
+  const empty = list?.querySelector('.no-files');
+  if (empty) empty.remove();
+  if (!list) return;
+
+  const div = document.createElement('div');
+  div.className = 'file-item';
+  const info = document.createElement('div');
+  info.className = 'file-info';
+  const details = document.createElement('div');
+  details.className = 'file-details';
+  const title = document.createElement('div');
+  title.className = 'file-name';
+  title.innerHTML = `🔗 ${item.name || 'URL'} <span class="tag-direct">サーバー経由</span>`;
+  const linkRow = document.createElement('div');
+  linkRow.className = 'file-size';
+  const link = document.createElement('a');
+  link.href = item.url;
+  link.target = '_blank';
+  link.rel = 'noopener';
+  link.textContent = item.url;
+  linkRow.appendChild(link);
+  details.append(title, linkRow);
+  info.appendChild(details);
+  div.appendChild(info);
+  list.prepend(div);
+  showToast('PCからURLを受信しました', 'success');
+}
+
+function appendMobileReceivedText(text, tag = 'PCから') {
   showMobileReceivePanel();
   const list = document.getElementById('mobileReceiveList');
   const empty = list?.querySelector('.no-files');
@@ -114,7 +205,7 @@ function appendMobileReceivedText(text) {
   div.innerHTML = `
     <div class="file-info">
       <div class="file-details">
-        <div class="file-name">💬 テキスト <span class="tag-direct">PCから</span></div>
+        <div class="file-name">💬 テキスト <span class="tag-direct">${tag}</span></div>
         <div class="file-size" style="white-space:pre-wrap;margin-top:6px">${safe}</div>
       </div>
     </div>`;
@@ -122,23 +213,37 @@ function appendMobileReceivedText(text) {
   showToast('PCからテキストを受信しました', 'success');
 }
 
-async function initP2PConnection() {
-  if (transferMode !== TRANSFER_MODE.P2P || !sessionId) return;
-  const fb = document.getElementById('fallbackRelayBtn');
-  if (fb) fb.hidden = false;
-  p2pGuest = createP2PGuest({
-    fs, sessionId,
-    onConnected: (ch) => { dataChannel = ch; showToast('直接接続しました — 双方向で送受信できます', 'success'); },
-    onFailed: () => switchToRelayMode('直接接続できませんでした'),
-    onFile: appendMobileReceivedFile,
-    onText: appendMobileReceivedText,
-  });
-  try {
+/**
+ * 裏で直接接続(P2P)を試みる。成功したら高速化、失敗してもサーバー経由のまま静かに継続。
+ * 失敗しても「接続失敗」等のエラーは出さない。
+ */
+async function attemptP2PUpgrade() {
+  if (transferMode === TRANSFER_MODE.RELAY || !sessionId) return;
+
+  const tryConnect = async () => {
+    p2pGuest = createP2PGuest({
+      db, sessionId,
+      manageState: false,
+      onConnected: (ch) => {
+        dataChannel = ch;
+        reassertConnected();
+        showToast('直接接続に切り替えました（高速）', 'success', 2500);
+      },
+      onFailed: () => {},
+      onFile: (file) => appendMobileReceivedFile(file, '直接'),
+      onText: (text) => appendMobileReceivedText(text, '直接'),
+    });
     dataChannel = await p2pGuest.connect();
-    if (fb) fb.hidden = true;
+  };
+
+  try {
+    await tryConnect();
   } catch (e) {
-    console.warn('[mobile] P2P failed', e);
-    switchToRelayMode('直接接続できませんでした');
+    console.warn('[mobile] P2P upgrade failed, staying on relay', e);
+    p2pGuest?.stop();
+    p2pGuest = null;
+    dataChannel = null;
+    reassertConnected();
   }
 }
 
@@ -178,7 +283,7 @@ async function submitJoinCode() {
     showMainContent();
     errorDiv.style.display = 'none';
     showToast('セッションに参加しました', 'success');
-    await initP2PConnection();
+    await bootstrapSession();
     return;
   }
   if (parsed?.type === 'code') {
@@ -191,7 +296,7 @@ async function submitJoinCode() {
         persistJoinSession();
         showMainContent();
         showToast('セッションに参加しました', 'success');
-        await initP2PConnection();
+        await bootstrapSession();
         return;
       }
     } catch (e) {
@@ -481,12 +586,12 @@ document.getElementById('authInput')?.addEventListener('keypress', (e) => {
 });
 
 document.addEventListener('DOMContentLoaded', async () => {
-  document.body.classList.add('mobile-3d');
+  document.body.classList.add('sharetto-app');
   initTabs();
   subscribeConnectionState(updateMobileConnectionUI);
-  mobileScene = await initMobileScene(document.getElementById('mobile-scene-bg'));
+  connectionVisual = await initConnectionVisual(document.getElementById('connection-visual-mobile'));
   if (restoreJoinSession()) {
-    await initP2PConnection();
+    await bootstrapSession();
   } else {
     document.getElementById('authInput')?.focus();
   }
@@ -509,7 +614,11 @@ document.addEventListener('DOMContentLoaded', async () => {
 
 registerServiceWorker();
 
-window.addEventListener('beforeunload', () => mobileScene?.destroy());
+window.addEventListener('beforeunload', () => {
+  connectionVisual?.destroy();
+  detachOutbox?.();
+  if (sessionId) clearMobilePresence(db, sessionId).catch(() => {});
+});
 
 window.submitJoinCode = submitJoinCode;
 window.switchToRelayMode = switchToRelayMode;

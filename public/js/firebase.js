@@ -12,6 +12,7 @@ import {
   push,
   remove,
   onChildAdded,
+  onDisconnect,
   connectDatabaseEmulator,
   serverTimestamp,
 } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-database.js";
@@ -26,8 +27,11 @@ export function initFirebase(firebaseConfig) {
   const fs = getFirestore(app);
 
   if (location.hostname === 'localhost' || location.hostname === '127.0.0.1') {
-    try { connectDatabaseEmulator(db, '127.0.0.1', 9000); } catch { /* noop */ }
-    try { connectFirestoreEmulator(fs, '127.0.0.1', 8080); } catch { /* noop */ }
+    const useEmulator = new URLSearchParams(location.search).has('emulator');
+    if (useEmulator) {
+      try { connectDatabaseEmulator(db, '127.0.0.1', 9000); } catch { /* noop */ }
+      try { connectFirestoreEmulator(fs, '127.0.0.1', 8080); } catch { /* noop */ }
+    }
   }
 
   return { app, db, fs };
@@ -43,5 +47,6 @@ export {
   push,
   remove,
   onChildAdded,
+  onDisconnect,
   serverTimestamp,
 };

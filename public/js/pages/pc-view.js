@@ -1,5 +1,5 @@
 /**
- * PC側メインページ (index.html) — A/B転送 + 接続状態 + Three.js + ZIP
+ * PC側メインページ (index.html) — 転送 + 接続状態 + ZIP
  */
 import { initFirebase } from '../firebase.js';
 import {
@@ -15,12 +15,14 @@ import { showToast } from '../toast.js';
 import { PIN_CODE_LENGTH, TRANSFER_MODE, CONNECTION_STATE } from '../constants.js';
 import { subscribeConnectionState, setConnectionState, resetConnectionState, setTransferProgress } from '../connection-state.js';
 import { createP2PHost } from '../webrtc/host.js';
-import { initSharettoScene } from '../visual/sharetto-scene.js';
 import {
   addReceivedBlob, addReceivedFromDataUrl, getReceivedFiles, subscribeReceivedStore, clearReceivedStore,
 } from '../received-store.js';
 import { downloadFilesAsZip } from '../zip-save.js';
 import { registerServiceWorker } from '../pwa.js';
+import { initConnectionVisual } from '../visual/connection-visual.js';
+import { watchMobilePresence } from '../relay-presence.js';
+import { putOutboxFile, putOutboxText, putOutboxUrl } from '../relay-outbox.js';
 import { firebaseConfig } from '../../config.js';
 
 const { db, fs } = initFirebase(firebaseConfig);
@@ -31,7 +33,9 @@ let detachFiles = null;
 let detachRelaySideband = null;
 let p2pHost = null;
 let transferMode = TRANSFER_MODE.P2P;
-let visualScene = null;
+let connectionVisual = null;
+let relayMobileConnected = false;
+let detachPresence = null;
 
 const timer = createSessionTimer({
   onExpire: () => setTimeout(generateNewSession, 5000),
@@ -142,9 +146,45 @@ function appendRelayUrl(item) {
   if (el) urlsList.prepend(el);
 }
 
+function appendRelayFile(item) {
+  if (item.data) {
+    addReceivedFromDataUrl({ name: item.name, dataUrl: item.data, mimeType: item.mimeType, source: 'relay' });
+  }
+  const filesList = document.getElementById('filesList');
+  const noFiles = filesList.querySelector('.no-files');
+  if (noFiles) noFiles.remove();
+  const el = createFileItem(item, itemHandlers);
+  if (el) {
+    const title = el.querySelector('.file-name');
+    if (title && !title.querySelector('.tag-direct')) {
+      const tag = document.createElement('span');
+      tag.className = 'tag-direct';
+      tag.textContent = 'サーバー経由';
+      title.appendChild(document.createTextNode(' '));
+      title.appendChild(tag);
+    }
+    filesList.prepend(el);
+    showToast(`${item.name} を受信しました`, 'success', 2000);
+  }
+}
+
+function isRelayConnected() {
+  return transferMode === TRANSFER_MODE.RELAY && relayMobileConnected;
+}
+
+function isSendReady() {
+  return (p2pHost?.isConnected?.() ?? false) || isRelayConnected();
+}
+
 function updatePcSendPanel(connected) {
   const panel = document.getElementById('pcSendPanel');
+  const hint = document.getElementById('pcSendHint');
   if (panel) panel.hidden = !connected;
+  if (hint) {
+    hint.textContent = isRelayConnected()
+      ? 'サーバー経由で接続中 — PCからスマホへ送信'
+      : '直接接続中 — PCからスマホへ送信';
+  }
 }
 
 async function onRelayFile(file) {
@@ -156,7 +196,9 @@ async function onRelayFile(file) {
 async function restartTransferLayer() {
   p2pHost?.stop();
   p2pHost = null;
+  relayMobileConnected = false;
   updatePcSendPanel(false);
+  if (detachPresence) { try { detachPresence(); } catch { /* noop */ } detachPresence = null; }
   if (detachFiles) { try { detachFiles(); } catch { /* noop */ } detachFiles = null; }
   if (detachRelaySideband) { try { detachRelaySideband(); } catch { /* noop */ } detachRelaySideband = null; }
 
@@ -166,19 +208,50 @@ async function restartTransferLayer() {
     detachRelaySideband = attachRelaySidebandListener(db, currentSessionId, {
       onText: appendRelayText,
       onUrl: appendRelayUrl,
+      onFile: appendRelayFile,
     });
     p2pHost = createP2PHost({
-      fs,
+      db,
       sessionId: currentSessionId,
       onFile: appendP2PFile,
       onText: appendP2PText,
       onPeerConnected: () => updatePcSendPanel(true),
     });
     await p2pHost.start();
+    detachPresence = watchMobilePresence(db, currentSessionId, {
+      onJoin: () => {
+        if (p2pHost?.isConnected?.()) return;
+        relayMobileConnected = true;
+        setConnectionState(CONNECTION_STATE.CONNECTED, {
+          detail: 'スマホが参加しました（サーバー経由フォールバック）',
+        });
+        updatePcSendPanel(true);
+      },
+      onLeave: () => {
+        if (p2pHost?.isConnected?.()) return;
+        relayMobileConnected = false;
+        setConnectionState(CONNECTION_STATE.WAITING, { detail: 'スマホからの接続を待っています' });
+        updatePcSendPanel(false);
+      },
+    });
   } else {
     resetConnectionState();
-    setConnectionState(CONNECTION_STATE.WAITING, { detail: 'サーバー経由で受信待機中' });
+    setConnectionState(CONNECTION_STATE.WAITING, { detail: 'スマホからの接続を待っています' });
     displayFilesRelay();
+    detachPresence = watchMobilePresence(db, currentSessionId, {
+      onJoin: () => {
+        relayMobileConnected = true;
+        setConnectionState(CONNECTION_STATE.CONNECTED, {
+          detail: 'スマホが接続しました — 双方向で送受信できます',
+        });
+        updatePcSendPanel(true);
+      },
+      onLeave: () => {
+        relayMobileConnected = false;
+        setConnectionState(CONNECTION_STATE.WAITING, { detail: 'スマホからの接続を待っています' });
+        updatePcSendPanel(false);
+      },
+    });
   }
 }
 
@@ -267,14 +340,45 @@ async function sendTextToPhone() {
   const input = document.getElementById('pcTextSend');
   const text = input?.value?.trim();
   if (!text) return;
-  if (!p2pHost?.isConnected()) {
+  if (!isSendReady()) {
     showToast('スマホが接続されていません', 'error');
     return;
   }
   try {
-    p2pHost.sendText(text);
+    if (p2pHost?.isConnected()) {
+      p2pHost.sendText(text);
+    } else {
+      await putOutboxText(db, currentSessionId, text);
+    }
     input.value = '';
     showToast('スマホへテキストを送信しました', 'success');
+  } catch (e) {
+    showToast(e.message || '送信に失敗しました', 'error');
+  }
+}
+
+async function sendUrlToPhone() {
+  const input = document.getElementById('pcUrlSend');
+  const url = input?.value?.trim();
+  if (!url) return;
+  try {
+    new URL(url);
+  } catch {
+    showToast('有効なURLを入力してください', 'error');
+    return;
+  }
+  if (!isSendReady()) {
+    showToast('スマホが接続されていません', 'error');
+    return;
+  }
+  try {
+    if (p2pHost?.isConnected()) {
+      p2pHost.sendText(url);
+    } else {
+      await putOutboxUrl(db, currentSessionId, url);
+    }
+    input.value = '';
+    showToast('スマホへURLを送信しました', 'success');
   } catch (e) {
     showToast(e.message || '送信に失敗しました', 'error');
   }
@@ -287,17 +391,25 @@ async function sendFileToPhone() {
     showToast('ファイルを選択してください', 'info');
     return;
   }
-  if (!p2pHost?.isConnected()) {
+  if (!isSendReady()) {
     showToast('スマホが接続されていません', 'error');
     return;
   }
   try {
     setConnectionState(CONNECTION_STATE.TRANSFERRING, { detail: `${file.name} を送信中` });
-    await p2pHost.sendFile(file, (p) => setTransferProgress(p, file.name));
+    if (p2pHost?.isConnected()) {
+      await p2pHost.sendFile(file, (p) => setTransferProgress(p, file.name));
+    } else {
+      await putOutboxFile(db, currentSessionId, file);
+      setTransferProgress(1, file.name);
+    }
     input.value = '';
     showToast(`${file.name} をスマホへ送信しました`, 'success');
     setConnectionState(CONNECTION_STATE.COMPLETE, { detail: '送信完了', progress: 1 });
-    setTimeout(() => setConnectionState(CONNECTION_STATE.CONNECTED, { detail: '双方向で送受信できます', progress: 0 }), 1500);
+    setTimeout(() => setConnectionState(CONNECTION_STATE.CONNECTED, {
+      detail: isRelayConnected() ? '双方向で送受信できます（サーバー経由）' : '双方向で送受信できます',
+      progress: 0,
+    }), 1500);
   } catch (e) {
     showToast(e.message || '送信に失敗しました', 'error');
   }
@@ -322,15 +434,16 @@ function updateConnectionUI(snap) {
     bar.hidden = snap.state !== CONNECTION_STATE.TRANSFERRING && snap.progress <= 0;
   }
   if (snap.state === CONNECTION_STATE.CONNECTED || snap.state === CONNECTION_STATE.COMPLETE) {
-    updatePcSendPanel(p2pHost?.isConnected?.() ?? false);
+    updatePcSendPanel(isSendReady());
   } else if (snap.state === CONNECTION_STATE.WAITING || snap.state === CONNECTION_STATE.FAILED) {
-    updatePcSendPanel(false);
+    updatePcSendPanel(isSendReady());
   }
 }
 
 document.getElementById('copyJoinCodeBtn')?.addEventListener('click', copyJoinCode);
 document.getElementById('downloadZipBtn')?.addEventListener('click', downloadZip);
 document.getElementById('pcTextSendBtn')?.addEventListener('click', sendTextToPhone);
+document.getElementById('pcUrlSendBtn')?.addEventListener('click', sendUrlToPhone);
 document.getElementById('pcFileSendBtn')?.addEventListener('click', () => document.getElementById('pcFileSend')?.click());
 document.getElementById('pcFileSend')?.addEventListener('change', sendFileToPhone);
 document.querySelectorAll('[data-transfer-mode]').forEach((btn) => {
@@ -344,15 +457,16 @@ registerServiceWorker();
 
 document.addEventListener('DOMContentLoaded', async () => {
   initPage();
-  visualScene = await initSharettoScene(document.getElementById('scene-bg'));
-  const syncTimerToScene = () => visualScene?.setTimerRatio?.(timer.getRemainingRatio?.() ?? 1);
-  syncTimerToScene();
-  setInterval(syncTimerToScene, 250);
+  connectionVisual = await initConnectionVisual(document.getElementById('connection-visual'));
+  const syncTimerToVisual = () => connectionVisual?.setTimerRatio?.(timer.getRemainingRatio?.() ?? 1);
+  syncTimerToVisual();
+  setInterval(syncTimerToVisual, 250);
 });
 
 window.addEventListener('beforeunload', () => {
   p2pHost?.stop();
-  visualScene?.destroy();
+  detachPresence?.();
+  connectionVisual?.destroy();
 });
 
 window.generateNewSession = generateNewSession;

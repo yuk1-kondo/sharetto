@@ -5,17 +5,17 @@
 
 body.has-3d-scene {
   --orb-bg: transparent;
-  --orb-glass: rgba(12, 18, 32, 0.55);
-  --orb-glass-strong: rgba(12, 18, 32, 0.72);
-  --orb-glass-border: rgba(255, 255, 255, 0.12);
-  --orb-glass-highlight: rgba(255, 255, 255, 0.06);
-  --orb-text: rgba(255, 255, 255, 0.95);
-  --orb-text-muted: rgba(255, 255, 255, 0.55);
-  --orb-accent: #ffb300;
-  --orb-accent-glow: rgba(255, 179, 0, 0.35);
-  --orb-link: #60a5fa;
-  --orb-radius: 20px;
-  --orb-radius-sm: 12px;
+  --orb-glass: var(--st-glass);
+  --orb-glass-strong: var(--st-glass-strong);
+  --orb-glass-border: var(--st-border);
+  --orb-glass-highlight: var(--st-highlight);
+  --orb-text: var(--st-text);
+  --orb-text-muted: var(--st-text-muted);
+  --orb-accent: var(--st-emerald);
+  --orb-accent-glow: rgba(62, 207, 142, 0.35);
+  --orb-link: var(--st-link);
+  --orb-radius: var(--st-radius);
+  --orb-radius-sm: var(--st-radius-sm);
   background: transparent !important;
   color: var(--orb-text) !important;
   color-scheme: dark;
@@ -51,11 +51,11 @@ body.has-3d-scene .orbital-header__brand h1 {
   margin: 0;
   font-size: clamp(1.4rem, 3vw, 1.75rem);
   font-weight: 800;
-  letter-spacing: 0.04em;
-  color: var(--orb-text) !important;
+  letter-spacing: -0.02em;
+  color: var(--st-silver) !important;
   -webkit-text-fill-color: unset !important;
   background: none !important;
-  text-shadow: 0 0 40px rgba(96, 165, 250, 0.3);
+  text-shadow: var(--st-shadow-glow-cosmic);
 }
 
 body.has-3d-scene .orbital-header__tagline {
@@ -287,12 +287,12 @@ body.has-3d-scene .join-code-display__label {
 }
 
 body.has-3d-scene .join-code-display__code {
-  font-family: 'SF Mono', 'Monaco', monospace;
+  font-family: var(--st-font-mono);
   font-size: 32px;
   font-weight: 700;
   letter-spacing: 6px;
-  color: var(--orb-accent) !important;
-  text-shadow: 0 0 24px var(--orb-accent-glow);
+  color: var(--st-signal) !important;
+  text-shadow: 0 0 24px rgba(255, 179, 0, 0.35);
 }
 
 body.has-3d-scene .qr-url {
@@ -434,9 +434,9 @@ body.has-3d-scene .connection-badge {
 }
 
 body.has-3d-scene .connection-badge[data-state="waiting"] {
-  background: rgba(41, 98, 255, 0.2) !important;
-  color: #93c5fd !important;
-  border-color: rgba(96, 165, 250, 0.3);
+  background: rgba(74, 78, 143, 0.25) !important;
+  color: var(--st-lavender) !important;
+  border-color: var(--st-border-glow);
 }
 
 body.has-3d-scene .connection-badge[data-state="connecting"] {
@@ -599,4 +599,109 @@ body.mobile-3d .auth-title {
 body.mobile-3d .auth-subtitle,
 body.mobile-3d .auth-info {
   color: var(--orb-text-muted) !important;
+}
+
+/* ══════════════════════════════════════════
+   Spatial Desktop — 使える範囲の 3D（控えめな奥行き）
+   ══════════════════════════════════════════ */
+
+body.spatial-active #mainContent {
+  perspective: 2000px;
+  perspective-origin: 50% 45%;
+  padding-bottom: 32px;
+}
+
+body.spatial-active #spatial-rig {
+  transform-style: preserve-3d;
+  will-change: transform;
+}
+
+body.spatial-active .orbital-stage {
+  transform-style: preserve-3d;
+  max-width: 1280px;
+  padding: 12px 24px 28px;
+  gap: 28px;
+  grid-template-columns: minmax(300px, 380px) 1fr;
+}
+
+/* ヘッダーはフラットのまま（ステータスが読みやすい） */
+body.spatial-active #panel-header {
+  position: relative !important;
+  top: auto !important;
+  transform: none;
+  margin: 0 auto 4px;
+  max-width: 1280px;
+}
+
+/* 左：わずかに手前・右向き。強すぎると QR が全面に被る */
+body.spatial-active #panel-connect {
+  transform: rotateY(10deg) translateZ(28px);
+  transform-style: preserve-3d;
+  transform-origin: center center;
+}
+
+/* 右：わずかに手前・左向き */
+body.spatial-active #panel-inbox {
+  transform: rotateY(-8deg) translateZ(28px);
+  transform-style: preserve-3d;
+  transform-origin: center center;
+}
+
+body.spatial-active .spatial-panel {
+  backface-visibility: hidden;
+}
+
+body.spatial-active #panel-connect .glass-panel,
+body.spatial-active #panel-inbox .glass-panel {
+  box-shadow:
+    0 20px 50px rgba(0, 0, 0, 0.4),
+    0 6px 20px rgba(0, 0, 0, 0.25),
+    inset 0 1px 0 rgba(255, 255, 255, 0.08);
+}
+
+body.spatial-active #panel-header,
+body.spatial-active #panel-connect,
+body.spatial-active #panel-inbox {
+  position: relative;
+}
+
+body.spatial-fallback #spatial-rig {
+  transform: none !important;
+}
+
+@media (max-width: 1100px) {
+  body.spatial-active #panel-connect {
+    transform: rotateY(6deg) translateZ(16px);
+  }
+
+  body.spatial-active #panel-inbox {
+    transform: rotateY(-5deg) translateZ(16px);
+  }
+}
+
+@media (max-width: 900px) {
+  body.spatial-active #mainContent {
+    perspective: none;
+  }
+
+  body.spatial-active #panel-connect,
+  body.spatial-active #panel-inbox {
+    transform: none;
+  }
+
+  body.spatial-active .orbital-stage {
+    padding: 16px 20px 32px;
+    grid-template-columns: 1fr;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  body.spatial-active #mainContent {
+    perspective: none;
+  }
+
+  body.spatial-active #panel-connect,
+  body.spatial-active #panel-inbox {
+    transform: none;
+  }
 }

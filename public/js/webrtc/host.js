@@ -1,3 +1,4 @@
+import { createIceQueue } from './ice-queue.js';
 import {
   createPeerConnection,
   attachIceHandlers,
@@ -26,7 +27,7 @@ function stripIce(cand) {
   return rest;
 }
 
-export function createP2PHost({ fs, sessionId, onFile, onText, onPeerConnected }) {
+export function createP2PHost({ db, sessionId, onFile, onText, onPeerConnected }) {
   const peers = new Map();
   const processing = new Set();
   let stopWatch = null;
@@ -42,9 +43,8 @@ export function createP2PHost({ fs, sessionId, onFile, onText, onPeerConnected }
     if (peers.has(peerId) || processing.has(peerId)) return;
     processing.add(peerId);
 
-    setConnectionState(CONNECTION_STATE.CONNECTING, { detail: `端末 ${peerId.slice(0, 4)} と接続中` });
-
     const pc = createPeerConnection();
+    const iceQueue = createIceQueue(pc);
     const receiver = createFileReceiver(
       (file) => {
         setConnectionState(CONNECTION_STATE.TRANSFERRING, { detail: `${file.name} を受信中` });
@@ -69,35 +69,32 @@ export function createP2PHost({ fs, sessionId, onFile, onText, onPeerConnected }
 
     try {
       await attachIceHandlers(pc, (candidate) => {
-        addIceCandidate(fs, sessionId, peerId, 'host', candidate);
+        addIceCandidate(db, sessionId, peerId, 'host', candidate);
       });
 
       await pc.setRemoteDescription(data.offer);
+      await iceQueue.markRemoteDescriptionSet();
       const answer = await pc.createAnswer();
       await pc.setLocalDescription(answer);
-      await publishAnswer(fs, sessionId, peerId, answer);
-      await markPeerAnswered(fs, sessionId, peerId);
+      await publishAnswer(db, sessionId, peerId, answer);
+      await markPeerAnswered(db, sessionId, peerId);
 
-      stopIce = watchRemoteIce(fs, sessionId, peerId, 'guest', async (cand) => {
-        try {
-          await pc.addIceCandidate(stripIce(cand));
-        } catch (e) {
-          console.warn('[p2p-host] ICE', e);
-        }
+      stopIce = watchRemoteIce(db, sessionId, peerId, 'guest', async (cand) => {
+        await iceQueue.add(stripIce(cand));
       });
 
       const channel = await channelPromise;
       incrementPeerCount(1);
       setConnectionState(CONNECTION_STATE.CONNECTED, {
-        detail: '直接接続 — 双方向で送受信できます',
+        detail: '直接接続 — 高速転送に切り替えました',
         peerCount: peers.size + 1,
       });
-      await setSignalingStatus(fs, sessionId, 'connected');
+      await setSignalingStatus(db, sessionId, 'connected');
       peers.set(peerId, { pc, stopIce, channel });
       onPeerConnected?.(peerId, channel);
     } catch (e) {
-      console.warn('[p2p-host] peer failed', e);
-      setConnectionState(CONNECTION_STATE.FAILED, { detail: '直接接続に失敗しました' });
+      // 直接接続に失敗してもサーバー経由で接続済みのため、状態は変更しない（静かに諦める）
+      console.warn('[p2p-host] peer failed (relay keeps working)', e);
       stopIce?.();
       pc.close();
     } finally {
@@ -107,9 +104,9 @@ export function createP2PHost({ fs, sessionId, onFile, onText, onPeerConnected }
 
   return {
     async start() {
-      await initHostSignaling(fs, sessionId);
+      await initHostSignaling(db, sessionId);
       setConnectionState(CONNECTION_STATE.WAITING, { detail: 'スマホからの接続を待っています' });
-      stopWatch = watchPeerOffers(fs, sessionId, (peerId, data) => {
+      stopWatch = watchPeerOffers(db, sessionId, (peerId, data) => {
         handlePeer(peerId, data).catch((e) => console.error('[p2p-host]', e));
       });
     },

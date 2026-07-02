@@ -1,127 +1,123 @@
 /**
- * WebRTC signaling via Firestore (offer / answer / ICE candidates).
- * File payloads never touch Firestore — signaling only.
+ * WebRTC signaling via Firebase RTDB（ファイル転送と同じ経路）
  */
-import {
-  doc,
-  setDoc,
-  updateDoc,
-  collection,
-  addDoc,
-  onSnapshot,
-  getDoc,
-  serverTimestamp,
-} from 'https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js';
+import { dbRef, set, update, push, onValue, off, get } from '../firebase.js';
 
-function sessionRef(fs, sessionId) {
-  return doc(fs, 'sessions', sessionId);
+function sessionRef(db, sessionId) {
+  return dbRef(db, `signal/${sessionId}`);
 }
 
-function peerRef(fs, sessionId, peerId) {
-  return doc(fs, 'sessions', sessionId, 'peers', peerId);
+function peerRef(db, sessionId, peerId) {
+  return dbRef(db, `signal/${sessionId}/peers/${peerId}`);
 }
 
-function candidatesCol(fs, sessionId, peerId) {
-  return collection(fs, 'sessions', sessionId, 'peers', peerId, 'candidates');
+function candidatesRef(db, sessionId, peerId) {
+  return dbRef(db, `signal/${sessionId}/peers/${peerId}/candidates`);
 }
 
-export async function initHostSignaling(fs, sessionId) {
-  await setDoc(sessionRef(fs, sessionId), {
+export async function initHostSignaling(db, sessionId) {
+  await set(sessionRef(db, sessionId), {
     role: 'host',
-    createdAt: serverTimestamp(),
     status: 'waiting',
+    createdAt: Date.now(),
     expiresAt: Date.now() + 10 * 60 * 1000,
-  }, { merge: true });
-}
-
-export async function publishOffer(fs, sessionId, peerId, offer) {
-  await setDoc(peerRef(fs, sessionId, peerId), {
-    offer: { sdp: offer.sdp, type: offer.type },
-    answered: false,
-    updatedAt: serverTimestamp(),
-  }, { merge: true });
-}
-
-export async function publishAnswer(fs, sessionId, peerId, answer) {
-  await updateDoc(peerRef(fs, sessionId, peerId), {
-    answer: { sdp: answer.sdp, type: answer.type },
-    updatedAt: serverTimestamp(),
   });
 }
 
-export async function addIceCandidate(fs, sessionId, peerId, from, candidate) {
-  await addDoc(candidatesCol(fs, sessionId, peerId), {
+export async function publishOffer(db, sessionId, peerId, offer) {
+  await set(peerRef(db, sessionId, peerId), {
+    offer: { sdp: offer.sdp, type: offer.type },
+    answered: false,
+    updatedAt: Date.now(),
+  });
+}
+
+export async function publishAnswer(db, sessionId, peerId, answer) {
+  await update(peerRef(db, sessionId, peerId), {
+    answer: { sdp: answer.sdp, type: answer.type },
+    updatedAt: Date.now(),
+  });
+}
+
+export async function addIceCandidate(db, sessionId, peerId, from, candidate) {
+  if (!candidate) return;
+  await push(candidatesRef(db, sessionId, peerId), {
     from,
     ...candidate,
     at: Date.now(),
   });
 }
 
-export function watchPeerOffers(fs, sessionId, onPeer) {
-  const peersCol = collection(fs, 'sessions', sessionId, 'peers');
+export function watchPeerOffers(db, sessionId, onPeer) {
+  const peersRef = dbRef(db, `signal/${sessionId}/peers`);
   const seen = new Set();
 
-  return onSnapshot(peersCol, (snap) => {
-    snap.docChanges().forEach((change) => {
-      const peerId = change.doc.id;
-      const data = change.doc.data();
-      if (!data?.offer?.sdp || data.answered) return;
-      const key = `${peerId}:${data.offer.sdp.slice(0, 32)}`;
-      if (seen.has(key)) return;
-      seen.add(key);
-      onPeer(peerId, data);
-    });
-    // Initial load
-    snap.forEach((d) => {
-      const data = d.data();
-      if (!data?.offer?.sdp || data.answered) return;
-      const key = `${d.id}:${data.offer.sdp.slice(0, 32)}`;
-      if (seen.has(key)) return;
-      seen.add(key);
-      onPeer(d.id, data);
-    });
-  });
+  function consider(peerId, data) {
+    if (!data?.offer?.sdp || data.answered) return;
+    const key = `${peerId}:${data.offer.sdp.slice(0, 32)}`;
+    if (seen.has(key)) return;
+    seen.add(key);
+    onPeer(peerId, data);
+  }
+
+  const handler = (snap) => {
+    if (!snap.exists()) return;
+    snap.forEach((child) => consider(child.key, child.val()));
+  };
+
+  onValue(peersRef, handler);
+  return () => off(peersRef, 'value', handler);
 }
 
-export function watchAnswer(fs, sessionId, peerId, callback) {
+export function watchAnswer(db, sessionId, peerId, callback) {
+  const ref = peerRef(db, sessionId, peerId);
   let done = false;
-  return onSnapshot(peerRef(fs, sessionId, peerId), (snap) => {
+
+  const handler = (snap) => {
     if (done || !snap.exists()) return;
-    const val = snap.data()?.answer;
+    const val = snap.val()?.answer;
     if (val?.sdp) {
       done = true;
       callback(val);
     }
-  });
+  };
+
+  onValue(ref, handler);
+  return () => off(ref, 'value', handler);
 }
 
-export function watchRemoteIce(fs, sessionId, peerId, from, callback) {
+export function watchRemoteIce(db, sessionId, peerId, from, callback) {
+  const ref = candidatesRef(db, sessionId, peerId);
   const seen = new Set();
-  return onSnapshot(candidatesCol(fs, sessionId, peerId), (snap) => {
-    snap.docChanges().forEach((change) => {
-      if (change.type === 'removed') return;
-      const data = change.doc.data();
-      if (data.from !== from) return;
-      const id = change.doc.id;
+
+  const handler = (snap) => {
+    if (!snap.exists()) return;
+    snap.forEach((child) => {
+      const id = child.key;
       if (seen.has(id)) return;
+      const data = child.val();
+      if (data?.from !== from) return;
       seen.add(id);
       callback(data);
     });
-  });
+  };
+
+  onValue(ref, handler);
+  return () => off(ref, 'value', handler);
 }
 
-export async function markPeerAnswered(fs, sessionId, peerId) {
-  await updateDoc(peerRef(fs, sessionId, peerId), { answered: true });
+export async function markPeerAnswered(db, sessionId, peerId) {
+  await update(peerRef(db, sessionId, peerId), { answered: true });
 }
 
-export async function getHostStatus(fs, sessionId) {
-  const snap = await getDoc(sessionRef(fs, sessionId));
-  return snap.exists() ? snap.data() : null;
+export async function getHostStatus(db, sessionId) {
+  const snap = await get(sessionRef(db, sessionId));
+  return snap.exists() ? snap.val() : null;
 }
 
-export async function setSignalingStatus(fs, sessionId, status) {
-  await updateDoc(sessionRef(fs, sessionId), {
+export async function setSignalingStatus(db, sessionId, status) {
+  await update(sessionRef(db, sessionId), {
     status,
-    updatedAt: serverTimestamp(),
+    updatedAt: Date.now(),
   });
 }

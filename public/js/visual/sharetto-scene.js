@@ -10,7 +10,7 @@ import { createDataStream } from './objects/data-stream.js';
 import { getVisualParams } from './state-bridge.js';
 import { CONNECTION_STATE } from '../constants.js';
 
-function buildOrbitalScene(THREE, { scene }) {
+export function buildOrbitalScene(THREE, { scene }) {
   const isMobile = window.innerWidth < 768;
   const ring = createSessionRing(THREE, {
     particleCount: isMobile ? 120 : 280,

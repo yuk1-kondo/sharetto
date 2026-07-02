@@ -1,0 +1,901 @@
+/**
+ * Sharetto App UI — Claude風ベージュ・フラット・使いやすいレイアウト
+ */
+
+/* ── Base ── */
+body.sharetto-app {
+  margin: 0;
+  font-family: var(--st-font-body);
+  font-size: 15px;
+  line-height: 1.55;
+  color: var(--st-body);
+  background: var(--st-canvas) !important;
+  color-scheme: light;
+  -webkit-font-smoothing: antialiased;
+}
+
+body.sharetto-app * {
+  box-sizing: border-box;
+}
+
+body.sharetto-app .app {
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+}
+
+/* ── Header ── */
+body.sharetto-app .app-header {
+  background: var(--st-surface);
+  border-bottom: 1px solid var(--st-hairline);
+  padding: 20px 24px 16px;
+}
+
+body.sharetto-app .app-header__inner {
+  max-width: var(--st-max);
+  margin: 0 auto;
+}
+
+body.sharetto-app .app-header__row {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 16px;
+  margin-bottom: 16px;
+}
+
+body.sharetto-app .app-brand h1 {
+  margin: 0;
+  font-family: var(--st-font-display);
+  font-size: clamp(1.5rem, 3vw, 1.875rem);
+  font-weight: 500;
+  letter-spacing: -0.02em;
+  color: var(--st-ink);
+  line-height: 1.2;
+}
+
+body.sharetto-app .app-brand p {
+  margin: 4px 0 0;
+  font-size: 14px;
+  color: var(--st-muted);
+}
+
+/* ── Status bar ── */
+body.sharetto-app .app-header__row .btn {
+  flex-shrink: 0;
+}
+
+/* ── 接続状態パネル + オービタルビジュアル ── */
+body.sharetto-app .status-panel {
+  padding: 14px 16px;
+  background: var(--st-canvas-soft);
+  border: 1px solid var(--st-hairline);
+  border-radius: var(--st-radius);
+}
+
+body.sharetto-app .status-panel__title {
+  margin: 0 0 10px;
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--st-ink);
+}
+
+body.sharetto-app .status-panel__title::before {
+  content: '📡 ';
+}
+
+body.sharetto-app .status-panel__row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px 12px;
+}
+
+body.sharetto-app .connection-visual {
+  height: 110px;
+  margin-top: 12px;
+  border-radius: var(--st-radius-sm);
+  background: linear-gradient(165deg, #f0ebe3 0%, #e6e2f0 55%, #dfe8f4 100%);
+  border: 1px solid #d8d2e4;
+  overflow: hidden;
+  position: relative;
+}
+
+body.sharetto-app .connection-visual--compact {
+  height: 80px;
+  margin-top: 10px;
+}
+
+body.sharetto-app .connection-visual canvas {
+  display: block;
+  width: 100% !important;
+  height: 100% !important;
+}
+
+body.sharetto-app .connection-visual--static {
+  background: linear-gradient(165deg, #f5f0e8 0%, #ebe8f4 55%, #e8eef8 100%);
+}
+
+body.sharetto-app .status-panel .connection-progress-track {
+  margin-top: 10px;
+}
+
+body.sharetto-app .session-timer {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-left: auto;
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--st-body);
+  background: transparent !important;
+  box-shadow: none !important;
+  border: none !important;
+  padding: 0 !important;
+}
+
+body.sharetto-app .timer-text {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  white-space: nowrap;
+}
+
+body.sharetto-app .timer-detail {
+  font-size: 11px;
+  color: var(--st-muted-soft);
+  font-weight: 400;
+}
+
+body.sharetto-app .connection-detail {
+  font-size: 14px;
+  color: var(--st-muted);
+  flex: 1;
+  min-width: 120px;
+}
+
+body.sharetto-app .connection-progress-track {
+  flex: 1 1 100%;
+  height: 4px;
+  background: var(--st-hairline);
+  border-radius: var(--st-radius-pill);
+  overflow: hidden;
+}
+
+body.sharetto-app .connection-progress-bar {
+  height: 100%;
+  background: var(--st-primary);
+  border-radius: var(--st-radius-pill);
+  transition: width 0.2s ease;
+}
+
+/* ── Badges ── */
+body.sharetto-app .connection-badge {
+  display: inline-flex;
+  align-items: center;
+  padding: 4px 12px;
+  font-size: 13px;
+  font-weight: 500;
+  border-radius: var(--st-radius-pill);
+  border: 1px solid var(--st-hairline);
+  background: var(--st-surface);
+  color: var(--st-body);
+}
+
+body.sharetto-app .connection-badge[data-state="waiting"] {
+  background: var(--st-primary-soft);
+  color: var(--st-primary-active);
+  border-color: #e8d5c8;
+}
+
+body.sharetto-app .connection-badge[data-state="connecting"] {
+  background: #eef6f4;
+  color: #3d7a6e;
+  border-color: #c5e0d9;
+}
+
+body.sharetto-app .connection-badge[data-state="connected"],
+body.sharetto-app .connection-badge[data-state="complete"] {
+  background: #edf7ef;
+  color: #2d6b3a;
+  border-color: #c8e6cf;
+}
+
+body.sharetto-app .connection-badge[data-state="transferring"] {
+  background: #fdf6e8;
+  color: #8a6520;
+  border-color: #f0e0b8;
+}
+
+body.sharetto-app .connection-badge[data-state="failed"] {
+  background: #fdf0f0;
+  color: var(--st-error);
+  border-color: #f0d0d0;
+}
+
+/* ── Main layout ── */
+body.sharetto-app .app-main {
+  flex: 1;
+  max-width: var(--st-max);
+  width: 100%;
+  margin: 0 auto;
+  padding: 24px;
+  display: grid;
+  grid-template-columns: var(--st-sidebar) 1fr;
+  gap: 24px;
+  align-items: start;
+}
+
+/* ── Cards ── */
+body.sharetto-app .card {
+  background: var(--st-surface);
+  border: 1px solid var(--st-hairline);
+  border-radius: var(--st-radius-lg);
+  padding: 20px;
+  box-shadow: var(--st-shadow-sm);
+}
+
+body.sharetto-app .card + .card {
+  margin-top: 16px;
+}
+
+body.sharetto-app .card__label {
+  margin: 0 0 12px;
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--st-muted);
+}
+
+body.sharetto-app .card__title {
+  margin: 0 0 16px;
+  font-family: var(--st-font-display);
+  font-size: 1.125rem;
+  font-weight: 500;
+  color: var(--st-ink);
+}
+
+body.sharetto-app .card h3 {
+  margin: 0;
+  font-size: 1rem;
+  font-weight: 600;
+  color: var(--st-ink);
+}
+
+/* ── Buttons（コンパクト・内容幅） ── */
+body.sharetto-app .btn,
+body.sharetto-app .action-button,
+body.sharetto-app .auth-button,
+body.sharetto-app .download-btn,
+body.sharetto-app .btn-primary {
+  display: inline-flex !important;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  width: auto !important;
+  max-width: 100%;
+  min-height: 34px;
+  padding: 7px 14px;
+  font-family: var(--st-font-body);
+  font-size: 13px;
+  font-weight: 500;
+  line-height: 1.2;
+  border-radius: var(--st-radius-sm);
+  border: 1px solid transparent;
+  cursor: pointer;
+  text-decoration: none;
+  white-space: nowrap;
+  transition: background 0.15s, border-color 0.15s, opacity 0.15s;
+  background: var(--st-primary) !important;
+  color: var(--st-on-primary) !important;
+  box-shadow: none !important;
+  transform: none !important;
+}
+
+body.sharetto-app .btn--sm {
+  min-height: 32px;
+  padding: 6px 12px;
+  font-size: 13px;
+}
+
+body.sharetto-app .btn--block {
+  display: flex !important;
+  width: 100% !important;
+}
+
+body.sharetto-app .btn:hover,
+body.sharetto-app .action-button:hover,
+body.sharetto-app .auth-button:hover,
+body.sharetto-app .download-btn:hover,
+body.sharetto-app .btn-primary:hover {
+  background: var(--st-primary-active) !important;
+}
+
+body.sharetto-app .btn:disabled,
+body.sharetto-app .action-button:disabled,
+body.sharetto-app .download-btn:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+
+body.sharetto-app .btn--ghost {
+  background: var(--st-surface) !important;
+  color: var(--st-body) !important;
+  border-color: var(--st-hairline) !important;
+}
+
+body.sharetto-app .btn--ghost:hover {
+  background: var(--st-canvas-soft) !important;
+}
+
+/* ── Tabs ── */
+body.sharetto-app .mode-tabs {
+  display: flex;
+  gap: 4px;
+  padding: 4px;
+  background: var(--st-canvas-soft);
+  border: 1px solid var(--st-hairline);
+  border-radius: var(--st-radius);
+  margin-bottom: 16px;
+}
+
+body.sharetto-app .tab-button {
+  flex: 1;
+  padding: 10px 12px;
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--st-muted);
+  background: transparent;
+  border: none;
+  border-radius: var(--st-radius-sm);
+  cursor: pointer;
+  transition: background 0.15s, color 0.15s;
+}
+
+body.sharetto-app .tab-button.active {
+  background: var(--st-surface);
+  color: var(--st-ink);
+  box-shadow: var(--st-shadow-sm);
+}
+
+body.sharetto-app .mode-hint {
+  font-size: 13px;
+  color: var(--st-muted);
+  line-height: 1.5;
+  padding: 10px 12px;
+  background: var(--st-canvas-soft);
+  border-radius: var(--st-radius-sm);
+  margin-bottom: 16px;
+}
+
+/* ── QR & join code ── */
+body.sharetto-app .qr-frame {
+  display: flex;
+  justify-content: center;
+  padding: 20px;
+  background: var(--st-surface);
+  border: 1px solid var(--st-hairline);
+  border-radius: var(--st-radius);
+  margin-bottom: 16px;
+}
+
+body.sharetto-app .qr-display {
+  line-height: 0;
+}
+
+body.sharetto-app .join-block {
+  text-align: center;
+  padding: 16px;
+  background: var(--st-canvas-soft);
+  border-radius: var(--st-radius);
+  margin-bottom: 12px;
+}
+
+body.sharetto-app .join-block__label {
+  font-size: 12px;
+  font-weight: 500;
+  color: var(--st-muted);
+  margin-bottom: 8px;
+}
+
+body.sharetto-app .join-code-display__code,
+body.sharetto-app #joinCode {
+  font-family: var(--st-font-mono);
+  font-size: 28px;
+  font-weight: 600;
+  letter-spacing: 0.15em;
+  color: var(--st-primary-active);
+}
+
+body.sharetto-app .qr-url,
+body.sharetto-app #qrUrl {
+  font-size: 11px;
+  color: var(--st-muted-soft);
+  word-break: break-all;
+  margin: 12px 0;
+  line-height: 1.4;
+}
+
+body.sharetto-app .btn-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  align-items: center;
+}
+
+body.sharetto-app .btn-row .action-button,
+body.sharetto-app .btn-row .btn {
+  flex: 0 0 auto;
+}
+
+/* ── Receive column ── */
+body.sharetto-app .toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  margin-bottom: 12px;
+}
+
+body.sharetto-app .toolbar__actions {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+body.sharetto-app .files-list {
+  max-height: min(48vh, 400px);
+  overflow-y: auto;
+  border: 1px solid var(--st-hairline-soft);
+  border-radius: var(--st-radius);
+  background: var(--st-canvas-soft);
+}
+
+body.sharetto-app .no-files {
+  padding: 32px 16px;
+  text-align: center;
+  font-size: 14px;
+  color: var(--st-muted);
+  line-height: 1.6;
+}
+
+body.sharetto-app .file-item,
+body.sharetto-app .url-item {
+  padding: 12px 14px;
+  border-bottom: 1px solid var(--st-hairline-soft);
+  background: var(--st-surface);
+}
+
+body.sharetto-app .file-item:last-child,
+body.sharetto-app .url-item:last-child {
+  border-bottom: none;
+}
+
+body.sharetto-app .file-meta,
+body.sharetto-app .file-size,
+body.sharetto-app .file-date {
+  font-size: 12px;
+  color: var(--st-muted);
+}
+
+body.sharetto-app .url-link {
+  color: var(--st-link);
+  text-decoration: none;
+}
+
+body.sharetto-app .url-link:hover {
+  text-decoration: underline;
+}
+
+/* ── Inputs ── */
+body.sharetto-app .url-input,
+body.sharetto-app .auth-input,
+body.sharetto-app textarea.url-input {
+  width: 100%;
+  padding: 10px 12px;
+  font-family: var(--st-font-body);
+  font-size: 14px;
+  color: var(--st-ink);
+  background: var(--st-surface);
+  border: 1px solid var(--st-hairline);
+  border-radius: var(--st-radius-sm);
+  resize: vertical;
+}
+
+body.sharetto-app .url-input:focus,
+body.sharetto-app textarea.url-input:focus {
+  outline: none;
+  border-color: var(--st-primary);
+  box-shadow: 0 0 0 3px rgba(204, 120, 92, 0.15);
+}
+
+/* ── Footer ── */
+body.sharetto-app .app-footer {
+  text-align: center;
+  padding: 24px;
+  font-size: 13px;
+  color: var(--st-muted-soft);
+  border-top: 1px solid var(--st-hairline);
+  margin-top: auto;
+}
+
+/* ── Modal ── */
+body.sharetto-app .image-modal {
+  background: rgba(20, 20, 19, 0.4);
+}
+
+body.sharetto-app .image-modal .modal-content {
+  background: var(--st-surface);
+  border: 1px solid var(--st-hairline);
+  border-radius: var(--st-radius-lg);
+  color: var(--st-ink);
+}
+
+body.sharetto-app .modal-title {
+  color: var(--st-ink) !important;
+}
+
+body.sharetto-app .modal-btn {
+  background: var(--st-canvas-soft) !important;
+  color: var(--st-body) !important;
+  border: 1px solid var(--st-hairline) !important;
+}
+
+body.sharetto-app .close-btn {
+  background: var(--st-canvas-soft);
+  color: var(--st-body);
+}
+
+/* ── Sidebar sticky ── */
+@media (min-width: 901px) {
+  body.sharetto-app .app-sidebar {
+    position: sticky;
+    top: 16px;
+  }
+}
+
+@media (max-width: 900px) {
+  body.sharetto-app .app-main {
+    grid-template-columns: 1fr;
+    padding: 16px;
+  }
+}
+
+/* Hide legacy 3D */
+body.sharetto-app #scene-bg,
+body.sharetto-app .mobile-scene-bg {
+  display: none !important;
+}
+
+/* ── Mobile upload page ── */
+body.sharetto-app .mobile-shell {
+  max-width: 480px;
+  margin: 0 auto;
+  padding: 16px 16px 100px;
+}
+
+body.sharetto-app .panel-card,
+body.sharetto-app .glass-container {
+  background: var(--st-surface) !important;
+  border: 1px solid var(--st-hairline) !important;
+  border-radius: var(--st-radius-lg) !important;
+  padding: 20px !important;
+  box-shadow: var(--st-shadow-sm) !important;
+  color: var(--st-body) !important;
+}
+
+body.sharetto-app .upload-area {
+  border: 2px dashed var(--st-hairline) !important;
+  background: var(--st-canvas-soft) !important;
+  border-radius: var(--st-radius) !important;
+  color: var(--st-muted) !important;
+}
+
+body.sharetto-app .tab-container {
+  background: var(--st-canvas-soft) !important;
+  border: 1px solid var(--st-hairline) !important;
+  border-radius: var(--st-radius) !important;
+}
+
+body.sharetto-app .btn-primary {
+  background: var(--st-primary) !important;
+  color: var(--st-on-primary) !important;
+}
+
+body.sharetto-app h1 {
+  font-family: var(--st-font-display);
+  color: var(--st-ink) !important;
+}
+
+/* ── Join / サブページ ── */
+body.sharetto-app .page-center {
+  min-height: 100vh;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 24px 16px;
+}
+
+body.sharetto-app .page-card {
+  width: 100%;
+  max-width: 420px;
+}
+
+body.sharetto-app .page-lead {
+  margin: 0 0 16px;
+  font-size: 14px;
+  color: var(--st-muted);
+  line-height: 1.55;
+}
+
+body.sharetto-app .join-input {
+  text-align: center;
+  font-family: var(--st-font-mono);
+  font-size: 22px;
+  letter-spacing: 0.12em;
+  margin-bottom: 12px;
+}
+
+body.sharetto-app .page-back {
+  display: block;
+  margin-top: 16px;
+  text-align: center;
+  font-size: 14px;
+  color: var(--st-link);
+  text-decoration: none;
+}
+
+body.sharetto-app .page-back:hover {
+  text-decoration: underline;
+}
+
+body.sharetto-app .page-status {
+  margin-top: 12px;
+  min-height: 20px;
+  font-size: 14px;
+  color: var(--st-muted);
+  text-align: center;
+}
+
+/* ── Auth overlay（スマホ送信） ── */
+body.sharetto-app .auth-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 1000;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 20px;
+  background: rgba(20, 20, 19, 0.35);
+}
+
+body.sharetto-app .auth-container {
+  width: 100%;
+  max-width: 400px;
+  padding: 24px;
+  background: var(--st-surface);
+  border: 1px solid var(--st-hairline);
+  border-radius: var(--st-radius-lg);
+  box-shadow: var(--st-shadow-lg);
+  text-align: center;
+}
+
+body.sharetto-app .auth-title {
+  margin: 0 0 8px;
+  font-family: var(--st-font-display);
+  font-size: 1.5rem;
+  color: var(--st-ink);
+}
+
+body.sharetto-app .auth-subtitle,
+body.sharetto-app .auth-info {
+  font-size: 14px;
+  color: var(--st-muted);
+  margin-bottom: 16px;
+  line-height: 1.5;
+}
+
+body.sharetto-app .auth-error {
+  margin-top: 10px;
+  font-size: 13px;
+  color: var(--st-error);
+}
+
+body.sharetto-app .auth-button + .auth-button,
+body.sharetto-app .auth-input + .auth-button {
+  margin-top: 10px;
+}
+
+/* ── File list items ── */
+body.sharetto-app .file-info {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  align-items: flex-start;
+  justify-content: space-between;
+}
+
+body.sharetto-app .file-details {
+  flex: 1;
+  min-width: 0;
+}
+
+body.sharetto-app .file-name {
+  font-weight: 500;
+  color: var(--st-ink);
+  word-break: break-word;
+}
+
+body.sharetto-app .file-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+body.sharetto-app .file-actions .download-btn {
+  min-height: 30px;
+  padding: 5px 10px;
+  font-size: 12px;
+}
+
+body.sharetto-app .file-thumbnail img {
+  max-width: 120px;
+  max-height: 80px;
+  border-radius: var(--st-radius-sm);
+  margin-bottom: 8px;
+  cursor: pointer;
+}
+
+/* ── Image modal ── */
+body.sharetto-app .image-modal {
+  display: none;
+  position: fixed;
+  inset: 0;
+  z-index: 2000;
+  align-items: center;
+  justify-content: center;
+  padding: 20px;
+}
+
+body.sharetto-app .image-modal.show {
+  display: flex;
+}
+
+body.sharetto-app .image-modal .modal-content {
+  position: relative;
+  max-width: min(90vw, 720px);
+  max-height: 90vh;
+  padding: 20px;
+  overflow: auto;
+}
+
+body.sharetto-app .modal-image {
+  max-width: 100%;
+  max-height: 70vh;
+  border-radius: var(--st-radius-sm);
+}
+
+body.sharetto-app .modal-header {
+  margin-bottom: 12px;
+}
+
+body.sharetto-app .modal-actions {
+  display: flex;
+  gap: 8px;
+  justify-content: center;
+  margin-top: 16px;
+}
+
+body.sharetto-app .close-btn {
+  position: absolute;
+  top: 12px;
+  right: 12px;
+  width: 32px;
+  height: 32px;
+  border: 1px solid var(--st-hairline);
+  border-radius: var(--st-radius-pill);
+  cursor: pointer;
+}
+
+/* ── Mobile upload ── */
+body.sharetto-app .mobile-page-header {
+  text-align: center;
+  margin-bottom: 20px;
+}
+
+body.sharetto-app .mobile-page-header h1 {
+  margin: 0;
+  font-size: 1.5rem;
+}
+
+body.sharetto-app .mobile-page-header p {
+  margin: 6px 0 0;
+  font-size: 14px;
+  color: var(--st-muted);
+}
+
+body.sharetto-app .mobile-status-bar {
+  padding: 12px 14px;
+  margin-bottom: 16px;
+  background: var(--st-surface);
+  border: 1px solid var(--st-hairline);
+  border-radius: var(--st-radius);
+}
+
+body.sharetto-app .mobile-status-bar a {
+  color: var(--st-link);
+  font-size: 14px;
+  text-decoration: none;
+}
+
+body.sharetto-app .tab-container {
+  display: flex;
+  gap: 4px;
+  padding: 4px;
+  margin-bottom: 16px;
+}
+
+body.sharetto-app .tab-content {
+  display: none;
+}
+
+body.sharetto-app .tab-content.active {
+  display: block;
+}
+
+body.sharetto-app .upload-area {
+  padding: 32px 16px;
+  text-align: center;
+  margin-bottom: 16px;
+  cursor: pointer;
+}
+
+body.sharetto-app .upload-icon {
+  font-size: 2rem;
+  color: var(--st-muted);
+  margin-bottom: 8px;
+}
+
+body.sharetto-app .file-input {
+  display: none;
+}
+
+body.sharetto-app .progress-container {
+  display: none;
+  margin: 12px 0;
+}
+
+body.sharetto-app .progress-container.active {
+  display: block;
+}
+
+body.sharetto-app .progress-bar {
+  height: 4px;
+  background: var(--st-hairline);
+  border-radius: var(--st-radius-pill);
+  overflow: hidden;
+}
+
+body.sharetto-app .progress-fill {
+  height: 100%;
+  width: 0;
+  background: var(--st-primary);
+  transition: width 0.2s;
+}
+
+body.sharetto-app .status {
+  margin-top: 12px;
+  font-size: 13px;
+  color: var(--st-muted);
+  text-align: center;
+}
+
+body.sharetto-app .toast-info {
+  background: var(--st-ink) !important;
+}
+
+body.sharetto-app .toast-success {
+  background: var(--st-success) !important;
+}

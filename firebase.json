@@ -10,6 +10,10 @@
     "headers": [
       {
         "source": "/sw.js",
+        "headers": [{ "key": "Cache-Control", "value": "no-cache, no-store, must-revalidate" }]
+      },
+      {
+        "source": "**/*.@(js|html)",
         "headers": [{ "key": "Cache-Control", "value": "no-cache" }]
       },
       {
@@ -18,10 +22,8 @@
       }
     ],
     "rewrites": [
-      { "source": "/join.html", "destination": "/join.html" },
-      { "source": "/upload.html", "destination": "/upload.html" },
-      { "source": "/upload-liquid-glass.html", "destination": "/upload-liquid-glass.html" },
-      { "source": "**",
+      {
+        "source": "**",
         "destination": "/index.html"
       }
     ]
@@ -36,9 +38,17 @@
     "source": "functions"
   },
   "emulators": {
-    "hosting": { "port": 5000 },
-    "database": { "port": 9000 },
-    "functions": { "port": 5001 },
-    "ui": { "enabled": true }
+    "hosting": {
+      "port": 5000
+    },
+    "database": {
+      "port": 9000
+    },
+    "functions": {
+      "port": 5001
+    },
+    "ui": {
+      "enabled": true
+    }
   }
 }

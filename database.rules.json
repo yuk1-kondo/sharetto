@@ -4,9 +4,12 @@
       ".read": true,
       ".write": true,
       "$code": {
+        // 読み取りはPIN入力端末でも可（TTL判定はクライアント側も実施）
         ".read": "($code.length == 6) && ($code.matches(/^[0-9]{6}$/))",
+        // 書き込みは許可（PIN→sessionの一時マッピング）。セッション側は別ルールで保護。
         ".write": "true",
-        ".validate": "newData.hasChildren(['sessionId','timestamp']) && (newData.child('sessionId').isString()) && (newData.child('sessionId').val().matches(/^[a-z0-9]{13}$/)) && (newData.child('timestamp').isNumber()) && (newData.child('timestamp').val() <= now + 300000) && (newData.child('timestamp').val() > now - 600000)"
+        // 最低限の検証: sessionId 形式と timestamp の妥当性
+        ".validate": "newData.hasChildren(['sessionId','timestamp']) && (newData.child('sessionId').isString()) && (newData.child('sessionId').val().matches(/^[a-z0-9]{13}$/)) && (newData.child('timestamp').val() <= now) && (newData.child('timestamp').val() > now - 60000)"
       }
     },
     "files": {
@@ -24,6 +27,51 @@
         "$fileId": {
           ".read": "($fileId.length >= 8) && (root.child('files').child($sessionId).exists()) && (now - data.child('timestamp').val() < 600000)",
           ".write": "($fileId.length >= 8) && (!data.exists() || (now - data.child('timestamp').val() < 600000)) && (!newData.child('size').exists() || (newData.child('size').isNumber() && newData.child('size').val() <= 52428800))",
+          ".validate": "newData.hasChildren(['type', 'name', 'timestamp']) && (newData.child('timestamp').val() <= now) && (newData.child('timestamp').val() > now - 300000)"
+        }
+      }
+    },
+    "signal": {
+      "$sessionId": {
+        ".read": "$sessionId.matches(/^[a-z0-9]{13}$/)",
+        ".write": "$sessionId.matches(/^[a-z0-9]{13}$/)",
+        "peers": {
+          "$peerId": {
+            ".read": "$sessionId.matches(/^[a-z0-9]{13}$/)",
+            ".write": "$sessionId.matches(/^[a-z0-9]{13}$/)",
+            "candidates": {
+              ".read": "$sessionId.matches(/^[a-z0-9]{13}$/)",
+              ".write": "$sessionId.matches(/^[a-z0-9]{13}$/)"
+            }
+          }
+        }
+      }
+    },
+    "presence": {
+      "$sessionId": {
+        ".read": "$sessionId.matches(/^[a-z0-9]{13}$/)",
+        ".write": "$sessionId.matches(/^[a-z0-9]{13}$/)",
+        "mobile": {
+          ".read": "$sessionId.matches(/^[a-z0-9]{13}$/)",
+          ".write": "$sessionId.matches(/^[a-z0-9]{13}$/)"
+        }
+      }
+    },
+    "outbox": {
+      "$sessionId": {
+        ".read": "$sessionId.matches(/^[a-z0-9]{13}$/)",
+        ".write": "$sessionId.matches(/^[a-z0-9]{13}$/)",
+        "timestamp": {
+          ".write": "true",
+          ".validate": "newData.isNumber() && (newData.val() <= now) && (newData.val() > now - 300000)"
+        },
+        "size": {
+          ".write": "true",
+          ".validate": "newData.isNumber() && (newData.val() >= 0) && (newData.val() <= 52428800)"
+        },
+        "$entryId": {
+          ".read": "($entryId.length >= 8) && (root.child('outbox').child($sessionId).exists()) && (now - data.child('timestamp').val() < 600000)",
+          ".write": "($entryId.length >= 8) && (!data.exists() || (now - data.child('timestamp').val() < 600000)) && (!newData.child('size').exists() || (newData.child('size').isNumber() && newData.child('size').val() <= 52428800))",
           ".validate": "newData.hasChildren(['type', 'name', 'timestamp']) && (newData.child('timestamp').val() <= now) && (newData.child('timestamp').val() > now - 300000)"
         }
       }

@@ -1,3 +1,4 @@
+import { createIceQueue } from './ice-queue.js';
 import {
   createPeerConnection,
   attachIceHandlers,
@@ -43,7 +44,7 @@ function waitForIceConnected(pc, timeoutMs) {
   });
 }
 
-export function createP2PGuest({ fs, sessionId, onConnected, onFailed, onFile, onText }) {
+export function createP2PGuest({ db, sessionId, onConnected, onFailed, onFile, onText, manageState = true }) {
   const peerId = Math.random().toString(36).slice(2, 10);
   let pc = null;
   let channel = null;
@@ -61,33 +62,35 @@ export function createP2PGuest({ fs, sessionId, onConnected, onFailed, onFile, o
     getPeerId() { return peerId; },
 
     async connect() {
-      setConnectionState(CONNECTION_STATE.CONNECTING, { detail: 'PCへ直接接続中…' });
+      if (manageState) setConnectionState(CONNECTION_STATE.CONNECTING, { detail: 'PCへ直接接続中…' });
       pc = createPeerConnection();
+      const iceQueue = createIceQueue(pc);
       channel = openDataChannel(pc);
       receiver.bindChannel(channel);
 
       let answerApplied = false;
-      stopAnswer = watchAnswer(fs, sessionId, peerId, async (answer) => {
+      stopAnswer = watchAnswer(db, sessionId, peerId, async (answer) => {
         if (answerApplied) return;
         try {
           await pc.setRemoteDescription(answer);
           answerApplied = true;
+          await iceQueue.markRemoteDescriptionSet();
         } catch (e) {
           console.warn('[p2p-guest] setRemoteDescription', e);
         }
       });
 
-      stopIce = watchRemoteIce(fs, sessionId, peerId, 'host', async (cand) => {
-        try { await pc.addIceCandidate(stripIce(cand)); } catch (e) { console.warn('[p2p-guest] ICE', e); }
+      stopIce = watchRemoteIce(db, sessionId, peerId, 'host', async (cand) => {
+        await iceQueue.add(stripIce(cand));
       });
 
       await attachIceHandlers(pc, (candidate) => {
-        addIceCandidate(fs, sessionId, peerId, 'guest', candidate);
+        addIceCandidate(db, sessionId, peerId, 'guest', candidate);
       });
 
       const offer = await pc.createOffer();
       await pc.setLocalDescription(offer);
-      await publishOffer(fs, sessionId, peerId, offer);
+      await publishOffer(db, sessionId, peerId, offer);
 
       const answerDeadline = Date.now() + P2P_CONNECT_TIMEOUT_MS;
       while (!answerApplied && Date.now() < answerDeadline) {
@@ -104,7 +107,7 @@ export function createP2PGuest({ fs, sessionId, onConnected, onFailed, onFile, o
         });
       }
 
-      setConnectionState(CONNECTION_STATE.CONNECTED, { detail: '直接接続完了' });
+      if (manageState) setConnectionState(CONNECTION_STATE.CONNECTED, { detail: '直接接続完了' });
       onConnected?.(channel);
       return channel;
     },
