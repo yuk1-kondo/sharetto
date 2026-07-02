@@ -235,10 +235,6 @@
       display: none;
     }
     
-    .google-login-icon {
-      margin-right: 8px;
-    }
-    
     .back-button {
       margin-top: 16px;
       padding: 12px 24px;
@@ -246,12 +242,8 @@
     }
     
     .main-content {
-      display: none;
-      padding: 20px;
-    }
-    
-    .main-content.authenticated {
       display: block;
+      padding: 20px;
     }
     
     /* Header */
@@ -1104,19 +1096,7 @@
   </style>
 </head>
 <body>
-  <!-- 任意: Googleログイン（アカウントなしでも利用可） -->
-  <div id="authOverlay" class="auth-overlay" style="display:none">
-    <div id="googleLoginScreen" class="auth-container">
-      <h2 class="auth-title">🔐 Googleログイン（任意）</h2>
-      <p class="auth-subtitle">ログインしなくてもファイル受信できます</p>
-      <button onclick="signInWithGoogle()" class="auth-button google-login-btn">Googleでログイン</button>
-      <div id="googleLoginError" class="auth-error"></div>
-      <button onclick="document.getElementById('authOverlay').style.display='none'" class="auth-button" style="margin-top:12px;background:var(--md-surface-variant)!important;color:var(--md-on-surface)!important">スキップ</button>
-    </div>
-  </div>
-
-  <!-- メインコンテンツ -->
-  <div id="mainContent" class="main-content authenticated">
+  <div id="mainContent" class="main-content">
     <header class="app-header">
       <div class="app-header__inner">
         <div class="app-header__brand">
@@ -1125,10 +1105,6 @@
         </div>
         <div class="app-header__actions">
           <a href="/join.html" class="action-button" style="text-decoration:none">🧩 参加</a>
-          <button type="button" onclick="document.getElementById('authOverlay').style.display='flex'" class="action-button">🔑 ログイン</button>
-          <div id="googleLoginBar" style="display:none;align-items:center;gap:8px">
-            <button onclick="signOutUser()" class="action-button">🚪 ログアウト</button>
-          </div>
         </div>
       </div>
     </header>

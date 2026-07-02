@@ -139,15 +139,17 @@ Functions を利用する場合は、後述の「自動削除(10分)」セクシ
 
 ## 🔐 認証・セキュリティ
 
-- PC側: Google アカウントでログイン（Firebase Auth）
-- モバイル側: 匿名認証（Firebase Auth）
-- ルール: `auth != null` を前提に、セッションIDとタイムスタンプでアクセス制御（`database.rules.json`）
-- 招待コードUI: 廃止（クライアント側直書きはセキュリティにならないため）
+- 認証: **なし**（セッションID / 参加コードを知っている端末のみアクセス）
+- ルール: セッションIDの形式とタイムスタンプでアクセス制御（`database.rules.json` / `firestore.rules`）
 - 設定の共通化: `public/config.js` にFirebase公開設定を集約
 
-## 🧹 自動削除（10分）
+## 🧹 データの有効期限（10分）
 
-UIでは10分の残り時間を表示し、ルールで「古いデータへの書込/読込」を抑制しています。実データの削除は Cloud Functions の定期実行で行います。
+UIでは10分の残り時間を表示し、ルールで「古いデータへの書込/読込」を抑制しています。
+
+- **Spark（無料）プランでも運用可能** — Hosting / RTDB / Firestore の無料枠で足りる想定
+- 期限切れデータの**物理削除**は Cloud Functions（要 Blaze）で行うが、小規模利用では未削除分のストレージも微量
+- Functions 未デプロイ時も、ルールにより期限切れデータは**読めない・書けない**
 
 - スケジュール: 1分ごとに実行
 - クリーニング対象: `files/{sessionId}/{fileId}`, `pc-share/{sessionId}/{fileId}`

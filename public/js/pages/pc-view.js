@@ -1,7 +1,7 @@
 /**
  * PC側メインページ (index.html) — A/B転送 + 接続状態 + Three.js + ZIP
  */
-import { initFirebase, GoogleAuthProvider, signInWithPopup, onAuthStateChanged, signOut } from '../firebase.js';
+import { initFirebase } from '../firebase.js';
 import {
   viewFullImage, closeImageModal, downloadModalImage, downloadFile, copyToClipboard,
 } from '../ui.js';
@@ -13,7 +13,7 @@ import { renderQRCode } from '../qr-display.js';
 import { generateSessionId, generatePin, formatFileSize } from '../utils.js';
 import { showToast } from '../toast.js';
 import { PIN_CODE_LENGTH, TRANSFER_MODE, CONNECTION_STATE } from '../constants.js';
-import { subscribeConnectionState, setConnectionState, resetConnectionState } from '../connection-state.js';
+import { subscribeConnectionState, setConnectionState, resetConnectionState, setTransferProgress } from '../connection-state.js';
 import { createP2PHost } from '../webrtc/host.js';
 import { initParticleScene } from '../visual/particle-scene.js';
 import {
@@ -23,11 +23,10 @@ import { downloadFilesAsZip } from '../zip-save.js';
 import { registerServiceWorker } from '../pwa.js';
 import { firebaseConfig } from '../../config.js';
 
-const { db, auth, fs } = initFirebase(firebaseConfig);
+const { db, fs } = initFirebase(firebaseConfig);
 
 let currentSessionId = null;
 let currentJoinCode = null;
-let currentUser = null;
 let detachFiles = null;
 let detachRelaySideband = null;
 let p2pHost = null;
@@ -49,39 +48,8 @@ const itemHandlers = {
   onCopy: (text) => copyToClipboard(text, 'コピーしました'),
 };
 
-function showMainContent() {
-  document.getElementById('authOverlay').style.display = 'none';
-  document.getElementById('mainContent').classList.add('authenticated');
-}
-
-function startSession() {
-  showMainContent();
+function initPage() {
   if (!currentSessionId) generateQRCode();
-}
-
-async function signInWithGoogle() {
-  const errorEl = document.getElementById('googleLoginError');
-  try {
-    const provider = new GoogleAuthProvider();
-    const result = await signInWithPopup(auth, provider);
-    currentUser = result.user;
-    errorEl.textContent = `✅ ${result.user.displayName || result.user.email} でログイン`;
-    errorEl.style.color = '#4ade80';
-    errorEl.style.display = 'block';
-    setTimeout(() => { errorEl.style.display = 'none'; startSession(); }, 800);
-  } catch (error) {
-    errorEl.textContent = error.code === 'auth/popup-closed-by-user'
-      ? 'ログインがキャンセルされました'
-      : `ログインエラー: ${error.message}`;
-    errorEl.style.display = 'block';
-  }
-}
-
-async function signOutUser() {
-  await signOut(auth);
-  currentUser = null;
-  document.getElementById('googleLoginBar').style.display = 'none';
-  showToast('ログアウトしました', 'info');
 }
 
 function setTransferMode(mode) {
@@ -359,12 +327,6 @@ function updateConnectionUI(snap) {
   }
 }
 
-onAuthStateChanged(auth, (user) => {
-  currentUser = user;
-  const bar = document.getElementById('googleLoginBar');
-  if (bar) bar.style.display = user ? 'flex' : 'none';
-});
-
 document.getElementById('copyJoinCodeBtn')?.addEventListener('click', copyJoinCode);
 document.getElementById('downloadZipBtn')?.addEventListener('click', downloadZip);
 document.getElementById('pcTextSendBtn')?.addEventListener('click', sendTextToPhone);
@@ -380,7 +342,7 @@ subscribeReceivedStore(updateZipButton);
 registerServiceWorker();
 
 document.addEventListener('DOMContentLoaded', async () => {
-  startSession();
+  initPage();
   visualScene = await initParticleScene(document.getElementById('visualCanvas'));
 });
 
@@ -389,8 +351,6 @@ window.addEventListener('beforeunload', () => {
   visualScene?.destroy();
 });
 
-window.signInWithGoogle = signInWithGoogle;
-window.signOutUser = signOutUser;
 window.generateNewSession = generateNewSession;
 window.copyQRUrl = copyQRUrl;
 window.shareToPhone = shareToPhone;

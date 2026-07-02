@@ -3,14 +3,13 @@
  */
 import { initFirebase, dbRef, onValue, off, get, update } from '../firebase.js';
 import { encodeFileAsDataURL, putFile, putUrl, putText } from '../files-save.js';
-import { decryptSessionId } from '../crypto.js';
-import { formatFileSize, parseJoinInput } from '../utils.js';
 import { resolveJoinCode } from '../session.js';
+import { formatFileSize, parseJoinInput } from '../utils.js';
 import { showToast } from '../toast.js';
 import {
-  AUTH_SESSION_KEY,
-  AUTH_EXPIRES_KEY,
-  AUTH_SESSION_DURATION_MS,
+  JOIN_SESSION_KEY,
+  JOIN_SESSION_EXPIRES_KEY,
+  JOIN_SESSION_DURATION_MS,
   MAX_FILE_SIZE_BYTES,
   MAX_FILE_SIZE_MB,
   TRANSFER_MODE,
@@ -27,9 +26,6 @@ const { db, fs } = initFirebase(firebaseConfig);
 
 const urlParams = new URLSearchParams(window.location.search);
 let sessionId = urlParams.get('session') || null;
-const encCt = urlParams.get('ct');
-const encIv = urlParams.get('iv');
-const encSalt = urlParams.get('salt');
 
 let transferMode = urlParams.get('mode') === 'relay' ? TRANSFER_MODE.RELAY : TRANSFER_MODE.P2P;
 let p2pGuest = null;
@@ -162,21 +158,20 @@ const urlShareBtn = document.getElementById('url-share-btn');
 const urlStatus = document.getElementById('url-status');
 const urlPreview = document.getElementById('url-preview');
 
-function persistAuth() {
-  const expires = Date.now() + AUTH_SESSION_DURATION_MS;
-  localStorage.setItem(AUTH_SESSION_KEY, 'authenticated');
-  localStorage.setItem(AUTH_EXPIRES_KEY, expires.toString());
+function persistJoinSession() {
+  const expires = Date.now() + JOIN_SESSION_DURATION_MS;
+  localStorage.setItem(JOIN_SESSION_KEY, 'joined');
+  localStorage.setItem(JOIN_SESSION_EXPIRES_KEY, expires.toString());
 }
 
-async function authenticate() {
+async function submitJoinCode() {
   const password = document.getElementById('authInput').value;
   const errorDiv = document.getElementById('authError');
 
-  // 6桁参加コード / セッションURL
   const parsed = parseJoinInput(password);
   if (parsed?.type === 'session') {
     sessionId = parsed.sessionId;
-    persistAuth();
+    persistJoinSession();
     showMainContent();
     errorDiv.style.display = 'none';
     showToast('セッションに参加しました', 'success');
@@ -190,7 +185,7 @@ async function authenticate() {
       const sid = await resolveJoinCode(db, parsed.code, SESSION_TTL_MS);
       if (sid) {
         sessionId = sid;
-        persistAuth();
+        persistJoinSession();
         showMainContent();
         showToast('セッションに参加しました', 'success');
         await initP2PConnection();
@@ -206,27 +201,6 @@ async function authenticate() {
     return;
   }
 
-  if (encCt && encIv && encSalt) {
-    try {
-      const sid = await decryptSessionId(password, encCt, encIv, encSalt);
-      if (!sid || sid.length < 6) throw new Error('invalid sid');
-      sessionId = sid;
-      persistAuth();
-      showMainContent();
-      errorDiv.style.display = 'none';
-      showToast('セッションに参加しました', 'success');
-      await initP2PConnection();
-      return;
-    } catch (e) {
-      console.error('復号失敗', e);
-      errorDiv.textContent = '参加コードが違います';
-      errorDiv.style.display = 'block';
-      document.getElementById('authInput').value = '';
-      setTimeout(() => { errorDiv.style.display = 'none'; }, 3000);
-      return;
-    }
-  }
-
   errorDiv.style.display = 'block';
   document.getElementById('authInput').value = '';
   setTimeout(() => { errorDiv.style.display = 'none'; }, 3000);
@@ -237,22 +211,21 @@ function showMainContent() {
   document.getElementById('mainContent').classList.add('authenticated');
 }
 
-function checkAuthentication() {
+function restoreJoinSession() {
   if (sessionId && sessionId.length >= 6) {
-    persistAuth();
+    persistJoinSession();
     showMainContent();
     return true;
   }
-  if (encCt && encIv && encSalt) return false;
 
-  const authSession = localStorage.getItem(AUTH_SESSION_KEY);
-  const authExpires = localStorage.getItem(AUTH_EXPIRES_KEY);
-  if (authSession === 'authenticated' && authExpires && Date.now() < parseInt(authExpires, 10)) {
+  const joined = localStorage.getItem(JOIN_SESSION_KEY);
+  const expires = localStorage.getItem(JOIN_SESSION_EXPIRES_KEY);
+  if (joined === 'joined' && expires && Date.now() < parseInt(expires, 10)) {
     showMainContent();
     return true;
   }
-  localStorage.removeItem(AUTH_SESSION_KEY);
-  localStorage.removeItem(AUTH_EXPIRES_KEY);
+  localStorage.removeItem(JOIN_SESSION_KEY);
+  localStorage.removeItem(JOIN_SESSION_EXPIRES_KEY);
   return false;
 }
 
@@ -501,13 +474,13 @@ urlInput.addEventListener('input', function onUrlInput() {
 urlShareBtn.addEventListener('click', shareUrl);
 
 document.getElementById('authInput')?.addEventListener('keypress', (e) => {
-  if (e.key === 'Enter') authenticate();
+  if (e.key === 'Enter') submitJoinCode();
 });
 
 document.addEventListener('DOMContentLoaded', async () => {
   initTabs();
   subscribeConnectionState(updateMobileConnectionUI);
-  if (checkAuthentication()) {
+  if (restoreJoinSession()) {
     await initP2PConnection();
   } else {
     document.getElementById('authInput')?.focus();
@@ -531,5 +504,5 @@ document.addEventListener('DOMContentLoaded', async () => {
 
 registerServiceWorker();
 
-window.authenticate = authenticate;
+window.submitJoinCode = submitJoinCode;
 window.switchToRelayMode = switchToRelayMode;

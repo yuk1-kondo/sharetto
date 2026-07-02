@@ -672,7 +672,7 @@
       <p class="auth-subtitle">6桁の参加コードを入力してください</p>
       <input type="text" inputmode="numeric" id="authInput" class="auth-input" placeholder="例: 123456" maxlength="64" autocomplete="off" />
       <a href="/join.html" class="auth-button" style="display:block;margin-top:12px;text-align:center;text-decoration:none;background:var(--md-surface-variant)!important;color:var(--md-on-surface)!important">🧩 参加専用ページへ</a>
-      <button onclick="authenticate()" class="auth-button">🔓 ログイン</button>
+      <button onclick="submitJoinCode()" class="auth-button">参加する</button>
       <div id="authError" class="auth-error">参加コードが正しくありません</div>
       <div class="auth-info">💡 QRコードからアクセスした場合、<br>自動的に認証されます</div>
     </div>

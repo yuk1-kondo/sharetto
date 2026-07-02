@@ -11,12 +11,6 @@ export const firebaseConfig = {
   appId: "1:41080814725:web:9e08830290acdb28903dec"
 };
 
-export const features = {
-  enableInviteCodeGate: false,
-  /** WebRTC signaling backend: 'firestore' | 'rtdb' */
-  signalingBackend: 'firestore',
-};
-
 /**
  * ICE servers — STUN + TURN for NAT traversal.
  * Replace customTurn with your Metered / Cloudflare / Twilio credentials for production scale.
