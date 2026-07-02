@@ -21,6 +21,7 @@ import { setConnectionState, subscribeConnectionState, setTransferProgress } fro
 import { firebaseConfig } from '../../config.js';
 import { registerServiceWorker } from '../pwa.js';
 import { normalizeImageFile, isHeicFile } from '../heic-convert.js';
+import { initMobileScene } from '../visual/mobile-scene.js';
 
 const { db, fs } = initFirebase(firebaseConfig);
 
@@ -30,6 +31,7 @@ let sessionId = urlParams.get('session') || null;
 let transferMode = urlParams.get('mode') === 'relay' ? TRANSFER_MODE.RELAY : TRANSFER_MODE.P2P;
 let p2pGuest = null;
 let dataChannel = null;
+let mobileScene = null;
 
 (function warmUpRealtime() {
   try {
@@ -478,8 +480,10 @@ document.getElementById('authInput')?.addEventListener('keypress', (e) => {
 });
 
 document.addEventListener('DOMContentLoaded', async () => {
+  document.body.classList.add('mobile-3d');
   initTabs();
   subscribeConnectionState(updateMobileConnectionUI);
+  mobileScene = await initMobileScene(document.getElementById('mobile-scene-bg'));
   if (restoreJoinSession()) {
     await initP2PConnection();
   } else {
@@ -503,6 +507,8 @@ document.addEventListener('DOMContentLoaded', async () => {
 });
 
 registerServiceWorker();
+
+window.addEventListener('beforeunload', () => mobileScene?.destroy());
 
 window.submitJoinCode = submitJoinCode;
 window.switchToRelayMode = switchToRelayMode;

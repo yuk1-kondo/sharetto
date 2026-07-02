@@ -1,0 +1,114 @@
+/**
+ * Three.js Orbital Link — 全画面背景 + ガラス UI
+ */
+
+#scene-bg {
+  position: fixed;
+  inset: 0;
+  z-index: 0;
+  pointer-events: none;
+  overflow: hidden;
+}
+
+#scene-bg canvas {
+  display: block;
+  width: 100% !important;
+  height: 100% !important;
+}
+
+body.has-3d-scene {
+  background: #e8ecf4 !important;
+}
+
+body.has-3d-scene #mainContent {
+  position: relative;
+  z-index: 1;
+}
+
+body.has-3d-scene .app-header {
+  background: rgba(255, 255, 255, 0.65) !important;
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+}
+
+body.has-3d-scene .panel-card {
+  background: rgba(255, 255, 255, 0.72) !important;
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+  border: 1px solid rgba(255, 255, 255, 0.5) !important;
+  box-shadow:
+    0 4px 24px rgba(15, 23, 42, 0.06),
+    inset 0 1px 0 rgba(255, 255, 255, 0.6);
+}
+
+body.has-3d-scene .visual-canvas {
+  display: none !important;
+}
+
+body.has-3d-scene .app-shell {
+  position: relative;
+}
+
+body.has-3d-scene .connection-badge {
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.06);
+}
+
+body.has-3d-scene .session-timer {
+  box-shadow: 0 4px 16px rgba(41, 98, 255, 0.2);
+}
+
+body.has-3d-scene .qr-display {
+  box-shadow: 0 8px 32px rgba(15, 23, 42, 0.08);
+  border-radius: 16px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  #scene-bg {
+    display: none !important;
+  }
+
+  body.has-3d-scene .panel-card {
+    backdrop-filter: none;
+    -webkit-backdrop-filter: none;
+  }
+}
+
+@media (max-width: 768px) {
+  #scene-bg {
+    opacity: 0.85;
+  }
+}
+
+/* スマホ送信ページ */
+.mobile-scene-bg {
+  width: 100%;
+  height: 72px;
+  border-radius: 14px;
+  overflow: hidden;
+  margin-bottom: 10px;
+  background: linear-gradient(180deg, #eef2ff, #f8fafc);
+  border: 1px solid var(--md-outline-variant, #e3e8f1);
+}
+
+.mobile-scene-bg canvas {
+  width: 100% !important;
+  height: 100% !important;
+}
+
+body.mobile-3d .mobile-status-bar {
+  background: rgba(255, 255, 255, 0.72);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+}
+
+body.mobile-3d .panel-card {
+  background: rgba(255, 255, 255, 0.78) !important;
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .mobile-scene-bg {
+    display: none !important;
+  }
+}

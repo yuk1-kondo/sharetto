@@ -11,6 +11,7 @@
   <link rel="stylesheet" href="css/theme.css">
   <link rel="stylesheet" href="css/components.css">
   <link rel="stylesheet" href="css/app-layout.css">
+  <link rel="stylesheet" href="css/three-ui.css">
   <style>
     * {
       margin: 0;
@@ -1095,7 +1096,8 @@
   .upload-area:hover, .tab-button:not(.active):hover { transform: none; box-shadow: none; }
   </style>
 </head>
-<body>
+<body class="has-3d-scene">
+  <div id="scene-bg" aria-hidden="true"></div>
   <div id="mainContent" class="main-content">
     <header class="app-header">
       <div class="app-header__inner">
@@ -1129,7 +1131,6 @@
               <span id="connectionDetail" class="connection-detail"></span>
               <div class="connection-progress-track"><div id="connectionProgress" class="connection-progress-bar" hidden></div></div>
             </div>
-            <div id="visualCanvas" class="visual-canvas" aria-hidden="true"></div>
             <div id="sessionTimer" class="session-timer" style="display: none; margin-top:12px">
               <div class="timer-text">
                 <span class="timer-icon">⏰</span>

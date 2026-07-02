@@ -76,6 +76,11 @@ export function createSessionTimer(options) {
       intervalId = setInterval(update, 1000);
     },
     stop,
+    getRemainingRatio() {
+      if (!startTime) return 1;
+      const remaining = durationMs - (Date.now() - startTime);
+      return Math.max(0, Math.min(1, remaining / durationMs));
+    },
     resetDetail(text) {
       if (elements.detail) elements.detail.textContent = text;
     },
