@@ -6,7 +6,7 @@
       "$code": {
         ".read": "($code.length == 6) && ($code.matches(/^[0-9]{6}$/))",
         ".write": "true",
-        ".validate": "newData.hasChildren(['sessionId','timestamp']) && (newData.child('sessionId').isString()) && (newData.child('sessionId').val().matches(/^[a-z0-9]{13}$/)) && (newData.child('timestamp').val() <= now) && (newData.child('timestamp').val() > now - 60000)"
+        ".validate": "newData.hasChildren(['sessionId','timestamp']) && (newData.child('sessionId').isString()) && (newData.child('sessionId').val().matches(/^[a-z0-9]{13}$/)) && (newData.child('timestamp').isNumber()) && (newData.child('timestamp').val() <= now + 300000) && (newData.child('timestamp').val() > now - 600000)"
       }
     },
     "signaling": {

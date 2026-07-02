@@ -67,3 +67,26 @@ export function attachFilesListener(db, sessionId, opts) {
   onValue(filesRef, handler);
   return () => off(filesRef);
 }
+
+/**
+ * P2Pモード中の relay フォールバック（URL/テキスト）のみ監視。
+ * filesList を消さないので P2P 受信と共存できる。
+ */
+export function attachRelaySidebandListener(db, sessionId, { onText, onUrl }) {
+  const filesRef = dbRef(db, `files/${sessionId}`);
+  const seen = new Set();
+
+  const handler = (snapshot) => {
+    const data = snapshot.val();
+    if (!data) return;
+    Object.entries(data).forEach(([id, value]) => {
+      if (!value || typeof value !== 'object' || seen.has(id)) return;
+      seen.add(id);
+      if (value.type === 'text') onText?.({ id, ...value });
+      else if (value.type === 'url') onUrl?.({ id, ...value });
+    });
+  };
+
+  onValue(filesRef, handler);
+  return () => off(filesRef);
+}

@@ -4,7 +4,8 @@
 import { initFirebase, dbRef, onValue, off, get, update } from '../firebase.js';
 import { encodeFileAsDataURL, putFile, putUrl, putText } from '../files-save.js';
 import { decryptSessionId } from '../crypto.js';
-import { formatFileSize } from '../utils.js';
+import { formatFileSize, parseJoinInput } from '../utils.js';
+import { resolveJoinCode } from '../session.js';
 import { showToast } from '../toast.js';
 import {
   AUTH_SESSION_KEY,
@@ -14,13 +15,15 @@ import {
   MAX_FILE_SIZE_MB,
   TRANSFER_MODE,
   CONNECTION_STATE,
+  SESSION_TTL_MS,
 } from '../constants.js';
 import { createP2PGuest, sendFileOverChannel, sendTextOverChannel } from '../webrtc/guest.js';
 import { setConnectionState, subscribeConnectionState, setTransferProgress } from '../connection-state.js';
 import { firebaseConfig } from '../../config.js';
 import { registerServiceWorker } from '../pwa.js';
+import { normalizeImageFile, isHeicFile } from '../heic-convert.js';
 
-const { db } = initFirebase(firebaseConfig);
+const { db, fs } = initFirebase(firebaseConfig);
 
 const urlParams = new URLSearchParams(window.location.search);
 let sessionId = urlParams.get('session') || null;
@@ -60,14 +63,76 @@ function switchToRelayMode(reason) {
   setConnectionState(CONNECTION_STATE.WAITING, { detail: 'サーバー経由で送信できます' });
 }
 
+function showMobileReceivePanel() {
+  const panel = document.getElementById('mobileReceivePanel');
+  if (panel) panel.hidden = false;
+}
+
+function appendMobileReceivedFile(file) {
+  showMobileReceivePanel();
+  const list = document.getElementById('mobileReceiveList');
+  const empty = list?.querySelector('.no-files');
+  if (empty) empty.remove();
+  if (!list) return;
+
+  const url = URL.createObjectURL(file.blob);
+  const div = document.createElement('div');
+  div.className = 'file-item';
+  const isImage = file.mimeType?.startsWith('image/');
+  div.innerHTML = `
+    <div class="file-info">
+      <div class="file-details">
+        <div class="file-name">${isImage ? '🖼️' : '📄'} ${file.name} <span class="tag-direct">PCから</span></div>
+        <div class="file-size">${formatFileSize(file.size)}</div>
+      </div>
+      <div class="file-actions">
+        <a href="${url}" download="${file.name}" class="download-btn">⬇️ 保存</a>
+      </div>
+    </div>`;
+  if (isImage) {
+    const thumb = document.createElement('div');
+    thumb.className = 'file-thumbnail';
+    const img = document.createElement('img');
+    img.src = url;
+    img.alt = file.name;
+    thumb.appendChild(img);
+    div.querySelector('.file-info').prepend(thumb);
+  }
+  list.prepend(div);
+  showToast(`${file.name} をPCから受信しました`, 'success');
+}
+
+function appendMobileReceivedText(text) {
+  showMobileReceivePanel();
+  const list = document.getElementById('mobileReceiveList');
+  const empty = list?.querySelector('.no-files');
+  if (empty) empty.remove();
+  if (!list) return;
+
+  const div = document.createElement('div');
+  div.className = 'file-item';
+  const safe = text.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+  div.innerHTML = `
+    <div class="file-info">
+      <div class="file-details">
+        <div class="file-name">💬 テキスト <span class="tag-direct">PCから</span></div>
+        <div class="file-size" style="white-space:pre-wrap;margin-top:6px">${safe}</div>
+      </div>
+    </div>`;
+  list.prepend(div);
+  showToast('PCからテキストを受信しました', 'success');
+}
+
 async function initP2PConnection() {
   if (transferMode !== TRANSFER_MODE.P2P || !sessionId) return;
   const fb = document.getElementById('fallbackRelayBtn');
   if (fb) fb.hidden = false;
   p2pGuest = createP2PGuest({
-    db, sessionId,
-    onConnected: (ch) => { dataChannel = ch; showToast('直接接続しました', 'success'); },
+    fs, sessionId,
+    onConnected: (ch) => { dataChannel = ch; showToast('直接接続しました — 双方向で送受信できます', 'success'); },
     onFailed: () => switchToRelayMode('直接接続できませんでした'),
+    onFile: appendMobileReceivedFile,
+    onText: appendMobileReceivedText,
   });
   try {
     dataChannel = await p2pGuest.connect();
@@ -106,6 +171,40 @@ function persistAuth() {
 async function authenticate() {
   const password = document.getElementById('authInput').value;
   const errorDiv = document.getElementById('authError');
+
+  // 6桁参加コード / セッションURL
+  const parsed = parseJoinInput(password);
+  if (parsed?.type === 'session') {
+    sessionId = parsed.sessionId;
+    persistAuth();
+    showMainContent();
+    errorDiv.style.display = 'none';
+    showToast('セッションに参加しました', 'success');
+    await initP2PConnection();
+    return;
+  }
+  if (parsed?.type === 'code') {
+    errorDiv.style.display = 'none';
+    errorDiv.textContent = '参加コードが正しくありません';
+    try {
+      const sid = await resolveJoinCode(db, parsed.code, SESSION_TTL_MS);
+      if (sid) {
+        sessionId = sid;
+        persistAuth();
+        showMainContent();
+        showToast('セッションに参加しました', 'success');
+        await initP2PConnection();
+        return;
+      }
+    } catch (e) {
+      console.warn('[mobile] join code lookup failed', e);
+      errorDiv.textContent = '接続エラーが発生しました';
+      errorDiv.style.display = 'block';
+      return;
+    }
+    errorDiv.style.display = 'block';
+    return;
+  }
 
   if (encCt && encIv && encSalt) {
     try {
@@ -171,19 +270,15 @@ function initTabs() {
   });
 }
 
-function warnHeic(file) {
-  if (/\.heic$/i.test(file.name) || file.type === 'image/heic') {
-    showToast('HEIC形式はWindowsで開けない場合があります', 'info', 4000);
-  }
-}
-
 function handleFileSelect() {
   const list = fileInput.files;
   if (list && list.length > 0) {
     if (list.length === 1) {
       fileName.textContent = list[0].name;
       fileSize.textContent = formatFileSize(list[0].size);
-      warnHeic(list[0]);
+      if (isHeicFile(list[0])) {
+        fileSize.textContent += ' → 送信時 JPEG に変換';
+      }
     } else {
       fileName.textContent = `${list.length} 件のファイル`;
       let total = 0;
@@ -252,8 +347,11 @@ async function uploadFile() {
 
   try {
     for (let i = 0; i < files.length; i++) {
-      const file = files[i];
-      warnHeic(file);
+      let file = files[i];
+      if (isHeicFile(file)) {
+        status.textContent = `${file.name} を JPEG に変換中...`;
+        file = await normalizeImageFile(file);
+      }
       const base = i / files.length;
       if (isP2PReady()) {
         setConnectionState(CONNECTION_STATE.TRANSFERRING, { detail: `${file.name} (${i + 1}/${files.length})` });

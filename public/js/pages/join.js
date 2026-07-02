@@ -21,7 +21,11 @@ function updateButtonState() {
 }
 
 function redirectToSession(sessionId) {
-  location.href = `upload.html?session=${sessionId}`;
+  const q = new URLSearchParams({
+    session: sessionId,
+    mode: 'p2p',
+  });
+  location.href = `upload.html?${q.toString()}`;
 }
 
 async function join() {
@@ -66,11 +70,13 @@ async function join() {
   updateButtonState();
 }
 
+let autoJoinTimer = null;
 input.addEventListener('input', () => {
   updateButtonState();
-  // 6桁のみ入力時は自動参加
-  if (/^\d{6}$/.test(input.value.trim())) {
-    join();
+  clearTimeout(autoJoinTimer);
+  const parsed = parseJoinInput(input.value);
+  if (parsed?.type === 'code' && /^\d{6}$/.test(parsed.code)) {
+    autoJoinTimer = setTimeout(() => join(), 300);
   }
 });
 input.addEventListener('paste', () => {

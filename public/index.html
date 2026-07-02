@@ -10,6 +10,7 @@
   <title>シェアっと - ファイル共有</title>
   <link rel="stylesheet" href="css/theme.css">
   <link rel="stylesheet" href="css/components.css">
+  <link rel="stylesheet" href="css/app-layout.css">
   <style>
     * {
       margin: 0;
@@ -1116,13 +1117,13 @@
 
   <!-- メインコンテンツ -->
   <div id="mainContent" class="main-content authenticated">
-    <div class="topbar glass-container" style="margin: 0 auto 12px; max-width: 960px; background: transparent; border: none; box-shadow: none;">
-      <div class="topbar-inner" style="display:grid;grid-template-columns:1fr auto 1fr;align-items:center;">
-        <div style="grid-column:2;justify-self:center;text-align:center;">
-          <h1 style="margin:0;font-size:36px;font-weight:800;letter-spacing:.5px;">シェアっと</h1>
-          <div style="opacity:.8;font-size:14px;margin-top:2px;">美しいファイル共有体験</div>
+    <header class="app-header">
+      <div class="app-header__inner">
+        <div class="app-header__brand">
+          <h1>シェアっと</h1>
+          <div class="app-header__tagline">スマホからPCへ、すぐ転送</div>
         </div>
-        <div style="grid-column:3;display:flex;gap:8px;flex-wrap:wrap;justify-content:flex-end;align-items:center;">
+        <div class="app-header__actions">
           <a href="/join.html" class="action-button" style="text-decoration:none">🧩 参加</a>
           <button type="button" onclick="document.getElementById('authOverlay').style.display='flex'" class="action-button">🔑 ログイン</button>
           <div id="googleLoginBar" style="display:none;align-items:center;gap:8px">
@@ -1130,90 +1131,107 @@
           </div>
         </div>
       </div>
-    </div>
+    </header>
 
-    <div class="glass-container" style="max-width:960px">
-      <!-- 転送モード A/B -->
-      <div class="transfer-mode-tabs tab-container" style="margin-bottom:16px">
-        <button type="button" class="tab-button active" data-transfer-mode="p2p">⚡ 直接接続</button>
-        <button type="button" class="tab-button" data-transfer-mode="relay">☁️ サーバー経由</button>
-      </div>
-      <p id="relayModeNote" hidden style="font-size:13px;color:var(--md-on-surface-variant);margin-bottom:12px">サーバー経由: 確実ですが速度は遅め。NAT越えできない場合のフォールバックにも使えます。</p>
-
-      <!-- 接続状態 -->
-      <div class="connection-panel">
-        <span id="connectionBadge" class="connection-badge" data-state="idle">準備中</span>
-        <span id="connectionDetail" class="connection-detail"></span>
-        <div class="connection-progress-track"><div id="connectionProgress" class="connection-progress-bar" hidden></div></div>
-      </div>
-
-      <!-- Three.js ビジュアル -->
-      <div id="visualCanvas" class="visual-canvas" aria-hidden="true"></div>
-
-      <!-- QRコード表示 -->
-      <div class="qr-section">
-        <div class="qr-header">
-          <h3>📱 スマートフォンでアクセス</h3>
-          <p>下のQRコードをスマートフォンで読み取ってファイルをアップロードしてください</p>
-        </div>
-      <div class="qr-container">
-        <div id="qrcode" class="qr-display"></div>
-        <div class="qr-info">
-          <p class="qr-url" id="qrUrl"></p>
-          <div class="qr-actions">
-            <button onclick="copyQRUrl()" class="action-button">📋 URLをコピー</button>
-            <button onclick="shareToPhone()" class="action-button">📲 スマホに送る</button>
-            <button onclick="generateNewSession()" class="action-button">🔄 新しいQRコード</button>
+    <div class="app-shell">
+      <div class="app-grid">
+        <!-- 左: 接続・QR -->
+        <aside class="app-panel app-panel--connect">
+          <div class="panel-card">
+            <h2 class="panel-card__title">⚡ 転送モード</h2>
+            <div class="transfer-mode-tabs tab-container">
+              <button type="button" class="tab-button active" data-transfer-mode="p2p">直接接続</button>
+              <button type="button" class="tab-button" data-transfer-mode="relay">サーバー経由</button>
+            </div>
+            <p id="relayModeNote" class="mode-hint" hidden>サーバー経由は確実ですが速度は遅め。NAT越えできない場合のフォールバックにも使えます。</p>
           </div>
-          <div class="join-code-wrap" style="margin-top:16px;text-align:center;">
-            <div style="font-weight:700; font-size:14px; opacity:.85;">🧩 参加コード</div>
-            <div id="joinCode" style="font-family:monospace;letter-spacing:3px;font-size:28px; margin-top:4px;">------</div>
-            <div class="join-code-actions">
-              <button id="copyJoinCodeBtn" type="button" class="action-button" disabled>📋 コードをコピー</button>
+
+          <div class="panel-card">
+            <h2 class="panel-card__title">📡 接続状態</h2>
+            <div class="connection-panel" style="margin-bottom:0">
+              <span id="connectionBadge" class="connection-badge" data-state="idle">準備中</span>
+              <span id="connectionDetail" class="connection-detail"></span>
+              <div class="connection-progress-track"><div id="connectionProgress" class="connection-progress-bar" hidden></div></div>
+            </div>
+            <div id="visualCanvas" class="visual-canvas" aria-hidden="true"></div>
+            <div id="sessionTimer" class="session-timer" style="display: none; margin-top:12px">
+              <div class="timer-text">
+                <span class="timer-icon">⏰</span>
+                <span id="timerDisplay">10:00</span>
+              </div>
+              <div class="timer-detail">セッションは10分で終了します</div>
             </div>
           </div>
-        </div>
-      </div>
-    </div>
-      
-      <!-- セッションタイマー表示 -->
-      <div id="sessionTimer" class="session-timer" style="display: none;">
-        <div class="timer-text">
-          <span class="timer-icon">⏰</span>
-          <span id="timerDisplay">10:00</span>
-        </div>
-        <div class="timer-detail">ファイルは自動的に削除されます</div>
-      </div>
-    </div>
 
-    <!-- アップロードされたファイル表示 -->
-    <div class="glass-container" style="max-width:960px">
-      <div class="files-header">
-        <h3>📁 受信ファイル</h3>
-        <div style="display:flex;gap:8px;flex-wrap:wrap">
-          <button id="downloadZipBtn" type="button" onclick="downloadZip()" class="action-button" disabled>📦 まとめてZIP</button>
-          <button onclick="refreshFiles()" class="action-button">🔄 更新</button>
-        </div>
-      </div>
-      <div id="filesList" class="files-list">
-        <div class="no-files">まだファイルがアップロードされていません</div>
-      </div>
-    </div>
+          <div class="panel-card">
+            <h2 class="panel-card__title">📱 QRコードで接続</h2>
+            <p class="panel-card__subtitle">スマホのカメラで読み取るか、参加コードを入力してください</p>
+            <div class="qr-section" style="padding:0">
+              <div class="qr-container">
+                <div id="qrcode" class="qr-display"></div>
+                <div class="qr-info">
+                  <p class="qr-url" id="qrUrl"></p>
+                  <div class="qr-actions">
+                    <button onclick="copyQRUrl()" class="action-button">📋 URLをコピー</button>
+                    <button onclick="shareToPhone()" class="action-button">📲 スマホに送る</button>
+                    <button onclick="generateNewSession()" class="action-button">🔄 新しいQR</button>
+                  </div>
+                  <div class="join-code-wrap" style="margin-top:16px;text-align:center;">
+                    <div style="font-weight:700;font-size:14px;opacity:.85;">🧩 参加コード</div>
+                    <div id="joinCode" style="font-family:monospace;letter-spacing:3px;font-size:28px;margin-top:4px;">------</div>
+                    <div class="join-code-actions">
+                      <button id="copyJoinCodeBtn" type="button" class="action-button" disabled>📋 コードをコピー</button>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </aside>
 
-    <!-- 共有されたURL表示 -->
-    <div class="glass-container" style="max-width:960px">
-      <div class="files-header">
-        <h3>🔗 共有されたURL</h3>
-        <button onclick="refreshFiles()" class="action-button">🔄 更新</button>
-      </div>
-      <div id="urlsList" class="files-list">
-        <div class="no-files">まだURLが共有されていません</div>
-      </div>
-    </div>
+        <!-- 右: 受信一覧 -->
+        <main class="app-panel app-panel--receive">
+          <div class="panel-card receive-section" id="pcSendPanel" hidden>
+            <div class="receive-toolbar">
+              <h3>📤 スマホへ送信</h3>
+            </div>
+            <p style="font-size:13px;color:var(--md-on-surface-variant);margin-bottom:12px">スマホと直接接続中のみ利用できます</p>
+            <textarea id="pcTextSend" class="url-input" rows="2" placeholder="テキストを入力" style="width:100%;margin-bottom:10px;resize:vertical"></textarea>
+            <div style="display:flex;gap:8px;flex-wrap:wrap">
+              <button id="pcTextSendBtn" type="button" class="action-button">💬 テキスト送信</button>
+              <button id="pcFileSendBtn" type="button" class="action-button">📁 ファイル送信</button>
+              <input type="file" id="pcFileSend" hidden>
+            </div>
+          </div>
 
-    <div class="footer">
-      シェアっと - 美しいファイル共有体験<br>
-      <small>Develop by YUKI KONDO</small>
+          <div class="panel-card receive-section">
+            <div class="receive-toolbar">
+              <h3>📁 受信ファイル</h3>
+              <div class="receive-toolbar__actions">
+                <button id="downloadZipBtn" type="button" onclick="downloadZip()" class="action-button" disabled>📦 まとめてZIP</button>
+                <button onclick="refreshFiles()" class="action-button">🔄 更新</button>
+              </div>
+            </div>
+            <div id="filesList" class="files-list">
+              <div class="no-files">まだファイルがありません<br><small>QRコードを読み取るとここに表示されます</small></div>
+            </div>
+          </div>
+
+          <div class="panel-card receive-section">
+            <div class="receive-toolbar">
+              <h3>🔗 URL・テキスト</h3>
+              <button onclick="refreshFiles()" class="action-button">🔄 更新</button>
+            </div>
+            <div id="urlsList" class="files-list">
+              <div class="no-files">URLやテキストはここに表示されます</div>
+            </div>
+          </div>
+        </main>
+      </div>
+
+      <div class="footer" style="margin-top:24px;text-align:center">
+        シェアっと · Develop by YUKI KONDO
+      </div>
     </div>
   </div>
 

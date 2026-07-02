@@ -2,6 +2,8 @@ import {
   createPeerConnection,
   attachIceHandlers,
   createFileReceiver,
+  sendFileOverChannel,
+  sendTextOverChannel,
 } from './transfer.js';
 import {
   publishAnswer,
@@ -24,10 +26,17 @@ function stripIce(cand) {
   return rest;
 }
 
-export function createP2PHost({ db, sessionId, onFile, onText }) {
+export function createP2PHost({ fs, sessionId, onFile, onText, onPeerConnected }) {
   const peers = new Map();
   const processing = new Set();
   let stopWatch = null;
+
+  function getActiveChannel() {
+    for (const { channel } of peers.values()) {
+      if (channel?.readyState === 'open') return channel;
+    }
+    return null;
+  }
 
   async function handlePeer(peerId, data) {
     if (peers.has(peerId) || processing.has(peerId)) return;
@@ -41,7 +50,7 @@ export function createP2PHost({ db, sessionId, onFile, onText }) {
         setConnectionState(CONNECTION_STATE.TRANSFERRING, { detail: `${file.name} を受信中` });
         onFile?.(file, peerId);
         setConnectionState(CONNECTION_STATE.COMPLETE, { detail: `${file.name} を受信しました`, progress: 1 });
-        setTimeout(() => setConnectionState(CONNECTION_STATE.CONNECTED, { detail: '追加の送信を待機中', progress: 0 }), 2000);
+        setTimeout(() => setConnectionState(CONNECTION_STATE.CONNECTED, { detail: '双方向で送受信できます', progress: 0 }), 2000);
       },
       (text) => onText?.(text, peerId),
       (p, name) => setTransferProgress(p, name ? `${name} ${Math.round(p * 100)}%` : undefined),
@@ -60,16 +69,16 @@ export function createP2PHost({ db, sessionId, onFile, onText }) {
 
     try {
       await attachIceHandlers(pc, (candidate) => {
-        addIceCandidate(db, sessionId, peerId, 'host', candidate);
+        addIceCandidate(fs, sessionId, peerId, 'host', candidate);
       });
 
       await pc.setRemoteDescription(data.offer);
       const answer = await pc.createAnswer();
       await pc.setLocalDescription(answer);
-      await publishAnswer(db, sessionId, peerId, answer);
-      await markPeerAnswered(db, sessionId, peerId);
+      await publishAnswer(fs, sessionId, peerId, answer);
+      await markPeerAnswered(fs, sessionId, peerId);
 
-      stopIce = watchRemoteIce(db, sessionId, peerId, 'guest', async (cand) => {
+      stopIce = watchRemoteIce(fs, sessionId, peerId, 'guest', async (cand) => {
         try {
           await pc.addIceCandidate(stripIce(cand));
         } catch (e) {
@@ -77,14 +86,15 @@ export function createP2PHost({ db, sessionId, onFile, onText }) {
         }
       });
 
-      await channelPromise;
+      const channel = await channelPromise;
       incrementPeerCount(1);
       setConnectionState(CONNECTION_STATE.CONNECTED, {
-        detail: '直接接続が確立しました',
+        detail: '直接接続 — 双方向で送受信できます',
         peerCount: peers.size + 1,
       });
-      await setSignalingStatus(db, sessionId, 'connected');
-      peers.set(peerId, { pc, stopIce });
+      await setSignalingStatus(fs, sessionId, 'connected');
+      peers.set(peerId, { pc, stopIce, channel });
+      onPeerConnected?.(peerId, channel);
     } catch (e) {
       console.warn('[p2p-host] peer failed', e);
       setConnectionState(CONNECTION_STATE.FAILED, { detail: '直接接続に失敗しました' });
@@ -97,9 +107,9 @@ export function createP2PHost({ db, sessionId, onFile, onText }) {
 
   return {
     async start() {
-      await initHostSignaling(db, sessionId);
+      await initHostSignaling(fs, sessionId);
       setConnectionState(CONNECTION_STATE.WAITING, { detail: 'スマホからの接続を待っています' });
-      stopWatch = watchPeerOffers(db, sessionId, (peerId, data) => {
+      stopWatch = watchPeerOffers(fs, sessionId, (peerId, data) => {
         handlePeer(peerId, data).catch((e) => console.error('[p2p-host]', e));
       });
     },
@@ -111,6 +121,20 @@ export function createP2PHost({ db, sessionId, onFile, onText }) {
       });
       peers.clear();
       processing.clear();
+    },
+    getActiveChannel,
+    isConnected() {
+      return !!getActiveChannel();
+    },
+    sendText(text) {
+      const ch = getActiveChannel();
+      if (!ch) throw new Error('スマホが接続されていません');
+      sendTextOverChannel(ch, text);
+    },
+    async sendFile(file, onProgress) {
+      const ch = getActiveChannel();
+      if (!ch) throw new Error('スマホが接続されていません');
+      return sendFileOverChannel(ch, file, onProgress);
     },
   };
 }

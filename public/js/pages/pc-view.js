@@ -5,7 +5,7 @@ import { initFirebase, GoogleAuthProvider, signInWithPopup, onAuthStateChanged, 
 import {
   viewFullImage, closeImageModal, downloadModalImage, downloadFile, copyToClipboard,
 } from '../ui.js';
-import { attachFilesListener } from '../files-view.js';
+import { attachFilesListener, attachRelaySidebandListener } from '../files-view.js';
 import { issueJoinCode } from '../session.js';
 import { createFileItem, createUrlItem, createTextItem } from '../file-items.js';
 import { createSessionTimer } from '../session-timer.js';
@@ -23,12 +23,13 @@ import { downloadFilesAsZip } from '../zip-save.js';
 import { registerServiceWorker } from '../pwa.js';
 import { firebaseConfig } from '../../config.js';
 
-const { db, auth } = initFirebase(firebaseConfig);
+const { db, auth, fs } = initFirebase(firebaseConfig);
 
 let currentSessionId = null;
 let currentJoinCode = null;
 let currentUser = null;
 let detachFiles = null;
+let detachRelaySideband = null;
 let p2pHost = null;
 let transferMode = TRANSFER_MODE.P2P;
 let visualScene = null;
@@ -145,9 +146,37 @@ function appendP2PText(text, peerId) {
   if (empty) empty.remove();
   const el = createTextItem({ text, timestamp: Date.now() }, itemHandlers);
   if (el) {
-    el.querySelector('.file-name').innerHTML = `💬 テキスト <span class="tag-direct">直接 · ${peerId.slice(0, 4)}</span>`;
+    const title = el.querySelector('.file-name');
+    if (title) title.innerHTML = `💬 テキスト <span class="tag-direct">直接 · ${peerId.slice(0, 4)}</span>`;
     urlsList.prepend(el);
+    showToast('テキストを受信しました', 'success', 2000);
   }
+}
+
+function appendRelayText(item) {
+  const urlsList = document.getElementById('urlsList');
+  const empty = urlsList.querySelector('.no-files');
+  if (empty) empty.remove();
+  const el = createTextItem(item, itemHandlers);
+  if (el) {
+    const title = el.querySelector('.file-name');
+    if (title) title.innerHTML = `💬 テキスト <span class="tag-direct">サーバー経由</span>`;
+    urlsList.prepend(el);
+    showToast('テキストを受信しました', 'success', 2000);
+  }
+}
+
+function appendRelayUrl(item) {
+  const urlsList = document.getElementById('urlsList');
+  const empty = urlsList.querySelector('.no-files');
+  if (empty) empty.remove();
+  const el = createUrlItem(item, itemHandlers);
+  if (el) urlsList.prepend(el);
+}
+
+function updatePcSendPanel(connected) {
+  const panel = document.getElementById('pcSendPanel');
+  if (panel) panel.hidden = !connected;
 }
 
 async function onRelayFile(file) {
@@ -159,17 +188,26 @@ async function onRelayFile(file) {
 async function restartTransferLayer() {
   p2pHost?.stop();
   p2pHost = null;
+  updatePcSendPanel(false);
   if (detachFiles) { try { detachFiles(); } catch { /* noop */ } detachFiles = null; }
+  if (detachRelaySideband) { try { detachRelaySideband(); } catch { /* noop */ } detachRelaySideband = null; }
 
-  if (transferMode === TRANSFER_MODE.P2P && currentSessionId) {
+  if (!currentSessionId) return;
+
+  if (transferMode === TRANSFER_MODE.P2P) {
+    detachRelaySideband = attachRelaySidebandListener(db, currentSessionId, {
+      onText: appendRelayText,
+      onUrl: appendRelayUrl,
+    });
     p2pHost = createP2PHost({
-      db,
+      fs,
       sessionId: currentSessionId,
       onFile: appendP2PFile,
       onText: appendP2PText,
+      onPeerConnected: () => updatePcSendPanel(true),
     });
     await p2pHost.start();
-  } else if (currentSessionId) {
+  } else {
     resetConnectionState();
     setConnectionState(CONNECTION_STATE.WAITING, { detail: 'サーバー経由で受信待機中' });
     displayFilesRelay();
@@ -181,8 +219,8 @@ async function generateQRCode() {
   if (detachFiles) { try { detachFiles(); } catch { /* noop */ } detachFiles = null; }
 
   clearReceivedStore();
-  document.getElementById('filesList').innerHTML = '<div class="no-files">まだファイルがアップロードされていません</div>';
-  document.getElementById('urlsList').innerHTML = '<div class="no-files">まだURLが共有されていません</div>';
+  document.getElementById('filesList').innerHTML = '<div class="no-files">まだファイルがありません<br><small>QRコードを読み取るとここに表示されます</small></div>';
+  document.getElementById('urlsList').innerHTML = '<div class="no-files">URLやテキストはここに表示されます</div>';
 
   currentSessionId = generateSessionId();
   const modeParam = transferMode === TRANSFER_MODE.P2P ? 'p2p' : 'relay';
@@ -257,6 +295,46 @@ function refreshFiles() {
   showToast('一覧を更新しました', 'info', 1500);
 }
 
+async function sendTextToPhone() {
+  const input = document.getElementById('pcTextSend');
+  const text = input?.value?.trim();
+  if (!text) return;
+  if (!p2pHost?.isConnected()) {
+    showToast('スマホが接続されていません', 'error');
+    return;
+  }
+  try {
+    p2pHost.sendText(text);
+    input.value = '';
+    showToast('スマホへテキストを送信しました', 'success');
+  } catch (e) {
+    showToast(e.message || '送信に失敗しました', 'error');
+  }
+}
+
+async function sendFileToPhone() {
+  const input = document.getElementById('pcFileSend');
+  const file = input?.files?.[0];
+  if (!file) {
+    showToast('ファイルを選択してください', 'info');
+    return;
+  }
+  if (!p2pHost?.isConnected()) {
+    showToast('スマホが接続されていません', 'error');
+    return;
+  }
+  try {
+    setConnectionState(CONNECTION_STATE.TRANSFERRING, { detail: `${file.name} を送信中` });
+    await p2pHost.sendFile(file, (p) => setTransferProgress(p, file.name));
+    input.value = '';
+    showToast(`${file.name} をスマホへ送信しました`, 'success');
+    setConnectionState(CONNECTION_STATE.COMPLETE, { detail: '送信完了', progress: 1 });
+    setTimeout(() => setConnectionState(CONNECTION_STATE.CONNECTED, { detail: '双方向で送受信できます', progress: 0 }), 1500);
+  } catch (e) {
+    showToast(e.message || '送信に失敗しました', 'error');
+  }
+}
+
 function downloadZip() {
   downloadFilesAsZip(getReceivedFiles());
 }
@@ -274,6 +352,11 @@ function updateConnectionUI(snap) {
     bar.style.width = `${Math.round((snap.progress || 0) * 100)}%`;
     bar.hidden = snap.state !== CONNECTION_STATE.TRANSFERRING && snap.progress <= 0;
   }
+  if (snap.state === CONNECTION_STATE.CONNECTED || snap.state === CONNECTION_STATE.COMPLETE) {
+    updatePcSendPanel(p2pHost?.isConnected?.() ?? false);
+  } else if (snap.state === CONNECTION_STATE.WAITING || snap.state === CONNECTION_STATE.FAILED) {
+    updatePcSendPanel(false);
+  }
 }
 
 onAuthStateChanged(auth, (user) => {
@@ -284,6 +367,9 @@ onAuthStateChanged(auth, (user) => {
 
 document.getElementById('copyJoinCodeBtn')?.addEventListener('click', copyJoinCode);
 document.getElementById('downloadZipBtn')?.addEventListener('click', downloadZip);
+document.getElementById('pcTextSendBtn')?.addEventListener('click', sendTextToPhone);
+document.getElementById('pcFileSendBtn')?.addEventListener('click', () => document.getElementById('pcFileSend')?.click());
+document.getElementById('pcFileSend')?.addEventListener('change', sendFileToPhone);
 document.querySelectorAll('[data-transfer-mode]').forEach((btn) => {
   btn.addEventListener('click', () => setTransferMode(btn.dataset.transferMode));
 });
@@ -311,6 +397,7 @@ window.shareToPhone = shareToPhone;
 window.copyJoinCode = copyJoinCode;
 window.refreshFiles = refreshFiles;
 window.downloadZip = downloadZip;
+window.sendTextToPhone = sendTextToPhone;
 window.viewFullImage = viewFullImage;
 window.closeImageModal = closeImageModal;
 window.downloadModalImage = downloadModalImage;

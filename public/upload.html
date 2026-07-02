@@ -7,8 +7,15 @@
   <link rel="manifest" href="/manifest.webmanifest">
   <link rel="icon" href="/icons/icon.svg" type="image/svg+xml">
   <title>送信 - シェアっと</title>
+  <script>
+    (function () {
+      var sid = new URLSearchParams(location.search).get('session');
+      if (sid && sid.length >= 6) document.documentElement.classList.add('qr-session');
+    })();
+  </script>
   <link rel="stylesheet" href="css/theme.css">
   <link rel="stylesheet" href="css/components.css">
+  <link rel="stylesheet" href="css/app-layout.css">
   <style>
     * {
       margin: 0;
@@ -219,6 +226,14 @@
     }
     
     .main-content.authenticated {
+      display: block;
+    }
+
+    html.qr-session #authOverlay {
+      display: none !important;
+    }
+
+    html.qr-session #mainContent.main-content {
       display: block;
     }
     
@@ -654,8 +669,9 @@
   <div id="authOverlay" class="auth-overlay">
     <div class="auth-container">
       <h2 class="auth-title">📱 シェアっと</h2>
-      <p class="auth-subtitle">参加コードで認証してください</p>
-      <input type="password" id="authInput" class="auth-input" placeholder="参加コードを入力" maxlength="8" />
+      <p class="auth-subtitle">6桁の参加コードを入力してください</p>
+      <input type="text" inputmode="numeric" id="authInput" class="auth-input" placeholder="例: 123456" maxlength="64" autocomplete="off" />
+      <a href="/join.html" class="auth-button" style="display:block;margin-top:12px;text-align:center;text-decoration:none;background:var(--md-surface-variant)!important;color:var(--md-on-surface)!important">🧩 参加専用ページへ</a>
       <button onclick="authenticate()" class="auth-button">🔓 ログイン</button>
       <div id="authError" class="auth-error">参加コードが正しくありません</div>
       <div class="auth-info">💡 QRコードからアクセスした場合、<br>自動的に認証されます</div>
@@ -663,21 +679,22 @@
   </div>
 
   <!-- メインコンテンツ -->
-  <div id="mainContent" class="main-content">
-    <div class="topbar" style="position:sticky;top:0;z-index:120;margin:8px 12px;max-width:600px;margin-left:auto;margin-right:auto">
+  <div id="mainContent" class="main-content mobile-shell">
+    <div class="mobile-status-bar">
       <div class="connection-panel" style="margin-bottom:8px">
         <span id="mobileConnectionBadge" class="connection-badge" data-state="idle">準備中</span>
         <span id="mobileConnectionDetail" class="connection-detail"></span>
       </div>
       <button type="button" id="fallbackRelayBtn" class="btn btn-primary" hidden style="margin-bottom:8px;width:100%">☁️ サーバー経由に切り替え</button>
-      <a href="/" style="color:#9ecbff;text-decoration:underline">← トップへ戻る</a>
-    </div>
-    <div class="header">
-      <h1>シェアっと</h1>
-      <p>美しいファイル共有体験</p>
+      <a href="/" style="color:var(--md-primary);text-decoration:none;font-size:14px">← PC画面へ戻る</a>
     </div>
 
-    <div class="glass-container">
+    <header style="text-align:center;margin-bottom:20px">
+      <h1 style="font-size:1.75rem;font-weight:800;margin:0">送信</h1>
+      <p style="font-size:14px;color:var(--md-on-surface-variant);margin-top:6px">写真・動画・ファイルをPCへ送る</p>
+    </header>
+
+    <div class="panel-card">
       <!-- タブ切り替え -->
       <div class="tab-container">
         <button class="tab-button active" data-tab="file">📁 ファイル</button>
@@ -744,9 +761,15 @@
       </div>
     </div>
 
-    <div class="footer">
-      シェアっと - 美しいファイル共有体験<br>
-      <small>Develop by YUKI KONDO</small>
+    <div class="panel-card" id="mobileReceivePanel" hidden style="margin-top:20px">
+      <h3 style="margin-bottom:12px;font-size:1.1rem">📥 PCから受信</h3>
+      <div id="mobileReceiveList" class="files-list">
+        <div class="no-files">PCから届いたファイル・テキストがここに表示されます</div>
+      </div>
+    </div>
+
+    <div class="footer" style="margin-top:24px;text-align:center;font-size:13px">
+      シェアっと · Develop by YUKI KONDO
     </div>
   </div>
 

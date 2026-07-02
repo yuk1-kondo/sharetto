@@ -1,88 +1,127 @@
-import { dbRef, set, update, onValue, off, get, push } from '../firebase.js';
+/**
+ * WebRTC signaling via Firestore (offer / answer / ICE candidates).
+ * File payloads never touch Firestore — signaling only.
+ */
+import {
+  doc,
+  setDoc,
+  updateDoc,
+  collection,
+  addDoc,
+  onSnapshot,
+  getDoc,
+  serverTimestamp,
+} from 'https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js';
 
-function signalingRoot(db, sessionId) {
-  return dbRef(db, `signaling/${sessionId}`);
+function sessionRef(fs, sessionId) {
+  return doc(fs, 'sessions', sessionId);
 }
 
-function peerRoot(db, sessionId, peerId) {
-  return dbRef(db, `signaling/${sessionId}/peers/${peerId}`);
+function peerRef(fs, sessionId, peerId) {
+  return doc(fs, 'sessions', sessionId, 'peers', peerId);
 }
 
-export async function initHostSignaling(db, sessionId) {
-  await set(signalingRoot(db, sessionId), {
+function candidatesCol(fs, sessionId, peerId) {
+  return collection(fs, 'sessions', sessionId, 'peers', peerId, 'candidates');
+}
+
+export async function initHostSignaling(fs, sessionId) {
+  await setDoc(sessionRef(fs, sessionId), {
     role: 'host',
-    createdAt: Date.now(),
+    createdAt: serverTimestamp(),
     status: 'waiting',
-  });
+    expiresAt: Date.now() + 10 * 60 * 1000,
+  }, { merge: true });
 }
 
-export async function publishOffer(db, sessionId, peerId, offer) {
-  await update(peerRoot(db, sessionId, peerId), {
+export async function publishOffer(fs, sessionId, peerId, offer) {
+  await setDoc(peerRef(fs, sessionId, peerId), {
     offer: { sdp: offer.sdp, type: offer.type },
-    updatedAt: Date.now(),
-  });
+    answered: false,
+    updatedAt: serverTimestamp(),
+  }, { merge: true });
 }
 
-export async function publishAnswer(db, sessionId, peerId, answer) {
-  await update(peerRoot(db, sessionId, peerId), {
+export async function publishAnswer(fs, sessionId, peerId, answer) {
+  await updateDoc(peerRef(fs, sessionId, peerId), {
     answer: { sdp: answer.sdp, type: answer.type },
-    updatedAt: Date.now(),
+    updatedAt: serverTimestamp(),
   });
 }
 
-export async function addIceCandidate(db, sessionId, peerId, from, candidate) {
-  const listRef = push(dbRef(db, `signaling/${sessionId}/peers/${peerId}/ice/${from}`));
-  await set(listRef, { ...candidate, at: Date.now() });
+export async function addIceCandidate(fs, sessionId, peerId, from, candidate) {
+  await addDoc(candidatesCol(fs, sessionId, peerId), {
+    from,
+    ...candidate,
+    at: Date.now(),
+  });
 }
 
-export function watchPeerOffers(db, sessionId, onPeer) {
-  const peersRef = dbRef(db, `signaling/${sessionId}/peers`);
-  const handler = (snap) => {
-    const val = snap.val();
-    if (!val) return;
-    Object.entries(val).forEach(([peerId, data]) => {
-      if (data?.offer && !data?.answered) onPeer(peerId, data);
-    });
-  };
-  onValue(peersRef, handler);
-  return () => off(peersRef);
-}
-
-export function watchAnswer(db, sessionId, peerId, callback) {
-  const ref = dbRef(db, `signaling/${sessionId}/peers/${peerId}/answer`);
-  const handler = (snap) => {
-    const val = snap.val();
-    if (val?.sdp) callback(val);
-  };
-  onValue(ref, handler);
-  return () => off(ref);
-}
-
-export function watchRemoteIce(db, sessionId, peerId, from, callback) {
-  const ref = dbRef(db, `signaling/${sessionId}/peers/${peerId}/ice/${from}`);
+export function watchPeerOffers(fs, sessionId, onPeer) {
+  const peersCol = collection(fs, 'sessions', sessionId, 'peers');
   const seen = new Set();
-  const handler = (snap) => {
-    const val = snap.val();
-    if (!val) return;
-    Object.entries(val).forEach(([key, cand]) => {
+
+  return onSnapshot(peersCol, (snap) => {
+    snap.docChanges().forEach((change) => {
+      const peerId = change.doc.id;
+      const data = change.doc.data();
+      if (!data?.offer?.sdp || data.answered) return;
+      const key = `${peerId}:${data.offer.sdp.slice(0, 32)}`;
       if (seen.has(key)) return;
       seen.add(key);
-      callback(cand);
+      onPeer(peerId, data);
     });
-  };
-  onValue(ref, handler);
-  return () => off(ref);
+    // Initial load
+    snap.forEach((d) => {
+      const data = d.data();
+      if (!data?.offer?.sdp || data.answered) return;
+      const key = `${d.id}:${data.offer.sdp.slice(0, 32)}`;
+      if (seen.has(key)) return;
+      seen.add(key);
+      onPeer(d.id, data);
+    });
+  });
 }
 
-export async function markPeerAnswered(db, sessionId, peerId) {
-  await update(peerRoot(db, sessionId, peerId), { answered: true });
+export function watchAnswer(fs, sessionId, peerId, callback) {
+  let done = false;
+  return onSnapshot(peerRef(fs, sessionId, peerId), (snap) => {
+    if (done || !snap.exists()) return;
+    const val = snap.data()?.answer;
+    if (val?.sdp) {
+      done = true;
+      callback(val);
+    }
+  });
 }
 
-export async function getHostStatus(db, sessionId) {
-  const snap = await get(signalingRoot(db, sessionId));
-  return snap.val();
+export function watchRemoteIce(fs, sessionId, peerId, from, callback) {
+  const seen = new Set();
+  return onSnapshot(candidatesCol(fs, sessionId, peerId), (snap) => {
+    snap.docChanges().forEach((change) => {
+      if (change.type === 'removed') return;
+      const data = change.doc.data();
+      if (data.from !== from) return;
+      const id = change.doc.id;
+      if (seen.has(id)) return;
+      seen.add(id);
+      callback(data);
+    });
+  });
 }
 
-export async function setSignalingStatus(db, sessionId, status) {
-  await update(signalingRoot(db, sessionId), { status, updatedAt: Date.now() });
+export async function markPeerAnswered(fs, sessionId, peerId) {
+  await updateDoc(peerRef(fs, sessionId, peerId), { answered: true });
+}
+
+export async function getHostStatus(fs, sessionId) {
+  const snap = await getDoc(sessionRef(fs, sessionId));
+  return snap.exists() ? snap.data() : null;
+}
+
+export async function setSignalingStatus(fs, sessionId, status) {
+  await updateDoc(sessionRef(fs, sessionId), {
+    status,
+    updatedAt: serverTimestamp(),
+  });
 }

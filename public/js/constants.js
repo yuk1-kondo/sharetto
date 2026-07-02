@@ -48,12 +48,7 @@ export const CONNECTION_STATE_LABELS = {
 /** iPhone Safari 向け chunk サイズ */
 export const CHUNK_SIZE_BYTES = 256 * 1024;
 
-export const P2P_CONNECT_TIMEOUT_MS = 15000;
-
-export const ICE_SERVERS = [
-  { urls: 'stun:stun.l.google.com:19302' },
-  { urls: 'stun:stun1.l.google.com:19302' },
-];
+export const P2P_CONNECT_TIMEOUT_MS = 20000;
 
 export const MSG = {
   FILE_START: 'file-start',

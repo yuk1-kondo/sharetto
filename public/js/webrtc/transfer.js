@@ -1,7 +1,13 @@
-import { ICE_SERVERS, CHUNK_SIZE_BYTES, MSG } from '../constants.js';
+import { CHUNK_SIZE_BYTES, MSG } from '../constants.js';
+import { getIceServers, attachIceDiagnostics } from '../ice-config.js';
 
 export function createPeerConnection() {
-  return new RTCPeerConnection({ iceServers: ICE_SERVERS });
+  const pc = new RTCPeerConnection({
+    iceServers: getIceServers(),
+    iceCandidatePoolSize: 10,
+  });
+  attachIceDiagnostics(pc);
+  return pc;
 }
 
 export async function attachIceHandlers(pc, onCandidate) {

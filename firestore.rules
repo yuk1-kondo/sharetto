@@ -1,0 +1,21 @@
+rules_version = '2';
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+    function validSessionId(sessionId) {
+      return sessionId.matches('^[a-z0-9]{13}$');
+    }
+
+    match /sessions/{sessionId} {
+      allow read, write: if validSessionId(sessionId);
+
+      match /peers/{peerId} {
+        allow read, write: if validSessionId(sessionId) && peerId.size() >= 6;
+
+        match /candidates/{candidateId} {
+          allow read, write: if validSessionId(sessionId) && peerId.size() >= 6;
+        }
+      }
+    }
+  }
+}

@@ -2,6 +2,7 @@ import {
   createPeerConnection,
   attachIceHandlers,
   openDataChannel,
+  createFileReceiver,
   sendFileOverChannel,
   sendTextOverChannel,
 } from './transfer.js';
@@ -12,7 +13,7 @@ import {
   watchRemoteIce,
 } from './signaling.js';
 import { P2P_CONNECT_TIMEOUT_MS, CONNECTION_STATE } from '../constants.js';
-import { setConnectionState } from '../connection-state.js';
+import { setConnectionState, setTransferProgress } from '../connection-state.js';
 
 function stripIce(cand) {
   const { at, ...rest } = cand || {};
@@ -42,12 +43,18 @@ function waitForIceConnected(pc, timeoutMs) {
   });
 }
 
-export function createP2PGuest({ db, sessionId, onConnected, onFailed }) {
+export function createP2PGuest({ fs, sessionId, onConnected, onFailed, onFile, onText }) {
   const peerId = Math.random().toString(36).slice(2, 10);
   let pc = null;
   let channel = null;
   let stopAnswer = null;
   let stopIce = null;
+
+  const receiver = createFileReceiver(
+    (file) => onFile?.(file),
+    (text) => onText?.(text),
+    (p, name) => setTransferProgress(p, name ? `${name} ${Math.round(p * 100)}%` : undefined),
+  );
 
   return {
     getChannel() { return channel; },
@@ -57,9 +64,10 @@ export function createP2PGuest({ db, sessionId, onConnected, onFailed }) {
       setConnectionState(CONNECTION_STATE.CONNECTING, { detail: 'PCへ直接接続中…' });
       pc = createPeerConnection();
       channel = openDataChannel(pc);
+      receiver.bindChannel(channel);
 
       let answerApplied = false;
-      stopAnswer = watchAnswer(db, sessionId, peerId, async (answer) => {
+      stopAnswer = watchAnswer(fs, sessionId, peerId, async (answer) => {
         if (answerApplied) return;
         try {
           await pc.setRemoteDescription(answer);
@@ -69,17 +77,17 @@ export function createP2PGuest({ db, sessionId, onConnected, onFailed }) {
         }
       });
 
-      stopIce = watchRemoteIce(db, sessionId, peerId, 'host', async (cand) => {
+      stopIce = watchRemoteIce(fs, sessionId, peerId, 'host', async (cand) => {
         try { await pc.addIceCandidate(stripIce(cand)); } catch (e) { console.warn('[p2p-guest] ICE', e); }
       });
 
       await attachIceHandlers(pc, (candidate) => {
-        addIceCandidate(db, sessionId, peerId, 'guest', candidate);
+        addIceCandidate(fs, sessionId, peerId, 'guest', candidate);
       });
 
       const offer = await pc.createOffer();
       await pc.setLocalDescription(offer);
-      await publishOffer(db, sessionId, peerId, offer);
+      await publishOffer(fs, sessionId, peerId, offer);
 
       const answerDeadline = Date.now() + P2P_CONNECT_TIMEOUT_MS;
       while (!answerApplied && Date.now() < answerDeadline) {
