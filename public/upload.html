@@ -3,8 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover, interactive-widget=resizes-content">
-  <meta name="theme-color" content="#ebebe7" media="(prefers-color-scheme: light)">
-  <meta name="theme-color" content="#0b0b0a" media="(prefers-color-scheme: dark)">
+  <meta name="theme-color" content="#ebebe7">
   <link rel="manifest" href="/manifest.webmanifest">
   <link rel="icon" href="/icons/icon.svg" type="image/svg+xml">
   <link rel="apple-touch-icon" href="/icons/icon.svg">
@@ -51,7 +50,7 @@
       <span class="status-pill" aria-live="polite">
         <span class="led"></span>
         <span id="mobileConnectionBadge" class="connection-badge" data-state="idle">準備中</span>
-        <span id="mobileConnectionDetail" class="status-pill__detail">PCとの接続を準備しています</span>
+        <span id="mobileConnectionDetail" class="status-pill__detail"></span>
       </span>
       <span class="topbar__spacer"></span>
       <button type="button" id="fallbackRelayBtn" class="btn btn--ghost btn--sm" hidden>サーバー経由にする</button>
@@ -68,7 +67,6 @@
           <li><kbd data-mod-key>⌘</kbd> <kbd>V</kbd> で画像やテキストを貼り付けて送信</li>
           <li><kbd>Enter</kbd> で送信（<kbd>Shift</kbd>+<kbd>Enter</kbd> で改行）</li>
         </ul>
-        <p class="timeline__credit">1ファイル50MBまで · Develop by Yuki Kondo</p>
       </div>
       <div class="timeline__list" id="mobileReceiveList"></div>
     </div>

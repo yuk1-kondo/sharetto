@@ -21,7 +21,7 @@ import { showToast } from '../toast.js';
 import {
   PIN_CODE_LENGTH, TRANSFER_MODE, CONNECTION_STATE, SESSION_TTL_MS,
 } from '../constants.js';
-import { subscribeConnectionState, setConnectionState, resetConnectionState, setTransferProgress } from '../connection-state.js';
+import { subscribeConnectionState, setConnectionState, resetConnectionState, setTransferProgress, visibleStatusDetail } from '../connection-state.js';
 import { createP2PHost } from '../webrtc/host.js';
 import {
   addReceivedBlob, addReceivedFromDataUrl, getReceivedFiles, subscribeReceivedStore,
@@ -582,7 +582,7 @@ function updateConnectionUI(snap) {
     badge.textContent = snap.label;
     badge.dataset.state = snap.state;
   }
-  if (detail) detail.textContent = snap.detail || '';
+  if (detail) detail.textContent = visibleStatusDetail(snap.state, snap.detail);
   if (bar) {
     bar.style.width = `${Math.round((snap.progress || 0) * 100)}%`;
     bar.hidden = snap.state !== CONNECTION_STATE.TRANSFERRING && snap.progress <= 0;
@@ -616,8 +616,8 @@ subscribeReceivedStore(updateZipButton);
 registerServiceWorker();
 
 function initStaticHints() {
-  const joinHost = document.getElementById('joinHost');
-  if (joinHost) joinHost.textContent = `${location.host}/join.html`;
+  const shareBtn = document.getElementById('shareLinkBtn');
+  if (shareBtn && typeof navigator.share !== 'function') shareBtn.hidden = true;
   applyModifierLabels();
 }
 

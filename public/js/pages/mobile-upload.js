@@ -18,7 +18,7 @@ import {
   SESSION_TTL_MS,
 } from '../constants.js';
 import { createP2PGuest, sendFileOverChannel, sendTextOverChannel } from '../webrtc/guest.js';
-import { setConnectionState, subscribeConnectionState, setTransferProgress } from '../connection-state.js';
+import { setConnectionState, subscribeConnectionState, setTransferProgress, visibleStatusDetail } from '../connection-state.js';
 import { firebaseConfig } from '../../config.js';
 import { registerServiceWorker } from '../pwa.js';
 import { isHttpUrl } from '../file-items.js';
@@ -73,7 +73,7 @@ function updateMobileConnectionUI(snap) {
   const badge = document.getElementById('mobileConnectionBadge');
   const detail = document.getElementById('mobileConnectionDetail');
   if (badge) { badge.textContent = snap.label; badge.dataset.state = snap.state; }
-  if (detail) detail.textContent = snap.detail || '';
+  if (detail) detail.textContent = visibleStatusDetail(snap.state, snap.detail);
 }
 
 let relaySessionStarted = false;

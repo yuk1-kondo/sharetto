@@ -4,7 +4,7 @@
 
 ## 🎨 特徴
 
-- **Instrument UI**: Apple × Teenage Engineering 風のシンプルな計器デザイン（ライト/ダーク対応・詳細は `DESIGN.md`）
+- **Instrument UI**: Apple × Teenage Engineering 風のシンプルな計器デザイン（ライトのみ・詳細は `DESIGN.md`）
 - **QRコード連携**: PCでQRコードを表示、モバイルで読み取ってファイル共有
 - **PC間共有**: セッションコードを使って複数のPC間で直接ファイル共有
 - **画像プレビュー**: アップロードした画像をサムネイル＆フルサイズプレビュー

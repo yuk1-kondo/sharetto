@@ -58,3 +58,23 @@ export function resetConnectionState() {
   peerCount = 0;
   emit();
 }
+
+/**
+ * 上部の状態ピルに出す補足文。
+ * 待機・接続完了など、バッジと同じことを言う文は出さない。
+ * 転送中のファイル名、失敗、サーバー経由だけを残す。
+ */
+export function visibleStatusDetail(nextState, text) {
+  const detailText = String(text || '').trim();
+  if (!detailText) return '';
+  if (nextState === CONNECTION_STATE.FAILED) return detailText;
+  if (
+    nextState === CONNECTION_STATE.WAITING
+    || nextState === CONNECTION_STATE.IDLE
+    || nextState === CONNECTION_STATE.CONNECTING
+  ) return '';
+  if (nextState === CONNECTION_STATE.TRANSFERRING) return detailText;
+  if (/失敗|できません|エラー/.test(detailText)) return detailText;
+  if (detailText.includes('サーバー経由')) return 'サーバー経由';
+  return '';
+}
