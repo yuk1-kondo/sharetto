@@ -1,154 +1,175 @@
-import { formatFileSize, escapeHTML, getFileIcon } from './utils.js';
+import { formatFileSize } from './utils.js';
+import { icon, extLabel } from './icons.js';
 
 /**
- * ファイル一覧用のDOM要素を安全に生成する。
+ * 受信アイテム（ファイル / URL / テキスト）の行要素を生成する。
+ * ユーザー由来の文字列は必ず textContent で挿入する。
  */
-export function createFileItem(file, { onDownload, onViewImage }) {
-  const div = document.createElement('div');
-  div.className = 'file-item';
 
-  const isImage = file.mimeType && file.mimeType.startsWith('image/');
-  const fileIcon = getFileIcon(file.mimeType, isImage);
-  const safeName = escapeHTML(file.name || '');
-  const fileDate = new Date(file.timestamp).toLocaleString('ja-JP');
+function formatTime(timestamp) {
+  const d = new Date(timestamp || Date.now());
+  return d.toLocaleTimeString('ja-JP', { hour: '2-digit', minute: '2-digit' });
+}
 
+function el(tag, className, text) {
+  const node = document.createElement(tag);
+  if (className) node.className = className;
+  if (text !== undefined) node.textContent = text;
+  return node;
+}
+
+function iconButton(name, label, onClick) {
+  const btn = el('button', 'icon-btn');
+  btn.type = 'button';
+  btn.title = label;
+  btn.setAttribute('aria-label', label);
+  btn.innerHTML = icon(name);
+  btn.addEventListener('click', onClick);
+  return btn;
+}
+
+function buildMeta(parts, tag) {
+  const meta = el('div', 'item__meta');
+  parts.filter(Boolean).forEach((p) => meta.appendChild(el('span', '', p)));
+  if (tag) {
+    const direct = tag === '直接';
+    meta.appendChild(el('span', direct ? 'tag tag--direct' : 'tag', tag));
+  }
+  return meta;
+}
+
+function buildRow(kind, lead, body, actions) {
+  const row = el('article', 'item');
+  row.dataset.kind = kind;
+  const actionsWrap = el('div', 'item__actions');
+  actions.forEach((a) => actionsWrap.appendChild(a));
+  row.append(lead, body, actionsWrap);
+  return row;
+}
+
+export function isHttpUrl(text) {
+  const value = String(text || '').trim();
+  if (!/^https?:\/\/\S+$/i.test(value)) return false;
+  try {
+    new URL(value);
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+/**
+ * @param {{ id?: string, name: string, size?: number, mimeType?: string, data: string, timestamp?: number }} file
+ *   data はダウンロード/プレビューに使う URL（data: / blob:）
+ * @param {{ onDownload?: Function, onViewImage?: Function }} handlers
+ * @param {{ tag?: string }} [opts]
+ */
+export function createFileItem(file, { onDownload, onViewImage } = {}, { tag } = {}) {
+  const name = String(file.name || 'file');
+  const isImage = Boolean(file.mimeType && file.mimeType.startsWith('image/') && file.data);
+  const canPreview = isImage && typeof onViewImage === 'function';
+
+  const lead = el(canPreview ? 'button' : 'div', 'item__lead');
+  if (canPreview) {
+    lead.type = 'button';
+    lead.setAttribute('aria-label', `${name} をプレビュー`);
+    lead.addEventListener('click', () => onViewImage(file.data, name));
+  }
   if (isImage) {
-    const thumbnailDiv = document.createElement('div');
-    thumbnailDiv.className = 'file-thumbnail';
-    const img = document.createElement('img');
+    const img = el('img');
     img.src = file.data;
-    img.alt = file.name || '';
-    img.addEventListener('click', () => onViewImage?.(file.data, file.name));
-    thumbnailDiv.appendChild(img);
-    div.appendChild(thumbnailDiv);
+    img.alt = '';
+    img.loading = 'lazy';
+    lead.appendChild(img);
+  } else {
+    lead.appendChild(el('span', 'item__ext', extLabel(name, file.mimeType || '')));
   }
 
-  const fileInfo = document.createElement('div');
-  fileInfo.className = 'file-info';
+  const body = el('div', 'item__body');
+  body.append(
+    el('div', 'item__title', name),
+    buildMeta([formatFileSize(file.size), formatTime(file.timestamp)], tag),
+  );
+  body.firstChild.title = name;
 
-  const fileDetails = document.createElement('div');
-  fileDetails.className = 'file-details';
-  fileDetails.innerHTML = `
-    <div class="file-name">${fileIcon} ${safeName}</div>
-    <div class="file-size">サイズ: ${formatFileSize(file.size)}</div>
-    <div class="file-date">アップロード: ${fileDate}</div>
-  `;
-
-  const fileActions = document.createElement('div');
-  fileActions.className = 'file-actions';
-
-  const downloadBtn = document.createElement('button');
-  downloadBtn.className = 'download-btn';
-  downloadBtn.textContent = '⬇️ ダウンロード';
-  downloadBtn.addEventListener('click', () => onDownload?.(file.id, file.name, file.data));
-  fileActions.appendChild(downloadBtn);
-
-  if (isImage) {
-    const viewBtn = document.createElement('button');
-    viewBtn.className = 'download-btn view-btn';
-    viewBtn.textContent = '👁️ プレビュー';
-    viewBtn.addEventListener('click', () => onViewImage?.(file.data, file.name));
-    fileActions.appendChild(viewBtn);
-  }
-
-  fileInfo.appendChild(fileDetails);
-  fileInfo.appendChild(fileActions);
-  div.appendChild(fileInfo);
-
-  return div;
+  const actions = [
+    iconButton('download', '保存', () => onDownload?.(file.id, name, file.data)),
+  ];
+  return buildRow(isImage ? 'image' : 'file', lead, body, actions);
 }
 
 /**
- * URL一覧用のDOM要素を安全に生成する。
+ * @param {{ url: string, title?: string, hostname?: string, timestamp?: number }} item
  */
-export function createUrlItem(url, { onCopy }) {
-  const div = document.createElement('div');
-  div.className = 'url-item';
-
-  const urlDate = new Date(url.timestamp).toLocaleString('ja-JP');
-  const safeUrl = String(url.url || '');
-  const isHttp = /^https?:\/\//i.test(safeUrl);
-  const title = url.title || url.hostname || 'リンク';
-
-  const fileInfo = document.createElement('div');
-  fileInfo.className = 'file-info';
-
-  const fileDetails = document.createElement('div');
-  fileDetails.className = 'file-details';
-
-  const fileName = document.createElement('div');
-  fileName.className = 'file-name';
-  fileName.textContent = `🔗 ${title}`;
-
-  const fileMeta = document.createElement('div');
-  fileMeta.className = 'file-meta';
-  fileMeta.innerHTML = `<span>共有: ${urlDate}</span>`;
-
-  const urlLink = document.createElement(isHttp ? 'a' : 'span');
-  urlLink.className = 'url-link';
-  urlLink.textContent = safeUrl;
-  if (isHttp) {
-    urlLink.href = safeUrl;
-    urlLink.target = '_blank';
-    urlLink.rel = 'noopener noreferrer';
+export function createUrlItem(item, { onCopy } = {}, { tag } = {}) {
+  const url = String(item.url || '');
+  const isHttp = isHttpUrl(url);
+  let host = item.hostname || '';
+  if (!host && isHttp) {
+    try { host = new URL(url).hostname; } catch { /* noop */ }
   }
+  const title = item.title || host || 'リンク';
 
-  fileDetails.appendChild(fileName);
-  fileDetails.appendChild(fileMeta);
-  fileDetails.appendChild(urlLink);
+  const lead = el('div', 'item__lead');
+  lead.innerHTML = icon('link');
 
-  const fileActions = document.createElement('div');
-  fileActions.className = 'file-actions';
+  const body = el('div', 'item__body');
+  const link = el(isHttp ? 'a' : 'span', 'item__content', url);
+  if (isHttp) {
+    link.href = url;
+    link.target = '_blank';
+    link.rel = 'noopener noreferrer';
+  }
+  body.append(el('div', 'item__title', title), link, buildMeta([formatTime(item.timestamp)], tag));
 
-  const copyBtn = document.createElement('button');
-  copyBtn.className = 'download-btn';
-  copyBtn.textContent = '📋 コピー';
-  copyBtn.addEventListener('click', () => onCopy?.(safeUrl));
-  fileActions.appendChild(copyBtn);
-
-  fileInfo.appendChild(fileDetails);
-  fileInfo.appendChild(fileActions);
-  div.appendChild(fileInfo);
-
-  return div;
+  const actions = [];
+  if (isHttp) {
+    const open = el('a', 'icon-btn');
+    open.href = url;
+    open.target = '_blank';
+    open.rel = 'noopener noreferrer';
+    open.title = '開く';
+    open.setAttribute('aria-label', '開く');
+    open.innerHTML = icon('external');
+    actions.push(open);
+  }
+  actions.push(iconButton('copy', 'コピー', () => onCopy?.(url)));
+  return buildRow('url', lead, body, actions);
 }
 
-/** テキストメッセージ一覧用 */
-export function createTextItem(item, { onCopy }) {
-  const div = document.createElement('div');
-  div.className = 'url-item';
-  const date = new Date(item.timestamp).toLocaleString('ja-JP');
+/**
+ * @param {{ text?: string, title?: string, timestamp?: number }} item
+ */
+export function createTextItem(item, { onCopy } = {}, { tag } = {}) {
   const text = String(item.text || item.title || '');
 
-  const fileInfo = document.createElement('div');
-  fileInfo.className = 'file-info';
-  const fileDetails = document.createElement('div');
-  fileDetails.className = 'file-details';
+  const lead = el('div', 'item__lead');
+  lead.innerHTML = icon('text');
 
-  const titleEl = document.createElement('div');
-  titleEl.className = 'file-name';
-  titleEl.textContent = '💬 テキスト';
+  const body = el('div', 'item__body');
+  body.append(
+    el('div', 'item__title', 'テキスト'),
+    el('div', 'item__content', text),
+    buildMeta([`${text.length}文字`, formatTime(item.timestamp)], tag),
+  );
 
-  const fileMeta = document.createElement('div');
-  fileMeta.className = 'file-meta';
-  fileMeta.innerHTML = `<span>共有: ${date}</span>`;
+  const actions = [iconButton('copy', 'コピー', () => onCopy?.(text))];
+  return buildRow('text', lead, body, actions);
+}
 
-  const body = document.createElement('span');
-  body.className = 'url-link';
-  body.textContent = text;
+/** 直接受信した文字列を、URL ならリンク、それ以外はテキストとして描画する */
+export function createMessageItem(text, handlers, opts = {}) {
+  const value = String(text || '').trim();
+  const timestamp = opts.timestamp ?? Date.now();
+  if (isHttpUrl(value)) {
+    return createUrlItem({ url: value, timestamp }, handlers, opts);
+  }
+  return createTextItem({ text: value, timestamp }, handlers, opts);
+}
 
-  fileDetails.append(titleEl, fileMeta, body);
-
-  const copyBtn = document.createElement('button');
-  copyBtn.className = 'download-btn';
-  copyBtn.textContent = '📋 コピー';
-  copyBtn.addEventListener('click', () => onCopy?.(text));
-
-  const fileActions = document.createElement('div');
-  fileActions.className = 'file-actions';
-  fileActions.appendChild(copyBtn);
-
-  fileInfo.append(fileDetails, fileActions);
-  div.appendChild(fileInfo);
-  return div;
+/** リスト先頭に追加し、空表示を取り除く */
+export function prependItem(list, node) {
+  if (!list || !node) return;
+  list.querySelector('.no-files')?.remove();
+  list.prepend(node);
 }

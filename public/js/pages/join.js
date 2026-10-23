@@ -72,6 +72,7 @@ async function join() {
 
 let autoJoinTimer = null;
 input.addEventListener('input', () => {
+  input.classList.toggle('is-long', /[^\d\s]/.test(input.value));
   updateButtonState();
   clearTimeout(autoJoinTimer);
   const parsed = parseJoinInput(input.value);

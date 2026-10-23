@@ -1,14 +1,16 @@
 import { dbRef, onValue, off } from './firebase.js';
 
-const EMPTY_FILE_MSG = '<div class="no-files">まだファイルがアップロードされていません</div>';
-const EMPTY_URL_MSG = '<div class="no-files">まだURLが共有されていません</div>';
+export const EMPTY_FILE_MSG = '<div class="no-files">まだファイルはありません<small>スマホから送ると、ここに届きます</small></div>';
+export const EMPTY_URL_MSG = '<div class="no-files">リンクやテキストは、ここに届きます</div>';
 
 /**
  * Attach realtime listener to files/{sessionId} and render into containers.
  * @returns {() => void} unsubscribe
  */
 export function attachFilesListener(db, sessionId, opts) {
-  const { filesList, urlsList, createFileItem, createUrlItem, onNewFile, onNewText } = opts;
+  const {
+    filesList, urlsList, createFileItem, createUrlItem, createTextItem, onNewFile, onNewText,
+  } = opts;
   const filesRef = dbRef(db, `files/${sessionId}`);
   const seen = new Set();
 

@@ -2,27 +2,45 @@
 <html lang="ja">
 <head>
   <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <meta name="theme-color" content="#faf9f5" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+  <meta name="theme-color" content="#ebebe7" media="(prefers-color-scheme: light)" />
+  <meta name="theme-color" content="#0b0b0a" media="(prefers-color-scheme: dark)" />
   <link rel="manifest" href="/manifest.webmanifest" />
   <link rel="icon" href="/icons/icon.svg" type="image/svg+xml" />
-  <title>参加コードで参加 - シェアっと</title>
-  <link rel="stylesheet" href="css/design-tokens.css" />
-  <link rel="stylesheet" href="css/sharetto-app.css" />
-  <link rel="stylesheet" href="css/components.css" />
+  <link rel="apple-touch-icon" href="/icons/icon.svg" />
+  <title>参加する — シェアっと</title>
+  <link rel="stylesheet" href="css/app.css" />
 </head>
-<body class="sharetto-app">
-  <div class="page-center">
-    <div class="card page-card">
-      <p class="card__label">Join</p>
-      <h1 class="card__title">参加コード</h1>
-      <p class="page-lead">6桁のコード、または共有URLを入力してセッションに参加します（有効期限10分）。</p>
-      <input id="code" class="url-input join-input" placeholder="例: 123456" maxlength="64" autocomplete="off" inputmode="numeric" />
-      <button id="joinBtn" class="action-button btn--block" disabled>参加する</button>
-      <a href="/" class="page-back">← トップへ戻る</a>
-      <div id="status" class="page-status"></div>
+<body class="app app--join">
+  <main class="join-screen">
+    <div class="join-card">
+      <div class="join-card__brand">
+        <a class="brand" href="/">
+          <img class="brand__mark" src="/icons/icon.svg" alt="" />
+          <span class="brand__name">シェアっと</span>
+        </a>
+      </div>
+      <div class="join-card__head">
+        <h1 class="title title--lg">参加コードを入力</h1>
+        <p class="lead">PCの画面に表示されている6桁の数字です。<br>共有リンクを貼り付けても参加できます。</p>
+      </div>
+      <div>
+        <label for="code" class="sr-only">参加コードまたは共有リンク</label>
+        <input id="code" class="code-input" placeholder="000000" maxlength="512" autocomplete="one-time-code" inputmode="numeric" enterkeyhint="go" />
+      </div>
+      <button id="joinBtn" class="btn btn--primary btn--lg btn--block" disabled>参加する</button>
+      <div id="status" class="page-status" role="status"></div>
+      <ol class="join-steps" aria-label="使い方">
+        <li>PCで<br>開く</li>
+        <li>コードを<br>入力</li>
+        <li>そのまま<br>送る</li>
+      </ol>
+      <a href="/" class="text-link">
+        <svg class="icon icon--sm" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="4" y="5" width="16" height="11" rx="2"/><path d="M2 19h20"/></svg>
+        このデバイスで受け取る側になる
+      </a>
     </div>
-  </div>
+  </main>
   <script type="module" src="./js/pages/join.js"></script>
 </body>
 </html>

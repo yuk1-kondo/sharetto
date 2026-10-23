@@ -20,7 +20,13 @@ import { createP2PGuest, sendFileOverChannel, sendTextOverChannel } from '../web
 import { setConnectionState, subscribeConnectionState, setTransferProgress } from '../connection-state.js';
 import { firebaseConfig } from '../../config.js';
 import { registerServiceWorker } from '../pwa.js';
-import { initConnectionVisual } from '../visual/connection-visual.js';
+import {
+  createFileItem, createUrlItem, createTextItem, createMessageItem, prependItem, isHttpUrl,
+} from '../file-items.js';
+import { extLabel } from '../icons.js';
+import {
+  viewFullImage, closeImageModal, downloadModalImage, downloadFile, copyToClipboard,
+} from '../ui.js';
 import { normalizeImageFile, isHeicFile } from '../heic-convert.js';
 import { announceMobileJoin, clearMobilePresence } from '../relay-presence.js';
 import { attachOutboxListener } from '../relay-outbox.js';
@@ -33,8 +39,13 @@ let sessionId = urlParams.get('session') || null;
 let transferMode = urlParams.get('mode') === 'relay' ? TRANSFER_MODE.RELAY : TRANSFER_MODE.P2P;
 let p2pGuest = null;
 let dataChannel = null;
-let connectionVisual = null;
 let detachOutbox = null;
+
+const itemHandlers = {
+  onDownload: downloadFile,
+  onViewImage: viewFullImage,
+  onCopy: (text) => copyToClipboard(text, 'コピーしました'),
+};
 
 (function warmUpRealtime() {
   try {
@@ -111,37 +122,21 @@ function showMobileReceivePanel() {
   if (panel) panel.hidden = false;
 }
 
-function appendMobileReceivedFile(file, tag = 'PCから') {
+function receiveList() {
   showMobileReceivePanel();
-  const list = document.getElementById('mobileReceiveList');
-  const empty = list?.querySelector('.no-files');
-  if (empty) empty.remove();
-  if (!list) return;
+  return document.getElementById('mobileReceiveList');
+}
 
+function appendMobileReceivedFile(file, tag = '直接') {
   const url = URL.createObjectURL(file.blob);
-  const div = document.createElement('div');
-  div.className = 'file-item';
-  const isImage = file.mimeType?.startsWith('image/');
-  div.innerHTML = `
-    <div class="file-info">
-      <div class="file-details">
-        <div class="file-name">${isImage ? '🖼️' : '📄'} ${file.name} <span class="tag-direct">${tag}</span></div>
-        <div class="file-size">${formatFileSize(file.size)}</div>
-      </div>
-      <div class="file-actions">
-        <a href="${url}" download="${file.name}" class="download-btn">⬇️ 保存</a>
-      </div>
-    </div>`;
-  if (isImage) {
-    const thumb = document.createElement('div');
-    thumb.className = 'file-thumbnail';
-    const img = document.createElement('img');
-    img.src = url;
-    img.alt = file.name;
-    thumb.appendChild(img);
-    div.querySelector('.file-info').prepend(thumb);
-  }
-  list.prepend(div);
+  const el = createFileItem({
+    name: file.name,
+    size: file.size ?? file.blob.size,
+    mimeType: file.mimeType,
+    data: url,
+    timestamp: Date.now(),
+  }, itemHandlers, { tag });
+  prependItem(receiveList(), el);
   showToast(`${file.name} をPCから受信しました`, 'success');
 }
 
@@ -162,55 +157,17 @@ async function appendMobileReceivedRelayFile(item) {
 }
 
 function appendMobileReceivedRelayUrl(item) {
-  showMobileReceivePanel();
-  const list = document.getElementById('mobileReceiveList');
-  const empty = list?.querySelector('.no-files');
-  if (empty) empty.remove();
-  if (!list) return;
-
-  const div = document.createElement('div');
-  div.className = 'file-item';
-  const info = document.createElement('div');
-  info.className = 'file-info';
-  const details = document.createElement('div');
-  details.className = 'file-details';
-  const title = document.createElement('div');
-  title.className = 'file-name';
-  title.innerHTML = `🔗 ${item.name || 'URL'} <span class="tag-direct">サーバー経由</span>`;
-  const linkRow = document.createElement('div');
-  linkRow.className = 'file-size';
-  const link = document.createElement('a');
-  link.href = item.url;
-  link.target = '_blank';
-  link.rel = 'noopener';
-  link.textContent = item.url;
-  linkRow.appendChild(link);
-  details.append(title, linkRow);
-  info.appendChild(details);
-  div.appendChild(info);
-  list.prepend(div);
-  showToast('PCからURLを受信しました', 'success');
+  const el = createUrlItem({ url: item.url, title: item.name, timestamp: item.timestamp }, itemHandlers, { tag: 'サーバー経由' });
+  prependItem(receiveList(), el);
+  showToast('PCからリンクを受信しました', 'success');
 }
 
-function appendMobileReceivedText(text, tag = 'PCから') {
-  showMobileReceivePanel();
-  const list = document.getElementById('mobileReceiveList');
-  const empty = list?.querySelector('.no-files');
-  if (empty) empty.remove();
-  if (!list) return;
-
-  const div = document.createElement('div');
-  div.className = 'file-item';
-  const safe = text.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
-  div.innerHTML = `
-    <div class="file-info">
-      <div class="file-details">
-        <div class="file-name">💬 テキスト <span class="tag-direct">${tag}</span></div>
-        <div class="file-size" style="white-space:pre-wrap;margin-top:6px">${safe}</div>
-      </div>
-    </div>`;
-  list.prepend(div);
-  showToast('PCからテキストを受信しました', 'success');
+function appendMobileReceivedText(text, tag = '直接') {
+  const el = tag === '直接'
+    ? createMessageItem(text, itemHandlers, { tag })
+    : createTextItem({ text, timestamp: Date.now() }, itemHandlers, { tag });
+  prependItem(receiveList(), el);
+  showToast(isHttpUrl(text) ? 'PCからリンクを受信しました' : 'PCからテキストを受信しました', 'success');
 }
 
 /**
@@ -257,14 +214,16 @@ const uploadArea = document.getElementById('upload-area');
 const filePreview = document.getElementById('file-preview');
 const fileName = document.getElementById('file-name');
 const fileSize = document.getElementById('file-size');
+const fileStrip = document.getElementById('file-strip');
 const progressContainer = document.getElementById('progress-container');
 const progressBar = document.getElementById('progress-bar');
 const status = document.getElementById('status');
 
-const urlInput = document.getElementById('url-input');
-const urlShareBtn = document.getElementById('url-share-btn');
+const textInput = document.getElementById('text-input');
+const textSendBtn = document.getElementById('text-send-btn');
 const urlStatus = document.getElementById('url-status');
 const urlPreview = document.getElementById('url-preview');
+const UPLOAD_IDLE_LABEL = 'ファイルを選んでください';
 
 function persistJoinSession() {
   const expires = Date.now() + JOIN_SESSION_DURATION_MS;
@@ -338,7 +297,7 @@ function restoreJoinSession() {
 }
 
 function initTabs() {
-  const tabButtons = document.querySelectorAll('.tab-button');
+  const tabButtons = document.querySelectorAll('.tab-button[data-tab]');
   const tabContents = document.querySelectorAll('.tab-content');
   tabButtons.forEach((button) => {
     button.addEventListener('click', function onTabClick() {
@@ -346,34 +305,75 @@ function initTabs() {
       tabButtons.forEach((btn) => btn.classList.remove('active'));
       tabContents.forEach((content) => content.classList.remove('active'));
       this.classList.add('active');
+      tabButtons.forEach((btn) => btn.setAttribute('aria-selected', String(btn === this)));
       document.getElementById(`${targetTab}-tab`).classList.add('active');
     });
   });
 }
 
+let previewUrls = [];
+
+function clearFileStrip() {
+  previewUrls.forEach((u) => URL.revokeObjectURL(u));
+  previewUrls = [];
+  if (fileStrip) fileStrip.innerHTML = '';
+}
+
+function renderFileStrip(files) {
+  clearFileStrip();
+  if (!fileStrip) return;
+  files.slice(0, 12).forEach((f) => {
+    const chip = document.createElement('div');
+    chip.className = 'file-chip';
+    chip.title = f.name;
+    if (f.type?.startsWith('image/') && !isHeicFile(f)) {
+      const url = URL.createObjectURL(f);
+      previewUrls.push(url);
+      const img = document.createElement('img');
+      img.src = url;
+      img.alt = '';
+      chip.appendChild(img);
+    } else {
+      const ext = document.createElement('span');
+      ext.className = 'item__ext';
+      ext.textContent = extLabel(f.name, f.type || '');
+      chip.appendChild(ext);
+    }
+    fileStrip.appendChild(chip);
+  });
+}
+
+function resetFileSelection() {
+  fileInput.value = '';
+  filePreview.style.display = 'none';
+  clearFileStrip();
+  uploadBtn.disabled = true;
+  uploadBtn.textContent = UPLOAD_IDLE_LABEL;
+}
+
 function handleFileSelect() {
   const list = fileInput.files;
   if (list && list.length > 0) {
-    if (list.length === 1) {
-      fileName.textContent = list[0].name;
-      fileSize.textContent = formatFileSize(list[0].size);
-      if (isHeicFile(list[0])) {
-        fileSize.textContent += ' → 送信時 JPEG に変換';
+    const files = [...list];
+    if (files.length === 1) {
+      fileName.textContent = files[0].name;
+      fileSize.textContent = formatFileSize(files[0].size);
+      if (isHeicFile(files[0])) {
+        fileSize.textContent += ' · JPEGに変換';
       }
     } else {
-      fileName.textContent = `${list.length} 件のファイル`;
-      let total = 0;
-      for (const f of list) total += f.size;
+      fileName.textContent = `${files.length}件のファイル`;
+      const total = files.reduce((sum, f) => sum + f.size, 0);
       fileSize.textContent = `合計 ${formatFileSize(total)}`;
     }
+    renderFileStrip(files);
     filePreview.style.display = 'block';
+    status.textContent = '';
+    status.classList.remove('success', 'error');
     uploadBtn.disabled = false;
-    uploadBtn.classList.add('btn-sticky');
-    uploadBtn.textContent = list.length > 1 ? `${list.length} 件を送信` : 'アップロード';
+    uploadBtn.textContent = files.length > 1 ? `${files.length}件をPCへ送る` : 'PCへ送る';
   } else {
-    uploadBtn.disabled = true;
-    uploadBtn.classList.remove('btn-sticky');
-    uploadBtn.textContent = 'アップロード';
+    resetFileSelection();
   }
 }
 
@@ -423,14 +423,14 @@ async function uploadFile() {
   uploadBtn.disabled = true;
   progressContainer.style.display = 'block';
   progressBar.style.width = '0%';
-  status.textContent = files.length > 1 ? `${files.length} 件を送信中...` : 'ファイルを読み込み中...';
+  status.textContent = files.length > 1 ? `${files.length}件を送信中…` : '送信中…';
   status.classList.remove('success', 'error');
 
   try {
     for (let i = 0; i < files.length; i++) {
       let file = files[i];
       if (isHeicFile(file)) {
-        status.textContent = `${file.name} を JPEG に変換中...`;
+        status.textContent = `${file.name} をJPEGに変換中…`;
         file = await normalizeImageFile(file);
       }
       const base = i / files.length;
@@ -446,23 +446,20 @@ async function uploadFile() {
       }
     }
     progressBar.style.width = '100%';
-    status.textContent = '送信完了！';
+    status.textContent = '送信しました';
     status.classList.add('success');
-    showToast('送信完了！', 'success');
-    fileInput.value = '';
-    filePreview.style.display = 'none';
-    uploadBtn.disabled = true;
-    uploadBtn.classList.remove('btn-sticky');
-    uploadBtn.textContent = 'アップロード';
+    showToast('PCへ送信しました', 'success');
+    resetFileSelection();
     setConnectionState(CONNECTION_STATE.COMPLETE, { detail: '送信完了', progress: 1 });
     setTimeout(() => {
       progressContainer.style.display = 'none';
-      status.textContent = '別のファイルを送信できます';
+      status.textContent = '続けて送れます';
+      status.classList.remove('success');
       setConnectionState(CONNECTION_STATE.CONNECTED, { detail: '追加送信可能', progress: 0 });
     }, 1500);
   } catch (error) {
     console.error('ファイルアップロードエラー:', error);
-    status.textContent = `送信に失敗しました: ${error?.message || 'unknown'}`;
+    status.textContent = `送信できませんでした（${error?.message || 'unknown'}）`;
     status.classList.add('error');
     showToast('送信に失敗しました', 'error');
     uploadBtn.disabled = false;
@@ -470,20 +467,29 @@ async function uploadFile() {
   }
 }
 
-function isValidURL(string) {
-  try {
-    new URL(string);
-    return true;
-  } catch {
-    return false;
+function updateTextComposer() {
+  const value = textInput.value.trim();
+  textSendBtn.disabled = !value;
+  if (value && isHttpUrl(value)) {
+    document.getElementById('url-preview-url').textContent = value;
+    urlPreview.classList.add('show');
+    textSendBtn.textContent = 'リンクをPCへ送る';
+  } else {
+    urlPreview.classList.remove('show');
+    textSendBtn.textContent = value ? 'テキストをPCへ送る' : '送信';
   }
 }
 
-function showUrlPreview(url) {
-  document.getElementById('url-preview-title').textContent = 'URL共有';
-  document.getElementById('url-preview-description').textContent = 'このURLが共有されます';
-  document.getElementById('url-preview-url').textContent = url;
-  urlPreview.classList.add('show');
+function flashStatus(el, text, kind) {
+  el.textContent = text;
+  el.classList.remove('success', 'error');
+  if (kind) el.classList.add(kind);
+  if (kind === 'success') {
+    setTimeout(() => {
+      el.textContent = '';
+      el.classList.remove('success');
+    }, 1800);
+  }
 }
 
 async function shareUrlWithFallback(url) {
@@ -511,49 +517,47 @@ async function shareUrlWithFallback(url) {
   }
 }
 
-async function shareUrl() {
-  const url = urlInput.value.trim();
-  if (!url) return;
-
+/** テキスト欄の内容を、URL ならリンク、それ以外はテキストとして送る */
+async function sendTextOrUrl() {
+  const value = textInput.value.trim();
+  if (!value) return;
   if (!sessionId) {
-    urlStatus.textContent = 'エラー: セッションIDが見つかりません';
-    urlStatus.classList.add('error');
+    flashStatus(urlStatus, 'セッションが見つかりません', 'error');
     showToast('セッションが見つかりません', 'error');
     return;
   }
-
-  urlShareBtn.disabled = true;
-  urlStatus.textContent = 'URL共有中...';
-  urlStatus.classList.remove('success', 'error');
-
+  const asUrl = isHttpUrl(value);
+  textSendBtn.disabled = true;
+  flashStatus(urlStatus, '送信中…');
   try {
     if (isP2PReady()) {
-      sendTextOverChannel(dataChannel, url);
-      urlStatus.textContent = 'URL送信完了！';
+      sendTextOverChannel(dataChannel, value);
+    } else if (asUrl) {
+      await shareUrlWithFallback(value);
     } else {
-      await shareUrlWithFallback(url);
-      urlStatus.textContent = 'URL共有完了！';
+      await putText(db, sessionId, value);
     }
-    urlStatus.classList.add('success');
-    showToast('URLを共有しました', 'success');
-    urlInput.value = '';
-    urlPreview.classList.remove('show');
-    urlShareBtn.disabled = true;
-    urlShareBtn.classList.remove('btn-sticky');
-    setTimeout(() => {
-      urlStatus.textContent = '';
-      urlStatus.classList.remove('success');
-    }, 1500);
+    flashStatus(urlStatus, asUrl ? 'リンクを送信しました' : 'テキストを送信しました', 'success');
+    showToast(asUrl ? 'リンクを送信しました' : 'テキストを送信しました', 'success');
+    textInput.value = '';
+    updateTextComposer();
+    setConnectionState(CONNECTION_STATE.COMPLETE, { detail: '送信完了', progress: 1 });
+    setTimeout(() => setConnectionState(CONNECTION_STATE.CONNECTED, { detail: '続けて送れます', progress: 0 }), 1500);
   } catch (error) {
-    console.error('URL共有エラー:', error);
-    urlStatus.textContent = `URL共有に失敗しました: ${error?.message || 'unknown'}`;
-    urlStatus.classList.add('error');
-    showToast('URL共有に失敗しました', 'error');
-    urlShareBtn.disabled = false;
+    console.error('テキスト送信エラー:', error);
+    flashStatus(urlStatus, `送信できませんでした（${error?.message || 'unknown'}）`, 'error');
+    showToast('送信できませんでした', 'error');
+    textSendBtn.disabled = false;
   }
 }
 
 uploadArea.addEventListener('click', () => fileInput.click());
+uploadArea.addEventListener('keydown', (e) => {
+  if (e.key === 'Enter' || e.key === ' ') {
+    e.preventDefault();
+    fileInput.click();
+  }
+});
 uploadArea.addEventListener('dragover', (e) => { e.preventDefault(); uploadArea.classList.add('dragover'); });
 uploadArea.addEventListener('dragleave', () => uploadArea.classList.remove('dragover'));
 uploadArea.addEventListener('drop', (e) => {
@@ -567,58 +571,35 @@ uploadArea.addEventListener('drop', (e) => {
 fileInput.addEventListener('change', handleFileSelect);
 uploadBtn.addEventListener('click', uploadFile);
 
-urlInput.addEventListener('input', function onUrlInput() {
-  const url = this.value.trim();
-  if (url && isValidURL(url)) {
-    urlShareBtn.disabled = false;
-    urlShareBtn.classList.add('btn-sticky');
-    showUrlPreview(url);
-  } else {
-    urlShareBtn.disabled = true;
-    urlShareBtn.classList.remove('btn-sticky');
-    urlPreview.classList.remove('show');
-  }
-});
-urlShareBtn.addEventListener('click', shareUrl);
+textInput.addEventListener('input', updateTextComposer);
+textSendBtn.addEventListener('click', sendTextOrUrl);
 
 document.getElementById('authInput')?.addEventListener('keypress', (e) => {
   if (e.key === 'Enter') submitJoinCode();
 });
+document.getElementById('authInput')?.addEventListener('input', (e) => {
+  e.target.classList.toggle('is-long', /[^\d\s]/.test(e.target.value));
+});
 
 document.addEventListener('DOMContentLoaded', async () => {
-  document.body.classList.add('sharetto-app');
   initTabs();
   subscribeConnectionState(updateMobileConnectionUI);
-  connectionVisual = await initConnectionVisual(document.getElementById('connection-visual-mobile'));
   if (restoreJoinSession()) {
     await bootstrapSession();
   } else {
     document.getElementById('authInput')?.focus();
   }
   document.getElementById('fallbackRelayBtn')?.addEventListener('click', () => switchToRelayMode());
-  document.getElementById('text-send-btn')?.addEventListener('click', async () => {
-    const text = document.getElementById('text-input')?.value?.trim();
-    if (!text || !sessionId) return;
-    if (isP2PReady()) {
-      sendTextOverChannel(dataChannel, text);
-      showToast('テキストを送信しました', 'success');
-    } else {
-      await putText(db, sessionId, text);
-      showToast('テキストを送信しました（サーバー経由）', 'success');
-    }
-    document.getElementById('text-input').value = '';
-    setConnectionState(CONNECTION_STATE.COMPLETE, { detail: 'テキスト送信完了', progress: 1 });
-    setTimeout(() => setConnectionState(CONNECTION_STATE.CONNECTED, { detail: '追加送信可能', progress: 0 }), 1500);
-  });
 });
 
 registerServiceWorker();
 
 window.addEventListener('beforeunload', () => {
-  connectionVisual?.destroy();
   detachOutbox?.();
   if (sessionId) clearMobilePresence(db, sessionId).catch(() => {});
 });
 
 window.submitJoinCode = submitJoinCode;
 window.switchToRelayMode = switchToRelayMode;
+window.closeImageModal = closeImageModal;
+window.downloadModalImage = downloadModalImage;
