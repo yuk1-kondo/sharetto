@@ -3,7 +3,7 @@ version: 3.0
 name: Sharetto-Instrument-design-system
 description: >-
   シェアっと — Apple のシステム感 × Teenage Engineering の計器感。
-  アルミ地・黒インク・シグナルオレンジ1色。3D なし・軽量。画面はライトのみ。
+  ライトのみ。操作部はリキッドグラス。QR と送信の吹き出しは塗りつぶす。
 theme: instrument
 ---
 
