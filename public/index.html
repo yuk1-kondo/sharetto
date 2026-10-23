@@ -52,35 +52,30 @@
         <svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12h13"/><path d="m13 6 6 6-6 6"/></svg>
       </a>
 
+      <div class="pair-stage__head">
+        <h1 class="title title--lg" id="pairTitle">カメラで読み取る</h1>
+        <p class="lead">スマホのカメラを向けると、このPCとつながります。</p>
+      </div>
+
       <div class="pair-stage__qr">
         <div id="qrcode" class="qr-display"></div>
       </div>
 
       <div class="pair-stage__info">
-        <div class="pair-stage__head">
-          <h1 class="title title--xl" id="pairTitle">カメラで<wbr>読み取るだけ。</h1>
-          <p class="lead">スマホのカメラをQRコードに向けると、このPCとつながります。アプリは不要です。</p>
-        </div>
-
-        <div class="display code-display">
-          <div>
-            <p class="display__label">Join code</p>
-            <p id="joinCode" class="display__value" aria-live="polite">--- ---</p>
-          </div>
-          <div class="code-display__side">
+        <div class="code-display">
+          <p class="code-display__label">参加コード</p>
+          <p id="joinCode" class="code-display__value" aria-live="polite">--- ---</p>
+          <div class="code-display__meta">
             <div id="sessionTimer" class="session-timer" style="display:none" title="この参加コードの有効期限">
               <div class="timer-text"><span id="timerDisplay">10:00</span></div>
             </div>
             <button id="copyJoinCodeBtn" type="button" class="code-display__copy" aria-label="参加コードをコピー" title="コピー" disabled>
-              <svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="9" y="9" width="11" height="11" rx="2.5"/><path d="M5 15V6.5A2.5 2.5 0 0 1 7.5 4H15"/></svg>
+              <svg class="icon icon--sm" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="9" y="9" width="11" height="11" rx="2.5"/><path d="M5 15V6.5A2.5 2.5 0 0 1 7.5 4H15"/></svg>
             </button>
           </div>
         </div>
 
-        <ul class="pair-ways">
-          <li><span class="pair-ways__key">Phone</span><span>カメラで読み取る、または <b id="joinHost">sharetto.web.app/join.html</b> でコードを入力</span></li>
-          <li><span class="pair-ways__key">PC</span><span>相手のPCでこのサイトを開き、<b>数字をそのままキーボードで入力</b></span></li>
-        </ul>
+        <p class="pair-note">ほかのPCでは、この数字をキーボードで入力します。<br>スマホは <b id="joinHost">sharetto.web.app/join.html</b> からも参加できます。</p>
 
         <div class="pair-stage__actions">
           <button type="button" onclick="copyQRUrl()" class="btn btn--ghost btn--sm">
@@ -116,18 +111,7 @@
         </details>
       </div>
 
-      <div class="pair-stage__wait" aria-hidden="true">
-        <span class="link">
-          <span class="link__node">
-            <svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="5" width="16" height="11" rx="2"/><path d="M2 19h20"/></svg>
-          </span>
-          <span class="link__wire"></span>
-          <span class="link__node link__node--remote">
-            <svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><rect x="7" y="2.5" width="10" height="19" rx="2.5"/><path d="M11 18.5h2"/></svg>
-          </span>
-        </span>
-        <span class="pair-stage__wait-text">つながると、自動でやりとりの画面に切り替わります</span>
-      </div>
+      <p class="pair-stage__wait">つながると、やりとりの画面に切り替わります</p>
     </div>
     <footer class="footer">
       <span>Sharetto — device to device</span>
@@ -139,7 +123,6 @@
   <main id="mainContent" class="session">
     <div id="timeline" class="timeline" data-empty="true" aria-live="polite">
       <div class="timeline__empty">
-        <span class="timeline__badge"><span class="led"></span>Linked</span>
         <h2 class="title title--lg">つながりました</h2>
         <p class="lead">ここに、送ったもの・届いたものが順番に並びます。</p>
         <ul class="timeline__tips">
