@@ -1,4 +1,4 @@
-const CACHE = 'sharetto-v7';
+const CACHE = 'sharetto-v8';
 const PRECACHE = [
   '/',
   '/index.html',

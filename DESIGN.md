@@ -33,9 +33,10 @@ theme: instrument
 
 ## 3. タイポグラフィ
 
-- 本文: `-apple-system, "SF Pro Text", "Hiragino Sans", "Noto Sans JP", "Segoe UI", system-ui`
+- 本文: `-apple-system, "SF Pro Text", Inter, "Hiragino Sans", "Noto Sans CJK JP"`。丸ゴシックは使わない
+- 太さは本文 400、見出しとボタンは 600、参加コードの数字は 500。極太にしない
 - 数字・ラベル: `ui-monospace, "SF Mono", "JetBrains Mono", Menlo`（`.eyebrow` は 11px 大文字・字間 0.12em）
-- 見出し 22px/700、大見出し 26–34px、本文 15px、補助 12–13px
+- 見出し 22px、大見出し 26–32px、本文 15px、補助 12–13px
 
 ## 4. コンポーネント
 
