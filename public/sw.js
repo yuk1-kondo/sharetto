@@ -1,4 +1,4 @@
-const CACHE = 'sharetto-v3';
+const CACHE = 'sharetto-v8';
 const PRECACHE = [
   '/',
   '/index.html',
@@ -6,6 +6,7 @@ const PRECACHE = [
   '/join.html',
   '/manifest.webmanifest',
   '/icons/icon.svg',
+  '/css/app.css',
 ];
 
 self.addEventListener('install', (event) => {

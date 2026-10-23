@@ -2,126 +2,118 @@
 <html lang="ja">
 <head>
   <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <meta name="theme-color" content="#faf9f5">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover, interactive-widget=resizes-content">
+  <meta name="theme-color" content="#ebebe7" media="(prefers-color-scheme: light)">
+  <meta name="theme-color" content="#0b0b0a" media="(prefers-color-scheme: dark)">
   <link rel="manifest" href="/manifest.webmanifest">
   <link rel="icon" href="/icons/icon.svg" type="image/svg+xml">
-  <title>送信 - シェアっと</title>
+  <link rel="apple-touch-icon" href="/icons/icon.svg">
+  <title>送る — シェアっと</title>
   <script>
     (function () {
       var sid = new URLSearchParams(location.search).get('session');
       if (sid && sid.length >= 6) document.documentElement.classList.add('qr-session');
     })();
   </script>
-  <link rel="stylesheet" href="css/design-tokens.css">
-  <link rel="stylesheet" href="css/sharetto-app.css">
-  <link rel="stylesheet" href="css/components.css">
+  <link rel="stylesheet" href="css/app.css">
 </head>
-<body class="sharetto-app">
-  <!-- 認証オーバーレイ -->
+<body class="app app--guest" data-connection-state="idle" data-view="session">
   <div id="authOverlay" class="auth-overlay">
-    <div class="auth-container">
-      <h2 class="auth-title">シェアっと</h2>
-      <p class="auth-subtitle">6桁の参加コードを入力してください</p>
-      <input type="text" inputmode="numeric" id="authInput" class="auth-input join-input" placeholder="例: 123456" maxlength="64" autocomplete="off" />
-      <a href="/join.html" class="auth-button btn--ghost btn--block">参加専用ページへ</a>
-      <button type="button" onclick="submitJoinCode()" class="auth-button btn--block">参加する</button>
-      <div id="authError" class="auth-error">参加コードが正しくありません</div>
-      <div class="auth-info">QRコードからアクセスした場合は自動認証されます</div>
+    <div class="join-screen">
+      <div class="join-card">
+        <div class="join-card__brand">
+          <span class="brand">
+            <img class="brand__mark" src="/icons/icon.svg" alt="">
+            <span class="brand__name">シェアっと</span>
+          </span>
+        </div>
+        <div class="join-card__head">
+          <h1 class="title title--lg">参加コードを入力</h1>
+          <p class="lead">PCの画面に表示されている6桁の数字です</p>
+        </div>
+        <div>
+          <label for="authInput" class="sr-only">参加コード</label>
+          <input type="text" inputmode="numeric" id="authInput" class="code-input" placeholder="000000" maxlength="64" autocomplete="one-time-code" enterkeyhint="go">
+        </div>
+        <button type="button" onclick="submitJoinCode()" class="btn btn--primary btn--lg btn--block">参加する</button>
+        <div id="authError" class="auth-error" role="alert">参加コードが正しくありません</div>
+        <p class="muted" style="text-align:center">QRコードから開いた場合は入力不要です</p>
+      </div>
     </div>
   </div>
 
-  <div id="mainContent" class="mobile-shell">
-    <div class="mobile-status-bar">
-      <div class="connection-panel">
+  <header class="topbar">
+    <div class="topbar__inner">
+      <span class="brand">
+        <img class="brand__mark" src="/icons/icon.svg" alt="">
+        <span class="brand__name">シェアっと</span>
+      </span>
+      <span class="status-pill" aria-live="polite">
+        <span class="led"></span>
         <span id="mobileConnectionBadge" class="connection-badge" data-state="idle">準備中</span>
-        <span id="mobileConnectionDetail" class="connection-detail"></span>
-      </div>
-      <div id="connection-visual-mobile" class="connection-visual connection-visual--compact" aria-hidden="true"></div>
-      <button type="button" id="fallbackRelayBtn" class="btn btn-primary btn--block" hidden>サーバー経由に切り替え</button>
-      <a href="/">← PC画面へ戻る</a>
+        <span id="mobileConnectionDetail" class="status-pill__detail">PCとの接続を準備しています</span>
+      </span>
+      <span class="topbar__spacer"></span>
+      <button type="button" id="fallbackRelayBtn" class="btn btn--ghost btn--sm" hidden>サーバー経由にする</button>
     </div>
+  </header>
 
-    <header class="mobile-page-header">
-      <h1>送信</h1>
-      <p>写真・動画・ファイルをPCへ送る</p>
-    </header>
-
-    <div class="panel-card">
-      <!-- タブ切り替え -->
-      <div class="tab-container">
-        <button class="tab-button active" data-tab="file">📁 ファイル</button>
-        <button class="tab-button" data-tab="url">🔗 URL</button>
-        <button class="tab-button" data-tab="text">💬 テキスト</button>
+  <main id="mainContent" class="session">
+    <div id="timeline" class="timeline" data-empty="true" aria-live="polite">
+      <div class="timeline__empty">
+        <h2 class="title title--lg">つながりました</h2>
+        <p class="lead">下の ＋ から写真やファイルを送れます。<br>テキストやリンクは、その横の欄から。</p>
+        <ul class="timeline__tips desktop-only">
+          <li><b>ウィンドウへドロップ</b> でファイルを送信</li>
+          <li><kbd data-mod-key>⌘</kbd> <kbd>V</kbd> で画像やテキストを貼り付けて送信</li>
+          <li><kbd>Enter</kbd> で送信（<kbd>Shift</kbd>+<kbd>Enter</kbd> で改行）</li>
+        </ul>
+        <p class="timeline__credit">1ファイル50MBまで · Develop by Yuki Kondo</p>
       </div>
+      <div class="timeline__list" id="mobileReceiveList"></div>
+    </div>
+  </main>
 
-      <!-- ファイルアップロードタブ -->
-      <div class="tab-content active" id="file-tab">
-        <div class="upload-area" id="upload-area">
-          <div class="upload-icon">+</div>
-          <p>タップしてファイルを選択<br>または<br>ファイルをドラッグ＆ドロップ</p>
-          <input type="file" id="file-input" class="file-input" accept="image/*,video/*,*/*" multiple>
+  <div class="composer-bar" data-ready="true">
+    <div class="composer-bar__inner">
+      <div class="composer-bar__row">
+        <button id="attachBtn" type="button" class="composer-key" aria-label="写真・ファイルを送る" title="写真・ファイルを送る">
+          <svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 5v14"/><path d="M5 12h14"/></svg>
+        </button>
+        <input type="file" id="file-input" hidden accept="image/*,video/*,*/*" multiple>
+        <div class="composer-field">
+          <label for="text-input" class="sr-only">相手へ送るテキストまたはURL</label>
+          <textarea id="text-input" rows="1" placeholder="テキストやリンクを送る" enterkeyhint="send"></textarea>
+          <span id="textDetect" class="composer-field__detect" hidden>リンク</span>
         </div>
-        
-        <div class="file-preview" id="file-preview">
-          <div class="file-name" id="file-name"></div>
-          <div class="file-size" id="file-size"></div>
-        </div>
-        
-        <div class="progress-container" id="progress-container">
-          <div class="progress-bar">
-            <div class="progress-fill" id="progress-bar"></div>
-          </div>
-        </div>
-        
-        <button class="btn btn-primary btn-sticky" id="upload-btn" disabled>アップロード</button>
-        
-        <div class="status" id="status"></div>
-      </div>
-      
-      <!-- URL共有タブ -->
-      <div class="tab-content" id="url-tab">
-        <div class="url-input-container">
-          <input 
-            type="url" 
-            id="url-input" 
-            class="url-input" 
-            placeholder="https://example.com のようにURLを入力してください"
-          >
-          
-          <div class="url-preview" id="url-preview">
-            <div class="url-preview-title" id="url-preview-title"></div>
-            <div class="url-preview-description" id="url-preview-description"></div>
-            <div class="url-preview-url" id="url-preview-url"></div>
-          </div>
-        </div>
-        
-        <div class="progress-container" id="url-progress-container">
-          <div class="progress-bar">
-            <div class="progress-fill" id="url-progress-bar"></div>
-          </div>
-        </div>
-        
-        <button class="btn btn-primary btn-sticky" id="url-share-btn" disabled>URLを共有</button>
-        
-        <div class="status" id="url-status"></div>
-      </div>
-
-      <!-- テキスト送信タブ（直接接続時） -->
-      <div class="tab-content" id="text-tab">
-        <textarea id="text-input" class="url-input" rows="4" placeholder="送りたいテキストを入力"></textarea>
-        <button class="btn btn-primary btn-sticky" id="text-send-btn">テキストを送信</button>
+        <button id="text-send-btn" type="button" class="send-key" aria-label="送信" title="送信" disabled>
+          <svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 19V5"/><path d="m6 11 6-6 6 6"/></svg>
+        </button>
       </div>
     </div>
+  </div>
 
-    <div class="panel-card card" id="mobileReceivePanel" hidden>
-      <h3 class="card__title">PCから受信</h3>
-      <div id="mobileReceiveList" class="files-list">
-        <div class="no-files">PCから届いたファイル・テキストがここに表示されます</div>
+  <div id="dropOverlay" class="drop-overlay" aria-hidden="true">
+    <div class="drop-overlay__inner">
+      <svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 4v11"/><path d="m7 10 5 5 5-5"/><path d="M5 20h14"/></svg>
+      <p>ドロップして相手へ送信</p>
+    </div>
+  </div>
+
+  <div id="imageModal" class="image-modal" role="dialog" aria-modal="true" aria-labelledby="modalTitle">
+    <div class="modal-content">
+      <div class="modal-header">
+        <div class="modal-title" id="modalTitle">画像プレビュー</div>
+      </div>
+      <button class="icon-btn close-btn" type="button" onclick="closeImageModal()" aria-label="閉じる">
+        <svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 6l12 12"/><path d="M18 6 6 18"/></svg>
+      </button>
+      <img id="modalImage" class="modal-image" src="data:," alt="">
+      <div class="modal-actions">
+        <button class="btn btn--ghost" type="button" onclick="closeImageModal()">閉じる</button>
+        <button class="btn btn--primary" type="button" onclick="downloadModalImage()">保存</button>
       </div>
     </div>
-
-    <footer class="app-footer">シェアっと · Develop by YUKI KONDO</footer>
   </div>
 
   <script type="module" src="./js/pages/mobile-upload.js"></script>

@@ -4,28 +4,23 @@
  * @param {string} url
  */
 export function renderQRCode(element, url) {
-  element.innerHTML = '<div style="color: var(--md-on-surface-variant); text-align: center; padding: 40px;">QRコード生成中...</div>';
+  element.innerHTML = '<p class="qr-placeholder">QRコードを生成中…</p>';
 
   try {
     const qr = qrcode(0, 'M');
     qr.addData(url);
     qr.make();
 
-    const qrContainer = document.createElement('div');
-    qrContainer.style.cssText = `
-      background: white;
-      padding: 20px;
-      border-radius: 20px;
-      box-shadow: 0 12px 48px rgba(0, 0, 0, 0.15), 0 6px 24px rgba(0, 0, 0, 0.1);
-      display: inline-block;
-    `;
-    qrContainer.innerHTML = qr.createSvgTag(4, 4);
+    const tile = document.createElement('div');
+    tile.className = 'qr-tile';
+    tile.innerHTML = qr.createSvgTag({ cellSize: 4, margin: 0, scalable: true });
+    tile.querySelector('svg')?.setAttribute('aria-label', '参加用QRコード');
 
     element.innerHTML = '';
-    element.appendChild(qrContainer);
+    element.appendChild(tile);
   } catch (error) {
     console.error('QRコード生成エラー:', error);
-    element.innerHTML = '<p style="color: #ef4444; text-align: center; padding: 40px;">QRコードの生成に失敗しました</p>';
+    element.innerHTML = '<p class="qr-placeholder">QRコードを生成できませんでした</p>';
     throw error;
   }
 }

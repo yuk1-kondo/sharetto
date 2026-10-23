@@ -1,49 +1,74 @@
 ---
-version: 2.0
-name: Sharetto-Claude-design-system
+version: 3.0
+name: Sharetto-Instrument-design-system
 description: >-
-  シェアっと — Anthropic / Claude 公式風ベージュ基調。3D なし・フラット・可読性優先。
-theme: claude-warm
-sources:
-  - https://github.com/VoltAgent/awesome-design-md (claude)
+  シェアっと — Apple のシステム感 × Teenage Engineering の計器感。
+  アルミ地・黒インク・シグナルオレンジ1色。3D なし・軽量・ライト/ダーク両対応。
+theme: instrument
 ---
 
 # Sharetto DESIGN.md
 
-## 1. Visual Theme & Atmosphere
+## 1. コンセプト
 
-- **ムード**: 温かいクリーム地、編集的で人間的（Claude 公式サイト準拠）
-- **密度**: ゆったり — カード間 16–24px、十分な余白
-- **哲学**: **3D なし**。機能第一、フラット 2 カラム
+- **計器のように一目でわかる**: 状態は LED・リンク表示（PC ··· スマホ）・モノスペース表示で伝える
+- **1画面1目的**: PC＝「つなぐ・受け取る・送る」、スマホ＝「選ぶ・送る」
+- **装飾より余白**: カードは影1段、色はオレンジ1色のみをアクセントに使う
+- **3D・外部フォントなし**: システムフォントと CSS だけで描画（初回表示を速く）
 
-## 2. Color Palette
+## 2. カラー（`css/app.css` の `:root`）
 
-| トークン | Hex | 役割 |
-|---------|-----|------|
-| `canvas` | `#faf9f5` | ページ背景 |
-| `surface` | `#ffffff` | カード |
-| `canvas-soft` | `#f5f0e8` | ステータスバー・QR枠内 |
-| `ink` | `#141413` | 見出し |
-| `body` | `#3d3d3a` | 本文 |
-| `muted` | `#6c6a64` | 補助テキスト |
-| `hairline` | `#e6dfd8` | ボーダー |
-| `primary` | `#cc785c` | CTA（テラコッタ） |
-| `primary-active` | `#a9583e` | hover |
+| トークン | Light | Dark | 役割 |
+|---------|-------|------|------|
+| `--bg` | `#ebebe7` | `#0b0b0a` | アルミ地（ドットグリッド付き） |
+| `--surface` | `#ffffff` | `#171716` | パネル |
+| `--surface-2` | `#f5f5f2` | `#1f1f1d` | 入力・リスト行 |
+| `--ink` | `#0f0f0e` | `#f2f2ee` | 文字・primary ボタン |
+| `--ink-2` / `--ink-3` | `#55554f` / `#8b8b84` | `#a8a8a1` / `#6f6f69` | 本文補助 / ラベル |
+| `--accent` | `#ff5b14` | 同左 | 送信キー・番号・転送中 |
+| `--display` | `#121211` | `#000000` | 参加コード等の OLED 表示 |
+| `--ok` / `--warn` / `--err` | `#22a652` / `#f2a516` / `#e5483d` | 同左 | LED |
 
-## 3. Typography
+オレンジ地の文字は黒（`--accent-ink`）でコントラストを確保する。
 
-- **Display**: Lora（serif）— 見出し
-- **Body**: Inter — UI 全体
-- **Mono**: JetBrains Mono — 参加コード
+## 3. タイポグラフィ
 
-## 4–8. Components / Layout
+- 本文: `-apple-system, "SF Pro Text", Inter, "Hiragino Sans", "Noto Sans CJK JP"`。丸ゴシックは使わない
+- 太さは本文 400、見出しとボタンは 600、参加コードの数字は 500。極太にしない
+- 数字・ラベル: `ui-monospace, "SF Mono", "JetBrains Mono", Menlo`（`.eyebrow` は 11px 大文字・字間 0.12em）
+- 見出し 22px、大見出し 26–32px、本文 15px、補助 12–13px
 
-- CSS: `design-tokens.css` + `sharetto-app.css`
-- レイアウト: ヘッダー + ステータス + 左 360px（接続）/ 右（受信）
-- ボタン: 40px 高、primary は coral、secondary は ghost
+## 4. コンポーネント
 
-## 9. Agent Prompt
+| クラス | 用途 |
+|-------|------|
+| `.btn` (`--primary` / `--accent` / `--ghost` / `--quiet`) | ピル型ボタン。最小 36–44px |
+| `.segmented` + `.tab-button` | Apple 風セグメント切替（転送方式） |
+| `.code-display` | 白いグループの中の大きな参加コード |
+| `.link` | PC ··· スマホ のリンク表示。`body[data-connection-state]` で色・動きが変わる |
+| `.led` / `.status-pill` | 上部バーの状態表示（待機=点滅グレー、接続中=点滅アンバー、接続=緑、転送=オレンジ、失敗=赤） |
+| `.pair-stage` | ペアリング画面（大きな QR・参加コード・接続方法） |
+| `.timeline` / `.msg--in` / `.msg--out` | 送受信を時系列で並べる吹き出し。受信=白・左、送信=黒・右 |
+| `.item` | 吹き出しの中身（画像は大きくプレビュー、ファイルは拡張子タイル、テキストは本文のみ） |
+| `.msg__progress` / `.is-failed` | 送信中の進捗バー／送信失敗の表示（吹き出しごと） |
+| `.composer-bar` / `.composer-key` / `.send-key` | 下部固定の入力バー（＋・自動で伸びる入力欄・送信キー） |
+| `.code-input` | 参加コードの入力欄。大きな数字、中央揃え |
+
+## 5. レイアウト（画面は2つの状態だけ）
+
+`body[data-view]` で切り替える。
+
+- **pair（未接続）**: 画面中央の 1 列。短い見出し、白い台の QR、白いグループの中の大きな参加コード。背景に模様は置かない
+- **session（接続後）**: 画面全体が1本のタイムライン（最大 820px 幅）＋下部固定の入力バー。PC 側（index.html）も送信側（upload.html）も同じ構成
+  - PC 側は上部バーの「QRを表示」で、ペアリング画面をシートとして重ねられる（Esc / × で閉じる）
+  - 接続が切れても履歴があれば session のまま。入力バーをロックし「QRを表示して再接続」を出す。何もやりとりしていなければ pair に戻る
+- **送る操作**: ＋で選んだ瞬間に送信（選択→確認→送信の段階をなくした）。ドロップ・⌘/Ctrl+V も同じ。テキストは PC なら Enter 送信／Shift+Enter 改行、タッチ端末は送信キー
+- **参加（join.html / 認証画面）**: 中央1カラム、OLED 風コード入力
+
+## 6. ルール
 
 ```
-DESIGN.md と sharetto-app.css に従う。ベージュ基調・3D 禁止・DOM id 維持。
+css/app.css のトークンとコンポーネントだけを使う。新しい色を足さない。
+新しい画面要素は timeline.js / composer.js / file-items.js を通す。
+ユーザー由来の文字列は textContent で挿入する（file-items.js 参照）。
 ```

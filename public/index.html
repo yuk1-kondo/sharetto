@@ -2,138 +2,203 @@
 <html lang="ja">
 <head>
   <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <meta name="theme-color" content="#faf9f5">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover, interactive-widget=resizes-content">
+  <meta name="theme-color" content="#ebebe7" media="(prefers-color-scheme: light)">
+  <meta name="theme-color" content="#0b0b0a" media="(prefers-color-scheme: dark)">
   <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="description" content="QRコードを読み取るだけで、スマホとPCのあいだでファイル・URL・テキストを直接やりとり。">
   <link rel="manifest" href="/manifest.webmanifest">
   <link rel="icon" href="/icons/icon.svg" type="image/svg+xml">
-  <title>シェアっと - ファイル共有</title>
-  <link rel="stylesheet" href="css/design-tokens.css">
-  <link rel="stylesheet" href="css/sharetto-app.css">
-  <link rel="stylesheet" href="css/components.css">
+  <link rel="apple-touch-icon" href="/icons/icon.svg">
+  <title>シェアっと — スマホとPCをすぐつなぐ</title>
+  <link rel="stylesheet" href="css/app.css">
 </head>
-<body class="sharetto-app" data-connection-state="idle">
-  <div id="mainContent" class="app">
-    <header class="app-header">
-      <div class="app-header__inner">
-        <div class="app-header__row">
-          <div class="app-brand">
-            <h1>シェアっと</h1>
-            <p>スマホからPCへ、すぐ転送</p>
-          </div>
-          <a href="/join.html" class="btn btn--ghost btn--sm">参加</a>
-        </div>
-        <div class="status-panel">
-          <p class="status-panel__title">接続状態</p>
-          <div class="status-panel__row">
-            <span id="connectionBadge" class="connection-badge" data-state="idle">準備中</span>
-            <span id="connectionDetail" class="connection-detail"></span>
-            <div id="sessionTimer" class="session-timer" style="display:none">
-              <div class="timer-text">
-                <span class="timer-icon">⏰</span>
-                <span id="timerDisplay">10:00</span>
-              </div>
-              <span class="timer-detail">10分後に自動削除</span>
-            </div>
-          </div>
-          <div id="connection-visual" class="connection-visual" aria-hidden="true"></div>
-          <div class="connection-progress-track"><div id="connectionProgress" class="connection-progress-bar" hidden></div></div>
-        </div>
+<body class="app app--host" data-connection-state="idle" data-view="pair">
+  <header class="topbar">
+    <div class="topbar__inner">
+      <a class="brand" href="/" aria-label="シェアっと ホーム">
+        <img class="brand__mark" src="/icons/icon.svg" alt="">
+        <span class="brand__name">シェアっと</span>
+      </a>
+      <span class="status-pill" aria-live="polite">
+        <span class="led"></span>
+        <span id="connectionBadge" class="connection-badge" data-state="idle">準備中</span>
+        <span id="connectionDetail" class="status-pill__detail"></span>
+      </span>
+      <span class="topbar__spacer"></span>
+      <button id="downloadZipBtn" type="button" class="btn btn--ghost btn--sm session-only" disabled>ZIPで保存</button>
+      <button id="showPairBtn" type="button" class="btn btn--ghost btn--sm session-only" title="QRと参加コードを表示">
+        <svg class="icon icon--sm" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3.5" y="3.5" width="7" height="7" rx="1.5"/><rect x="13.5" y="3.5" width="7" height="7" rx="1.5"/><rect x="3.5" y="13.5" width="7" height="7" rx="1.5"/><path d="M14 14h2.5v2.5H14zM18 18h2.5v2.5H18zM18 14h2.5M14 18v2.5"/></svg>
+        <span class="topbar__hide-sm">QRを表示</span>
+      </button>
+      <button type="button" id="openJoinDialogBtn" class="btn btn--primary btn--sm" title="ほかのPCのコードを入力して、そのPCへ送る">
+        <svg class="icon icon--sm" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12h13"/><path d="m13 6 6 6-6 6"/></svg>
+        <span class="topbar__hide-sm">コードで接続</span>
+      </button>
+    </div>
+    <div class="topbar__progress"><div id="connectionProgress" class="connection-progress-bar" hidden></div></div>
+  </header>
+
+  <!-- ペアリング：未接続のあいだは画面全体、接続後は「QRを表示」でシートとして開く -->
+  <section id="pairStage" class="pair-stage" aria-labelledby="pairTitle">
+    <div class="pair-stage__inner">
+      <button id="closePairBtn" type="button" class="icon-btn pair-stage__close" aria-label="閉じる" title="閉じる">
+        <svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 6l12 12"/><path d="M18 6 6 18"/></svg>
+      </button>
+
+      <a class="role-banner" href="/join.html">
+        <svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="7" y="2.5" width="10" height="19" rx="2.5"/><path d="M11 18.5h2"/></svg>
+        <span class="role-banner__text">このスマホから送りますか？<small>PCに表示されたコードを入力して参加</small></span>
+        <svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12h13"/><path d="m13 6 6 6-6 6"/></svg>
+      </a>
+
+      <div class="pair-stage__head">
+        <h1 class="title title--lg" id="pairTitle">カメラで読み取る</h1>
+        <p class="lead">スマホのカメラを向けると、このPCとつながります。</p>
       </div>
-    </header>
 
-    <main class="app-main">
-      <aside class="app-sidebar">
-        <div class="card">
-          <p class="card__label">Transfer Mode</p>
-          <div class="mode-tabs transfer-mode-tabs">
-            <button type="button" class="tab-button active" data-transfer-mode="p2p">直接接続</button>
-            <button type="button" class="tab-button" data-transfer-mode="relay">サーバー経由</button>
-          </div>
-          <p id="relayModeNote" class="mode-hint" hidden>サーバー経由は確実ですが速度は遅め。NAT越えできない場合のフォールバックにも使えます。</p>
-
-          <p class="card__title">スマホを接続</p>
-          <div class="qr-frame">
-            <div id="qrcode" class="qr-display"></div>
-          </div>
-
-          <div class="join-block join-code-display">
-            <div class="join-block__label join-code-display__label">参加コード</div>
-            <div id="joinCode" class="join-code-display__code">------</div>
-          </div>
-          <div class="btn-row" style="margin-bottom:12px">
-            <button id="copyJoinCodeBtn" type="button" class="action-button btn--sm" disabled>コードをコピー</button>
-          </div>
-
-          <p class="qr-url" id="qrUrl"></p>
-          <div class="btn-row">
-            <button type="button" onclick="copyQRUrl()" class="action-button btn--ghost btn--sm">URLコピー</button>
-            <button type="button" onclick="shareToPhone()" class="action-button btn--ghost btn--sm">スマホに送る</button>
-          </div>
-          <div class="btn-row" style="margin-top:8px">
-            <button type="button" onclick="generateNewSession()" class="action-button btn--block">新しいQRを発行</button>
-          </div>
-        </div>
-      </aside>
-
-      <section class="app-content">
-        <div class="card" id="pcSendPanel" hidden>
-          <p class="card__label">Send to Phone</p>
-          <p id="pcSendHint" class="mode-hint" style="margin-bottom:12px">接続中 — PCからスマホへ送信</p>
-          <textarea id="pcTextSend" class="url-input" rows="2" placeholder="テキストを入力" style="margin-bottom:12px"></textarea>
-          <input type="url" id="pcUrlSend" class="url-input" placeholder="https://example.com" style="margin-bottom:12px">
-          <div class="btn-row">
-            <button id="pcTextSendBtn" type="button" class="action-button">テキスト送信</button>
-            <button id="pcUrlSendBtn" type="button" class="action-button btn--ghost">URL送信</button>
-            <button id="pcFileSendBtn" type="button" class="action-button btn--ghost">ファイル送信</button>
-            <input type="file" id="pcFileSend" hidden accept="image/*,video/*,*/*">
-          </div>
-        </div>
-
-        <div class="card">
-          <div class="toolbar">
-            <h3>受信ファイル</h3>
-            <div class="toolbar__actions">
-              <button id="downloadZipBtn" type="button" onclick="downloadZip()" class="action-button btn--ghost" disabled>ZIP</button>
-              <button type="button" onclick="refreshFiles()" class="action-button btn--ghost">更新</button>
-            </div>
-          </div>
-          <div id="filesList" class="files-list">
-            <div class="no-files">まだファイルがありません<br><small>QRを読み取るとここに表示されます</small></div>
-          </div>
-        </div>
-
-        <div class="card">
-          <div class="toolbar">
-            <h3>URL・テキスト</h3>
-            <button type="button" onclick="refreshFiles()" class="action-button btn--ghost">更新</button>
-          </div>
-          <div id="urlsList" class="files-list">
-            <div class="no-files">URLやテキストはここに表示されます</div>
-          </div>
-        </div>
-      </section>
-    </main>
-
-    <footer class="app-footer">シェアっと · Develop by YUKI KONDO</footer>
-  </div>
-
-  <!-- 画像プレビューモーダル -->
-  <div id="imageModal" class="image-modal">
-    <div class="modal-content">
-      <button class="close-btn" onclick="closeImageModal()">×</button>
-      <div class="modal-header">
-        <div class="modal-title" id="modalTitle">画像プレビュー</div>
+      <div class="pair-stage__qr">
+        <div id="qrcode" class="qr-display"></div>
       </div>
-      <img id="modalImage" class="modal-image" src="" alt="">
-      <div class="modal-actions">
-        <button class="modal-btn" onclick="downloadModalImage()">⬇️ ダウンロード</button>
-        <button class="modal-btn" onclick="closeImageModal()">✕ 閉じる</button>
+
+      <div class="pair-stage__info">
+        <div class="code-display">
+          <p class="code-display__label">参加コード</p>
+          <p id="joinCode" class="code-display__value" aria-live="polite">--- ---</p>
+          <div class="code-display__meta">
+            <div id="sessionTimer" class="session-timer" style="display:none" title="この参加コードの有効期限">
+              <div class="timer-text"><span id="timerDisplay">10:00</span></div>
+            </div>
+            <button id="copyJoinCodeBtn" type="button" class="code-display__copy" aria-label="参加コードをコピー" title="コピー" disabled>
+              <svg class="icon icon--sm" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="9" y="9" width="11" height="11" rx="2.5"/><path d="M5 15V6.5A2.5 2.5 0 0 1 7.5 4H15"/></svg>
+            </button>
+          </div>
+        </div>
+
+        <p class="pair-note">ほかのPCでは、この数字をキーボードで入力します。<br>スマホは <b id="joinHost">sharetto.web.app/join.html</b> からも参加できます。</p>
+
+        <div class="pair-stage__actions">
+          <button type="button" onclick="copyQRUrl()" class="btn btn--ghost btn--sm">
+            <svg class="icon icon--sm" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M10 14a4 4 0 0 0 5.66 0l3-3a4 4 0 0 0-5.66-5.66l-1 1"/><path d="M14 10a4 4 0 0 0-5.66 0l-3 3a4 4 0 0 0 5.66 5.66l1-1"/></svg>
+            リンクをコピー
+          </button>
+          <button type="button" onclick="shareToPhone()" class="btn btn--ghost btn--sm">
+            <svg class="icon icon--sm" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3v12"/><path d="m7 8 5-5 5 5"/><path d="M5 13v6a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2v-6"/></svg>
+            共有
+          </button>
+          <button type="button" onclick="generateNewSession()" class="btn btn--ghost btn--sm" title="新しいQRと参加コードを発行">
+            <svg class="icon icon--sm" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20 11a8 8 0 1 0-2.3 5.7"/><path d="M20 5v6h-6"/></svg>
+            新しいコード
+          </button>
+        </div>
+
+        <details class="disclosure">
+          <summary>
+            詳細設定
+            <svg class="icon icon--sm" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m6 9 6 6 6-6"/></svg>
+          </summary>
+          <div class="disclosure__body">
+            <p class="eyebrow eyebrow--plain">転送方式</p>
+            <div class="segmented transfer-mode-tabs" role="group" aria-label="転送方式">
+              <button type="button" class="tab-button active" data-transfer-mode="p2p">直接</button>
+              <button type="button" class="tab-button" data-transfer-mode="relay">サーバー経由</button>
+            </div>
+            <p class="mode-hint">直接：端末どうしでやりとりし、サーバーにファイルを置きません。</p>
+            <p id="relayModeNote" class="mode-hint" hidden>サーバー経由：直接つながらないネットワーク向け。速度は遅めです。</p>
+            <p class="eyebrow eyebrow--plain">参加用リンク</p>
+            <p class="qr-url" id="qrUrl"></p>
+          </div>
+        </details>
+      </div>
+
+      <p class="pair-stage__wait">つながると、やりとりの画面に切り替わります</p>
+    </div>
+    <footer class="footer">
+      <span>Sharetto — device to device</span>
+      <span>Develop by Yuki Kondo</span>
+    </footer>
+  </section>
+
+  <!-- やりとり：送受信を時系列で並べる -->
+  <main id="mainContent" class="session">
+    <div id="timeline" class="timeline" data-empty="true" aria-live="polite">
+      <div class="timeline__empty">
+        <h2 class="title title--lg">つながりました</h2>
+        <p class="lead">ここに、送ったもの・届いたものが順番に並びます。</p>
+        <ul class="timeline__tips">
+          <li><kbd>＋</kbd> または <b>ウィンドウへドロップ</b> でファイル</li>
+          <li><kbd data-mod-key>⌘</kbd> <kbd>V</kbd> で画像やテキストを貼り付けて送信</li>
+          <li>下の欄に書いて <kbd>Enter</kbd> で送信（<kbd>Shift</kbd>+<kbd>Enter</kbd> で改行）</li>
+        </ul>
+      </div>
+      <div class="timeline__list"></div>
+    </div>
+  </main>
+
+  <div class="composer-bar" id="pcSendPanel" data-ready="false">
+    <div class="composer-bar__inner">
+      <p id="pcSendHint" class="composer-bar__lock">
+        <span class="led"></span>
+        <span>相手との接続が切れました。</span>
+        <button type="button" class="text-link" id="lockShowPairBtn">QRを表示して再接続</button>
+      </p>
+      <div class="composer-bar__row">
+        <button id="pcFileSendBtn" type="button" class="composer-key" aria-label="ファイルを送る" title="ファイルを送る" disabled>
+          <svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 5v14"/><path d="M5 12h14"/></svg>
+        </button>
+        <input type="file" id="pcFileSend" hidden multiple>
+        <div class="composer-field">
+          <label for="pcTextSend" class="sr-only">相手へ送るテキストまたはURL</label>
+          <textarea id="pcTextSend" rows="1" placeholder="テキストやリンクを送る" enterkeyhint="send" disabled></textarea>
+          <span id="pcSendDetect" class="composer-field__detect" hidden></span>
+        </div>
+        <button id="pcSendBtn" type="button" class="send-key" aria-label="送信" title="送信" disabled>
+          <svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 19V5"/><path d="m6 11 6-6 6 6"/></svg>
+        </button>
       </div>
     </div>
   </div>
 
-  <!-- QRコード生成ライブラリ -->
+  <div id="dropOverlay" class="drop-overlay" aria-hidden="true">
+    <div class="drop-overlay__inner">
+      <svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 4v11"/><path d="m7 10 5 5 5-5"/><path d="M5 20h14"/></svg>
+      <p>ドロップして相手へ送信</p>
+    </div>
+  </div>
+
+  <dialog id="joinDialog" class="join-dialog" aria-labelledby="joinDialogTitle">
+    <form method="dialog" class="join-card" id="joinDialogForm">
+      <div class="join-card__head">
+        <p class="eyebrow eyebrow--plain" style="justify-content:center"><span class="eyebrow__num">PC</span>to PC</p>
+        <h2 class="title" id="joinDialogTitle">相手のコードを入力</h2>
+        <p class="lead">相手の画面に表示されている6桁の数字。入力するとすぐに接続します。</p>
+      </div>
+      <label for="joinDialogInput" class="sr-only">参加コード</label>
+      <input id="joinDialogInput" class="code-input" placeholder="000000" maxlength="512" autocomplete="off" inputmode="numeric">
+      <div id="joinDialogStatus" class="page-status" role="status"></div>
+      <div class="btn-row">
+        <button type="button" class="btn btn--ghost" id="joinDialogCancel">キャンセル</button>
+        <button type="submit" class="btn btn--primary" id="joinDialogSubmit" disabled>接続する</button>
+      </div>
+    </form>
+  </dialog>
+
+  <div id="imageModal" class="image-modal" role="dialog" aria-modal="true" aria-labelledby="modalTitle">
+    <div class="modal-content">
+      <div class="modal-header">
+        <div class="modal-title" id="modalTitle">画像プレビュー</div>
+      </div>
+      <button class="icon-btn close-btn" type="button" onclick="closeImageModal()" aria-label="閉じる">
+        <svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 6l12 12"/><path d="M18 6 6 18"/></svg>
+      </button>
+      <img id="modalImage" class="modal-image" src="data:," alt="">
+      <div class="modal-actions">
+        <button class="btn btn--ghost" type="button" onclick="closeImageModal()">閉じる</button>
+        <button class="btn btn--primary" type="button" onclick="downloadModalImage()">保存</button>
+      </div>
+    </div>
+  </div>
+
   <script src="https://cdn.jsdelivr.net/npm/qrcode-generator@1.4.4/qrcode.js"></script>
   <script type="module" src="./js/pages/pc-view.js"></script>
 </body>

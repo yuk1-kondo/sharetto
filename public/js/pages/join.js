@@ -72,6 +72,7 @@ async function join() {
 
 let autoJoinTimer = null;
 input.addEventListener('input', () => {
+  input.classList.toggle('is-long', /[^\d\s]/.test(input.value));
   updateButtonState();
   clearTimeout(autoJoinTimer);
   const parsed = parseJoinInput(input.value);
@@ -95,5 +96,6 @@ const urlCode = new URLSearchParams(location.search).get('code');
 if (urlCode) {
   input.value = urlCode;
   updateButtonState();
+  if (parseJoinInput(urlCode)?.type === 'code') join();
 }
 input.focus();

@@ -53,7 +53,7 @@ export function downloadFile(_id, fileName, fileData) {
 export async function copyToClipboard(text, successMessage = 'コピーしました') {
   try {
     await navigator.clipboard.writeText(text);
-    showToast(`✅ ${successMessage}`, 'success');
+    showToast(successMessage, 'success');
   } catch (err) {
     console.error('copy error', err);
     showToast('コピーに失敗しました', 'error');
