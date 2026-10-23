@@ -46,12 +46,6 @@
         <svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 6l12 12"/><path d="M18 6 6 18"/></svg>
       </button>
 
-      <a class="role-banner" href="/join.html">
-        <svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="7" y="2.5" width="10" height="19" rx="2.5"/><path d="M11 18.5h2"/></svg>
-        <span class="role-banner__text">このスマホから送りますか？<small>PCに表示されたコードを入力して参加</small></span>
-        <svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12h13"/><path d="m13 6 6 6-6 6"/></svg>
-      </a>
-
       <div class="pair-stage__head">
         <h1 class="title title--lg" id="pairTitle">カメラで読み取る</h1>
         <p class="lead">スマホのカメラを向けると、このPCとつながります。</p>
@@ -75,22 +69,14 @@
           </div>
         </div>
 
-        <p class="pair-note">ほかのPCでは、この数字をキーボードで入力します。<br>スマホは <b id="joinHost">sharetto.web.app/join.html</b> からも参加できます。</p>
+        <p class="pair-note">ほかのPCでは、この数字をキーボードで入力します。</p>
 
         <div class="pair-stage__actions">
-          <button type="button" onclick="copyQRUrl()" class="btn btn--ghost btn--sm">
-            <svg class="icon icon--sm" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M10 14a4 4 0 0 0 5.66 0l3-3a4 4 0 0 0-5.66-5.66l-1 1"/><path d="M14 10a4 4 0 0 0-5.66 0l-3 3a4 4 0 0 0 5.66 5.66l1-1"/></svg>
-            リンクをコピー
-          </button>
-          <button type="button" onclick="shareToPhone()" class="btn btn--ghost btn--sm">
-            <svg class="icon icon--sm" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3v12"/><path d="m7 8 5-5 5 5"/><path d="M5 13v6a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2v-6"/></svg>
-            共有
-          </button>
-          <button type="button" onclick="generateNewSession()" class="btn btn--ghost btn--sm" title="新しいQRと参加コードを発行">
-            <svg class="icon icon--sm" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20 11a8 8 0 1 0-2.3 5.7"/><path d="M20 5v6h-6"/></svg>
-            新しいコード
-          </button>
+          <button type="button" onclick="copyQRUrl()" class="text-link text-link--strong" id="copyLinkBtn">リンクをコピー</button>
+          <button type="button" onclick="shareToPhone()" class="text-link" id="shareLinkBtn">共有</button>
         </div>
+
+        <a class="role-link" href="/join.html">このスマホから参加する</a>
 
         <details class="disclosure">
           <summary>
@@ -107,15 +93,14 @@
             <p id="relayModeNote" class="mode-hint" hidden>サーバー経由：直接つながらないネットワーク向け。速度は遅めです。</p>
             <p class="eyebrow eyebrow--plain">参加用リンク</p>
             <p class="qr-url" id="qrUrl"></p>
+            <button type="button" onclick="generateNewSession()" class="disclosure__renew">新しいコードを発行</button>
+            <p class="mode-hint">今のコードは使えなくなります。これまでのやりとりは残ります。</p>
           </div>
         </details>
       </div>
-
-      <p class="pair-stage__wait">つながると、やりとりの画面に切り替わります</p>
     </div>
     <footer class="footer">
-      <span>Sharetto — device to device</span>
-      <span>Develop by Yuki Kondo</span>
+      <span>Sharetto · Yuki Kondo</span>
     </footer>
   </section>
 

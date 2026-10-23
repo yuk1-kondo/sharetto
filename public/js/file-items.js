@@ -28,14 +28,22 @@ function iconButton(name, label, onClick) {
   return btn;
 }
 
-function buildMeta(parts, tag) {
+function buildMeta({ time, quiet } = {}, tag) {
   const meta = el('div', 'item__meta');
-  parts.filter(Boolean).forEach((p) => meta.appendChild(el('span', '', p)));
-  if (tag) {
-    const direct = tag === '直接';
-    meta.appendChild(el('span', direct ? 'tag tag--direct' : 'tag', tag));
-  }
+  if (time) meta.appendChild(el('span', 'item__time', time));
+  if (quiet) meta.appendChild(el('span', 'item__quiet', quiet));
+  if (tag && tag !== '直接') meta.appendChild(el('span', 'tag', tag));
   return meta;
+}
+
+/** 容量は普段隠す。タッチ端末では行をタップすると出す */
+function attachQuietToggle(row) {
+  if (!row.querySelector('.item__quiet')) return;
+  row.addEventListener('click', (event) => {
+    if (event.target.closest('a, button')) return;
+    if (window.matchMedia('(hover: hover) and (pointer: fine)').matches) return;
+    row.classList.toggle('is-open');
+  });
 }
 
 function buildRow(kind, lead, body, actions) {
@@ -44,6 +52,7 @@ function buildRow(kind, lead, body, actions) {
   const actionsWrap = el('div', 'item__actions');
   actions.forEach((a) => actionsWrap.appendChild(a));
   row.append(lead, body, actionsWrap);
+  attachQuietToggle(row);
   return row;
 }
 
@@ -66,13 +75,14 @@ export function isHttpUrl(text) {
  */
 export function createFileItem(file, { onDownload, onViewImage } = {}, { tag } = {}) {
   const name = String(file.name || 'file');
+  const sizeLabel = file.size != null ? formatFileSize(file.size) : '';
   const isImage = Boolean(file.mimeType && file.mimeType.startsWith('image/') && file.data);
   const canPreview = isImage && typeof onViewImage === 'function';
 
   const lead = el(canPreview ? 'button' : 'div', 'item__lead');
   if (canPreview) {
     lead.type = 'button';
-    lead.setAttribute('aria-label', `${name} をプレビュー`);
+    lead.setAttribute('aria-label', sizeLabel ? `${name}、${sizeLabel} をプレビュー` : `${name} をプレビュー`);
     lead.addEventListener('click', () => onViewImage(file.data, name));
   }
   if (isImage) {
@@ -88,12 +98,12 @@ export function createFileItem(file, { onDownload, onViewImage } = {}, { tag } =
   const body = el('div', 'item__body');
   body.append(
     el('div', 'item__title', name),
-    buildMeta([formatFileSize(file.size), formatTime(file.timestamp)], tag),
+    buildMeta({ time: formatTime(file.timestamp), quiet: sizeLabel }, tag),
   );
-  body.firstChild.title = name;
+  body.firstChild.title = sizeLabel ? `${name} · ${sizeLabel}` : name;
 
   const actions = [
-    iconButton('download', '保存', () => onDownload?.(file.id, name, file.data)),
+    iconButton('download', sizeLabel ? `保存、${sizeLabel}` : '保存', () => onDownload?.(file.id, name, file.data)),
   ];
   return buildRow(isImage ? 'image' : 'file', lead, body, actions);
 }
@@ -120,7 +130,7 @@ export function createUrlItem(item, { onCopy } = {}, { tag } = {}) {
     link.target = '_blank';
     link.rel = 'noopener noreferrer';
   }
-  body.append(el('div', 'item__title', title), link, buildMeta([formatTime(item.timestamp)], tag));
+  body.append(el('div', 'item__title', title), link, buildMeta({ time: formatTime(item.timestamp) }, tag));
 
   const actions = [];
   if (isHttp) {
@@ -150,7 +160,7 @@ export function createTextItem(item, { onCopy } = {}, { tag } = {}) {
   body.append(
     el('div', 'item__title', 'テキスト'),
     el('div', 'item__content', text),
-    buildMeta([`${text.length}文字`, formatTime(item.timestamp)], tag),
+    buildMeta({ time: formatTime(item.timestamp) }, tag),
   );
 
   const actions = [iconButton('copy', 'コピー', () => onCopy?.(text))];
