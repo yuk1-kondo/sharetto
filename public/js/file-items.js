@@ -166,10 +166,3 @@ export function createMessageItem(text, handlers, opts = {}) {
   }
   return createTextItem({ text: value, timestamp }, handlers, opts);
 }
-
-/** リスト先頭に追加し、空表示を取り除く */
-export function prependItem(list, node) {
-  if (!list || !node) return;
-  list.querySelector('.no-files')?.remove();
-  list.prepend(node);
-}

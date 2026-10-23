@@ -2,7 +2,7 @@
 <html lang="ja">
 <head>
   <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover, interactive-widget=resizes-content">
   <meta name="theme-color" content="#ebebe7" media="(prefers-color-scheme: light)">
   <meta name="theme-color" content="#0b0b0a" media="(prefers-color-scheme: dark)">
   <meta name="apple-mobile-web-app-capable" content="yes">
@@ -13,72 +13,87 @@
   <title>シェアっと — スマホとPCをすぐつなぐ</title>
   <link rel="stylesheet" href="css/app.css">
 </head>
-<body class="app app--host" data-connection-state="idle">
+<body class="app app--host" data-connection-state="idle" data-view="pair">
   <header class="topbar">
     <div class="topbar__inner">
       <a class="brand" href="/" aria-label="シェアっと ホーム">
         <img class="brand__mark" src="/icons/icon.svg" alt="">
         <span class="brand__name">シェアっと</span>
-        <span class="brand__tag">Receiver</span>
       </a>
+      <span class="status-pill" aria-live="polite">
+        <span class="led"></span>
+        <span id="connectionBadge" class="connection-badge" data-state="idle">準備中</span>
+        <span id="connectionDetail" class="status-pill__detail"></span>
+      </span>
       <span class="topbar__spacer"></span>
-      <div id="sessionTimer" class="session-timer" style="display:none" title="この参加コードの有効期限">
-        <div class="timer-text">
-          <span class="timer-label topbar__hide-sm">有効期限</span>
-          <span id="timerDisplay">10:00</span>
-        </div>
-      </div>
+      <button id="downloadZipBtn" type="button" class="btn btn--ghost btn--sm session-only" disabled>ZIPで保存</button>
+      <button id="showPairBtn" type="button" class="btn btn--ghost btn--sm session-only" title="QRと参加コードを表示">
+        <svg class="icon icon--sm" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3.5" y="3.5" width="7" height="7" rx="1.5"/><rect x="13.5" y="3.5" width="7" height="7" rx="1.5"/><rect x="3.5" y="13.5" width="7" height="7" rx="1.5"/><path d="M14 14h2.5v2.5H14zM18 18h2.5v2.5H18zM18 14h2.5M14 18v2.5"/></svg>
+        <span class="topbar__hide-sm">QRを表示</span>
+      </button>
       <button type="button" id="openJoinDialogBtn" class="btn btn--primary btn--sm" title="ほかのPCのコードを入力して、そのPCへ送る">
         <svg class="icon icon--sm" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12h13"/><path d="m13 6 6 6-6 6"/></svg>
         <span class="topbar__hide-sm">コードで接続</span>
       </button>
-      <button type="button" onclick="generateNewSession()" class="btn btn--ghost btn--sm" title="新しいQRと参加コードを発行">
-        <svg class="icon icon--sm" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20 11a8 8 0 1 0-2.3 5.7"/><path d="M20 5v6h-6"/></svg>
-        <span class="topbar__hide-sm">新しいコード</span>
-      </button>
     </div>
+    <div class="topbar__progress"><div id="connectionProgress" class="connection-progress-bar" hidden></div></div>
   </header>
 
-  <main id="mainContent" class="host">
-    <div class="host__side">
-      <a class="role-banner" data-area="banner" href="/join.html">
+  <!-- ペアリング：未接続のあいだは画面全体、接続後は「QRを表示」でシートとして開く -->
+  <section id="pairStage" class="pair-stage" aria-labelledby="pairTitle">
+    <div class="pair-stage__inner">
+      <button id="closePairBtn" type="button" class="icon-btn pair-stage__close" aria-label="閉じる" title="閉じる">
+        <svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 6l12 12"/><path d="M18 6 6 18"/></svg>
+      </button>
+
+      <a class="role-banner" href="/join.html">
         <svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="7" y="2.5" width="10" height="19" rx="2.5"/><path d="M11 18.5h2"/></svg>
-        <span class="role-banner__text">スマホから送りますか？<small>PCに表示されたコードを入力して参加</small></span>
+        <span class="role-banner__text">このスマホから送りますか？<small>PCに表示されたコードを入力して参加</small></span>
         <svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12h13"/><path d="m13 6 6 6-6 6"/></svg>
       </a>
 
-      <section class="panel pair" data-area="pair" aria-labelledby="pairTitle">
-        <p class="eyebrow"><span class="eyebrow__num">01</span>Connect</p>
-        <div>
-          <h2 class="title" id="pairTitle">スマホのカメラで読み取る</h2>
-          <p class="lead">アプリは不要。読み取るとすぐにつながります。</p>
-        </div>
-        <div class="pair__qr">
-          <div id="qrcode" class="qr-display"></div>
-        </div>
+      <div class="pair-stage__qr">
+        <div id="qrcode" class="qr-display"></div>
+      </div>
 
-        <p class="or-divider">または参加コード</p>
+      <div class="pair-stage__info">
+        <div class="pair-stage__head">
+          <h1 class="title title--xl" id="pairTitle">カメラで<wbr>読み取るだけ。</h1>
+          <p class="lead">スマホのカメラをQRコードに向けると、このPCとつながります。アプリは不要です。</p>
+        </div>
 
         <div class="display code-display">
           <div>
             <p class="display__label">Join code</p>
-            <p id="joinCode" class="display__value" aria-live="polite">------</p>
+            <p id="joinCode" class="display__value" aria-live="polite">--- ---</p>
           </div>
-          <button id="copyJoinCodeBtn" type="button" class="code-display__copy" aria-label="参加コードをコピー" title="コピー" disabled>
-            <svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="9" y="9" width="11" height="11" rx="2.5"/><path d="M5 15V6.5A2.5 2.5 0 0 1 7.5 4H15"/></svg>
-          </button>
+          <div class="code-display__side">
+            <div id="sessionTimer" class="session-timer" style="display:none" title="この参加コードの有効期限">
+              <div class="timer-text"><span id="timerDisplay">10:00</span></div>
+            </div>
+            <button id="copyJoinCodeBtn" type="button" class="code-display__copy" aria-label="参加コードをコピー" title="コピー" disabled>
+              <svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="9" y="9" width="11" height="11" rx="2.5"/><path d="M5 15V6.5A2.5 2.5 0 0 1 7.5 4H15"/></svg>
+            </button>
+          </div>
         </div>
-        <p class="code-hint">スマホで <b id="joinHost">sharetto.web.app/join.html</b> を開いて入力</p>
-        <p class="code-hint code-hint--pc">PCどうしなら、相手のPCでこのページを開き<br><b>このコードの数字をそのままキーボードで入力</b></p>
 
-        <div class="btn-row">
-          <button type="button" onclick="copyQRUrl()" class="btn btn--sm">
+        <ul class="pair-ways">
+          <li><span class="pair-ways__key">Phone</span><span>カメラで読み取る、または <b id="joinHost">sharetto.web.app/join.html</b> でコードを入力</span></li>
+          <li><span class="pair-ways__key">PC</span><span>相手のPCでこのサイトを開き、<b>数字をそのままキーボードで入力</b></span></li>
+        </ul>
+
+        <div class="pair-stage__actions">
+          <button type="button" onclick="copyQRUrl()" class="btn btn--ghost btn--sm">
             <svg class="icon icon--sm" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M10 14a4 4 0 0 0 5.66 0l3-3a4 4 0 0 0-5.66-5.66l-1 1"/><path d="M14 10a4 4 0 0 0-5.66 0l-3 3a4 4 0 0 0 5.66 5.66l1-1"/></svg>
             リンクをコピー
           </button>
-          <button type="button" onclick="shareToPhone()" class="btn btn--sm">
+          <button type="button" onclick="shareToPhone()" class="btn btn--ghost btn--sm">
             <svg class="icon icon--sm" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3v12"/><path d="m7 8 5-5 5 5"/><path d="M5 13v6a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2v-6"/></svg>
             共有
+          </button>
+          <button type="button" onclick="generateNewSession()" class="btn btn--ghost btn--sm" title="新しいQRと参加コードを発行">
+            <svg class="icon icon--sm" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20 11a8 8 0 1 0-2.3 5.7"/><path d="M20 5v6h-6"/></svg>
+            新しいコード
           </button>
         </div>
 
@@ -99,86 +114,67 @@
             <p class="qr-url" id="qrUrl"></p>
           </div>
         </details>
-      </section>
-    </div>
+      </div>
 
-    <div class="host__main">
-      <section class="panel link-status" data-area="status" aria-live="polite">
-        <div class="panel__head">
-          <p class="eyebrow"><span class="eyebrow__num">02</span>Link</p>
-        </div>
-        <div class="link" aria-hidden="true">
+      <div class="pair-stage__wait" aria-hidden="true">
+        <span class="link">
           <span class="link__node">
-            <svg class="icon icon--lg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="5" width="16" height="11" rx="2"/><path d="M2 19h20"/></svg>
+            <svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="5" width="16" height="11" rx="2"/><path d="M2 19h20"/></svg>
           </span>
           <span class="link__wire"></span>
           <span class="link__node link__node--remote">
-            <svg class="icon icon--lg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><rect x="7" y="2.5" width="10" height="19" rx="2.5"/><path d="M11 18.5h2"/></svg>
+            <svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><rect x="7" y="2.5" width="10" height="19" rx="2.5"/><path d="M11 18.5h2"/></svg>
           </span>
-        </div>
-        <div>
-          <div class="status__row">
-            <span class="led"></span>
-            <span id="connectionBadge" class="connection-badge status__label" data-state="idle">準備中</span>
-          </div>
-          <p id="connectionDetail" class="connection-detail"></p>
-        </div>
-        <div class="connection-progress-track"><div id="connectionProgress" class="connection-progress-bar" hidden></div></div>
-      </section>
+        </span>
+        <span class="pair-stage__wait-text">つながると、自動でやりとりの画面に切り替わります</span>
+      </div>
+    </div>
+    <footer class="footer">
+      <span>Sharetto — device to device</span>
+      <span>Develop by Yuki Kondo</span>
+    </footer>
+  </section>
 
-      <section class="panel composer" id="pcSendPanel" data-area="send" data-ready="false" aria-labelledby="sendTitle">
-        <div class="panel__head">
-          <p class="eyebrow" id="sendTitle"><span class="eyebrow__num">03</span>Send</p>
-        </div>
-        <p id="pcSendHint" class="composer__lock">
-          <span class="led"></span>
-          相手がつながると、ここからテキスト・リンク・ファイルを送れます
-        </p>
-        <div class="composer__box">
-          <label for="pcTextSend" class="sr-only">相手へ送るテキストまたはURL</label>
-          <textarea id="pcTextSend" class="composer__input" rows="3" placeholder="テキストやURLを入力…" disabled></textarea>
-          <div class="composer__bar">
-            <button id="pcFileSendBtn" type="button" class="btn btn--quiet btn--sm" disabled>
-              <svg class="icon icon--sm" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m20 11-8.5 8.5a5 5 0 0 1-7-7L13 4a3.5 3.5 0 0 1 5 5l-8.5 8.5a2 2 0 0 1-3-3L14 7"/></svg>
-              ファイル
-            </button>
-            <input type="file" id="pcFileSend" hidden multiple>
-            <span class="muted">
-              <span id="pcSendDetect" class="composer__detect" hidden></span>
-              <span class="topbar__hide-sm" id="pcSendShortcut"><kbd>⌘</kbd> <kbd>Enter</kbd> で送信 · ファイルはドロップか貼り付け</span>
-            </span>
-            <button id="pcSendBtn" type="button" class="btn btn--accent btn--sm" disabled>
-              送信
-              <svg class="icon icon--sm" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12h13"/><path d="m13 6 6 6-6 6"/></svg>
-            </button>
-          </div>
-        </div>
-      </section>
-
-      <section class="panel inbox" data-area="inbox" aria-labelledby="inboxTitle">
-        <div class="panel__head">
-          <p class="eyebrow" id="inboxTitle"><span class="eyebrow__num">04</span>Inbox</p>
-          <button id="downloadZipBtn" type="button" class="btn btn--ghost btn--sm" disabled>ZIPで保存</button>
-          <button type="button" onclick="refreshFiles()" class="icon-btn" aria-label="一覧を更新" title="一覧を更新">
-            <svg class="icon icon--sm" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20 11a8 8 0 1 0-2.3 5.7"/><path d="M20 5v6h-6"/></svg>
-          </button>
-        </div>
-        <div class="inbox__section">
-          <h3 class="inbox__sub">ファイル</h3>
-          <div id="filesList" class="files-list" aria-live="polite"></div>
-        </div>
-        <div class="inbox__section">
-          <h3 class="inbox__sub">リンク・テキスト</h3>
-          <div id="urlsList" class="files-list" aria-live="polite"></div>
-        </div>
-      </section>
+  <!-- やりとり：送受信を時系列で並べる -->
+  <main id="mainContent" class="session">
+    <div id="timeline" class="timeline" data-empty="true" aria-live="polite">
+      <div class="timeline__empty">
+        <span class="timeline__badge"><span class="led"></span>Linked</span>
+        <h2 class="title title--lg">つながりました</h2>
+        <p class="lead">ここに、送ったもの・届いたものが順番に並びます。</p>
+        <ul class="timeline__tips">
+          <li><kbd>＋</kbd> または <b>ウィンドウへドロップ</b> でファイル</li>
+          <li><kbd data-mod-key>⌘</kbd> <kbd>V</kbd> で画像やテキストを貼り付けて送信</li>
+          <li>下の欄に書いて <kbd>Enter</kbd> で送信（<kbd>Shift</kbd>+<kbd>Enter</kbd> で改行）</li>
+        </ul>
+      </div>
+      <div class="timeline__list"></div>
     </div>
   </main>
 
-  <footer class="footer">
-    <span>Sharetto — device to device</span>
-    <span>Develop by Yuki Kondo</span>
-  </footer>
+  <div class="composer-bar" id="pcSendPanel" data-ready="false">
+    <div class="composer-bar__inner">
+      <p id="pcSendHint" class="composer-bar__lock">
+        <span class="led"></span>
+        <span>相手との接続が切れました。</span>
+        <button type="button" class="text-link" id="lockShowPairBtn">QRを表示して再接続</button>
+      </p>
+      <div class="composer-bar__row">
+        <button id="pcFileSendBtn" type="button" class="composer-key" aria-label="ファイルを送る" title="ファイルを送る" disabled>
+          <svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 5v14"/><path d="M5 12h14"/></svg>
+        </button>
+        <input type="file" id="pcFileSend" hidden multiple>
+        <div class="composer-field">
+          <label for="pcTextSend" class="sr-only">相手へ送るテキストまたはURL</label>
+          <textarea id="pcTextSend" rows="1" placeholder="テキストやリンクを送る" enterkeyhint="send" disabled></textarea>
+          <span id="pcSendDetect" class="composer-field__detect" hidden></span>
+        </div>
+        <button id="pcSendBtn" type="button" class="send-key" aria-label="送信" title="送信" disabled>
+          <svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 19V5"/><path d="m6 11 6-6 6 6"/></svg>
+        </button>
+      </div>
+    </div>
+  </div>
 
   <div id="dropOverlay" class="drop-overlay" aria-hidden="true">
     <div class="drop-overlay__inner">

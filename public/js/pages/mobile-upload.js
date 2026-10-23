@@ -1,10 +1,11 @@
 /**
- * モバイルアップロードページ (upload.html) のエントリポイント
+ * 送信側ページ (upload.html) のエントリポイント
+ * スマホ・PCどちらから開いても、送受信を時系列で並べるタイムライン + 下部の入力バー。
  */
 import { initFirebase, dbRef, onValue, off, get, update } from '../firebase.js';
 import { encodeFileAsDataURL, putFile, putUrl, putText } from '../files-save.js';
 import { resolveJoinCode } from '../session.js';
-import { formatFileSize, parseJoinInput } from '../utils.js';
+import { parseJoinInput } from '../utils.js';
 import { showToast } from '../toast.js';
 import {
   JOIN_SESSION_KEY,
@@ -20,10 +21,9 @@ import { createP2PGuest, sendFileOverChannel, sendTextOverChannel } from '../web
 import { setConnectionState, subscribeConnectionState, setTransferProgress } from '../connection-state.js';
 import { firebaseConfig } from '../../config.js';
 import { registerServiceWorker } from '../pwa.js';
-import {
-  createFileItem, createUrlItem, createTextItem, createMessageItem, prependItem, isHttpUrl,
-} from '../file-items.js';
-import { extLabel } from '../icons.js';
+import { isHttpUrl } from '../file-items.js';
+import { createTimeline } from '../timeline.js';
+import { bindComposer, applyModifierLabels } from '../composer.js';
 import { initPasteToSend, initDropToSend } from '../desktop-input.js';
 import { markIncoming } from '../attention.js';
 import {
@@ -33,7 +33,7 @@ import { normalizeImageFile, isHeicFile } from '../heic-convert.js';
 import { announceMobileJoin, clearMobilePresence } from '../relay-presence.js';
 import { attachOutboxListener } from '../relay-outbox.js';
 
-const { db, fs } = initFirebase(firebaseConfig);
+const { db } = initFirebase(firebaseConfig);
 
 const urlParams = new URLSearchParams(window.location.search);
 let sessionId = urlParams.get('session') || null;
@@ -43,11 +43,20 @@ let p2pGuest = null;
 let dataChannel = null;
 let detachOutbox = null;
 
+const DIRECT_TAG = '直接';
+const RELAY_TAG = 'サーバー経由';
+
 const itemHandlers = {
   onDownload: downloadFile,
   onViewImage: viewFullImage,
   onCopy: (text) => copyToClipboard(text, 'コピーしました'),
 };
+
+const timeline = createTimeline(document.getElementById('timeline'), itemHandlers);
+const fileInput = document.getElementById('file-input');
+const textInput = document.getElementById('text-input');
+const textSendBtn = document.getElementById('text-send-btn');
+const composer = bindComposer(textInput, { onSend: sendTextOrUrl, onChange: updateTextComposer });
 
 (function warmUpRealtime() {
   try {
@@ -90,13 +99,12 @@ function reassertConnected() {
 /** サーバー経由の接続を確立（プレゼンス通知 + 受信待受）。冪等。 */
 async function initRelaySession() {
   if (!sessionId) return;
-  showMobileReceivePanel();
   if (!relaySessionStarted) {
     relaySessionStarted = true;
     detachOutbox = attachOutboxListener(db, sessionId, {
-      onFile: appendMobileReceivedRelayFile,
-      onUrl: appendMobileReceivedRelayUrl,
-      onText: (item) => appendMobileReceivedText(item.text, 'サーバー経由'),
+      onFile: appendReceivedRelayFile,
+      onUrl: appendReceivedRelayUrl,
+      onText: (item) => appendReceivedText(item.text, RELAY_TAG),
     });
   }
   try {
@@ -119,60 +127,44 @@ async function bootstrapSession() {
   attemptP2PUpgrade();
 }
 
-function showMobileReceivePanel() {
-  const panel = document.getElementById('mobileReceivePanel');
-  if (panel) panel.hidden = false;
-}
+/* ── 受信 ─────────────────────────────────── */
 
-function receiveList() {
-  showMobileReceivePanel();
-  return document.getElementById('mobileReceiveList');
-}
-
-function appendMobileReceivedFile(file, tag = '直接') {
-  const url = URL.createObjectURL(file.blob);
-  const el = createFileItem({
+function appendReceivedFile(file, tag = DIRECT_TAG) {
+  timeline.file({
     name: file.name,
     size: file.size ?? file.blob.size,
     mimeType: file.mimeType,
-    data: url,
+    data: URL.createObjectURL(file.blob),
     timestamp: Date.now(),
-  }, itemHandlers, { tag });
-  prependItem(receiveList(), el);
+  }, 'in', tag);
   markIncoming();
-  showToast(`${file.name} をPCから受信しました`, 'success');
 }
 
-async function appendMobileReceivedRelayFile(item) {
+async function appendReceivedRelayFile(item) {
   try {
     const res = await fetch(item.data);
     const blob = await res.blob();
-    appendMobileReceivedFile({
+    appendReceivedFile({
       name: item.name,
       blob,
       mimeType: item.mimeType,
       size: item.size ?? blob.size,
-    }, 'サーバー経由');
+    }, RELAY_TAG);
   } catch (e) {
     console.warn('[mobile] relay file receive failed', e);
     showToast('ファイルの受信に失敗しました', 'error');
   }
 }
 
-function appendMobileReceivedRelayUrl(item) {
-  const el = createUrlItem({ url: item.url, title: item.name, timestamp: item.timestamp }, itemHandlers, { tag: 'サーバー経由' });
-  prependItem(receiveList(), el);
+function appendReceivedRelayUrl(item) {
+  timeline.url({ url: item.url, title: item.name, timestamp: item.timestamp }, 'in', RELAY_TAG);
   markIncoming();
-  showToast('PCからリンクを受信しました', 'success');
 }
 
-function appendMobileReceivedText(text, tag = '直接') {
-  const el = tag === '直接'
-    ? createMessageItem(text, itemHandlers, { tag })
-    : createTextItem({ text, timestamp: Date.now() }, itemHandlers, { tag });
-  prependItem(receiveList(), el);
+function appendReceivedText(text, tag = DIRECT_TAG) {
+  if (tag === DIRECT_TAG) timeline.message(text, 'in', tag);
+  else timeline.text({ text, timestamp: Date.now() }, 'in', tag);
   markIncoming();
-  showToast(isHttpUrl(text) ? 'PCからリンクを受信しました' : 'PCからテキストを受信しました', 'success');
 }
 
 /**
@@ -192,8 +184,8 @@ async function attemptP2PUpgrade() {
         showToast('直接接続に切り替えました（高速）', 'success', 2500);
       },
       onFailed: () => {},
-      onFile: (file) => appendMobileReceivedFile(file, '直接'),
-      onText: (text) => appendMobileReceivedText(text, '直接'),
+      onFile: (file) => appendReceivedFile(file, DIRECT_TAG),
+      onText: (text) => appendReceivedText(text, DIRECT_TAG),
     });
     dataChannel = await p2pGuest.connect();
   };
@@ -213,22 +205,7 @@ function isP2PReady() {
   return transferMode === TRANSFER_MODE.P2P && dataChannel?.readyState === 'open';
 }
 
-const fileInput = document.getElementById('file-input');
-const uploadBtn = document.getElementById('upload-btn');
-const uploadArea = document.getElementById('upload-area');
-const filePreview = document.getElementById('file-preview');
-const fileName = document.getElementById('file-name');
-const fileSize = document.getElementById('file-size');
-const fileStrip = document.getElementById('file-strip');
-const progressContainer = document.getElementById('progress-container');
-const progressBar = document.getElementById('progress-bar');
-const status = document.getElementById('status');
-
-const textInput = document.getElementById('text-input');
-const textSendBtn = document.getElementById('text-send-btn');
-const urlStatus = document.getElementById('url-status');
-const urlPreview = document.getElementById('url-preview');
-const UPLOAD_IDLE_LABEL = 'ファイルを選んでください';
+/* ── 参加 ─────────────────────────────────── */
 
 function persistJoinSession() {
   const expires = Date.now() + JOIN_SESSION_DURATION_MS;
@@ -301,86 +278,7 @@ function restoreJoinSession() {
   return false;
 }
 
-function initTabs() {
-  const tabButtons = document.querySelectorAll('.tab-button[data-tab]');
-  const tabContents = document.querySelectorAll('.tab-content');
-  tabButtons.forEach((button) => {
-    button.addEventListener('click', function onTabClick() {
-      const targetTab = this.getAttribute('data-tab');
-      tabButtons.forEach((btn) => btn.classList.remove('active'));
-      tabContents.forEach((content) => content.classList.remove('active'));
-      this.classList.add('active');
-      tabButtons.forEach((btn) => btn.setAttribute('aria-selected', String(btn === this)));
-      document.getElementById(`${targetTab}-tab`).classList.add('active');
-    });
-  });
-}
-
-let previewUrls = [];
-
-function clearFileStrip() {
-  previewUrls.forEach((u) => URL.revokeObjectURL(u));
-  previewUrls = [];
-  if (fileStrip) fileStrip.innerHTML = '';
-}
-
-function renderFileStrip(files) {
-  clearFileStrip();
-  if (!fileStrip) return;
-  files.slice(0, 12).forEach((f) => {
-    const chip = document.createElement('div');
-    chip.className = 'file-chip';
-    chip.title = f.name;
-    if (f.type?.startsWith('image/') && !isHeicFile(f)) {
-      const url = URL.createObjectURL(f);
-      previewUrls.push(url);
-      const img = document.createElement('img');
-      img.src = url;
-      img.alt = '';
-      chip.appendChild(img);
-    } else {
-      const ext = document.createElement('span');
-      ext.className = 'item__ext';
-      ext.textContent = extLabel(f.name, f.type || '');
-      chip.appendChild(ext);
-    }
-    fileStrip.appendChild(chip);
-  });
-}
-
-function resetFileSelection() {
-  fileInput.value = '';
-  filePreview.style.display = 'none';
-  clearFileStrip();
-  uploadBtn.disabled = true;
-  uploadBtn.textContent = UPLOAD_IDLE_LABEL;
-}
-
-function handleFileSelect() {
-  const list = fileInput.files;
-  if (list && list.length > 0) {
-    const files = [...list];
-    if (files.length === 1) {
-      fileName.textContent = files[0].name;
-      fileSize.textContent = formatFileSize(files[0].size);
-      if (isHeicFile(files[0])) {
-        fileSize.textContent += ' · JPEGに変換';
-      }
-    } else {
-      fileName.textContent = `${files.length}件のファイル`;
-      const total = files.reduce((sum, f) => sum + f.size, 0);
-      fileSize.textContent = `合計 ${formatFileSize(total)}`;
-    }
-    renderFileStrip(files);
-    filePreview.style.display = 'block';
-    status.textContent = '';
-    status.classList.remove('success', 'error');
-    uploadBtn.disabled = false;
-    uploadBtn.textContent = files.length > 1 ? `${files.length}件をPCへ送る` : 'PCへ送る';
-  } else {
-    resetFileSelection();
-  }
-}
+/* ── 送信 ─────────────────────────────────── */
 
 async function uploadFileWithFallback(file) {
   const dataUrl = await encodeFileAsDataURL(file);
@@ -414,108 +312,82 @@ function enqueueSend(task) {
   return run;
 }
 
-function uploadFile() {
-  if (fileInput.files.length === 0) return Promise.resolve();
-  const files = [...fileInput.files];
-  return enqueueSend(() => uploadFiles(files, { fromSelection: true }));
+/** プレビューに使う MIME。HEIC は多くのブラウザで表示できないのでアイコン表示にする */
+function previewMime(file) {
+  return isHeicFile(file) ? 'application/octet-stream' : file.type;
 }
 
-function sendFilesNow(files) {
+/**
+ * 選んだ・ドロップした・貼り付けたファイルを、その場でタイムラインに並べて順に送る。
+ */
+function sendFilesNow(fileList) {
+  const files = [...(fileList || [])];
   if (!files.length) return Promise.resolve();
-  document.querySelector('.tab-button[data-tab="file"]')?.click();
-  return enqueueSend(() => uploadFiles(files, { fromSelection: false }));
+  if (!sessionId) {
+    showToast('セッションが見つかりません。QRコードから再度アクセスしてください', 'error', 4000);
+    return Promise.resolve();
+  }
+  const tag = isP2PReady() ? DIRECT_TAG : RELAY_TAG;
+  const jobs = files.map((file) => {
+    const msg = timeline.file({
+      name: file.name,
+      size: file.size,
+      mimeType: previewMime(file),
+      data: URL.createObjectURL(file),
+      timestamp: Date.now(),
+    }, 'out', tag);
+    const bubble = timeline.progress(msg);
+    if (file.size > MAX_FILE_SIZE_BYTES) {
+      bubble.fail(`大きすぎます（最大${MAX_FILE_SIZE_MB}MB）`);
+      return null;
+    }
+    return { file, bubble };
+  }).filter(Boolean);
+  if (!jobs.length) return Promise.resolve();
+  return enqueueSend(() => sendJobs(jobs));
 }
 
-async function uploadFiles(files, { fromSelection }) {
-
-  if (!sessionId) {
-    status.textContent = 'エラー: セッションIDが見つかりません';
-    status.classList.add('error');
-    showToast('セッションが見つかりません。QRコードから再度アクセスしてください', 'error', 4000);
-    return;
-  }
-
-  for (const file of files) {
-    if (file.size > MAX_FILE_SIZE_BYTES) {
-      status.textContent = `${file.name} が大きすぎます (最大${MAX_FILE_SIZE_MB}MB)`;
-      status.classList.add('error');
-      showToast(`${file.name}: 最大${MAX_FILE_SIZE_MB}MBまで`, 'error');
-      return;
-    }
-  }
-
-  uploadBtn.disabled = true;
-  progressContainer.style.display = 'block';
-  progressBar.style.width = '0%';
-  status.textContent = files.length > 1 ? `${files.length}件を送信中…` : '送信中…';
-  status.classList.remove('success', 'error');
-
-  try {
-    for (let i = 0; i < files.length; i++) {
-      let file = files[i];
+async function sendJobs(jobs) {
+  let sent = 0;
+  for (let i = 0; i < jobs.length; i++) {
+    const { bubble } = jobs[i];
+    let { file } = jobs[i];
+    const label = jobs.length > 1 ? `${file.name}（${i + 1}/${jobs.length}）` : file.name;
+    try {
       if (isHeicFile(file)) {
-        status.textContent = `${file.name} をJPEGに変換中…`;
+        setConnectionState(CONNECTION_STATE.TRANSFERRING, { detail: `${file.name} をJPEGに変換中`, progress: 0 });
         file = await normalizeImageFile(file);
       }
-      const base = i / files.length;
+      setConnectionState(CONNECTION_STATE.TRANSFERRING, { detail: `${label} を送信中`, progress: 0 });
       if (isP2PReady()) {
-        setConnectionState(CONNECTION_STATE.TRANSFERRING, { detail: `${file.name} (${i + 1}/${files.length})` });
         await sendFileOverChannel(dataChannel, file, (p) => {
-          progressBar.style.width = `${Math.round((base + p / files.length) * 100)}%`;
-          setTransferProgress(base + p / files.length, file.name);
+          bubble.set(p);
+          setTransferProgress(p, `${label} を送信中`);
         });
       } else {
+        bubble.set(0.5);
         await uploadFileWithFallback(file);
-        progressBar.style.width = `${Math.round(((i + 1) / files.length) * 100)}%`;
       }
+      bubble.done();
+      sent += 1;
+    } catch (error) {
+      console.error('ファイル送信エラー:', error);
+      bubble.fail(`送信できませんでした（${error?.message || 'unknown'}）`);
     }
-    progressBar.style.width = '100%';
-    status.textContent = '送信しました';
-    status.classList.add('success');
-    showToast(files.length > 1 ? `${files.length}件をPCへ送信しました` : `${files[0].name} をPCへ送信しました`, 'success');
-    if (fromSelection) resetFileSelection();
-    else uploadBtn.disabled = !fileInput.files.length;
+  }
+  if (sent > 0) {
     setConnectionState(CONNECTION_STATE.COMPLETE, { detail: '送信完了', progress: 1 });
-    setTimeout(() => {
-      progressContainer.style.display = 'none';
-      status.textContent = '続けて送れます';
-      status.classList.remove('success');
-      setConnectionState(CONNECTION_STATE.CONNECTED, { detail: '追加送信可能', progress: 0 });
-    }, 1500);
-  } catch (error) {
-    console.error('ファイルアップロードエラー:', error);
-    status.textContent = `送信できませんでした（${error?.message || 'unknown'}）`;
-    status.classList.add('error');
-    showToast('送信に失敗しました', 'error');
-    uploadBtn.disabled = !fileInput.files.length;
-    progressContainer.style.display = 'none';
-    setConnectionState(CONNECTION_STATE.CONNECTED, { detail: '送信できませんでした。もう一度お試しください', progress: 0 });
+    setTimeout(reassertConnected, 1200);
+  } else {
+    reassertConnected();
   }
 }
 
 function updateTextComposer() {
   const value = textInput.value.trim();
   textSendBtn.disabled = !value;
-  if (value && isHttpUrl(value)) {
-    document.getElementById('url-preview-url').textContent = value;
-    urlPreview.classList.add('show');
-    textSendBtn.textContent = 'リンクをPCへ送る';
-  } else {
-    urlPreview.classList.remove('show');
-    textSendBtn.textContent = value ? 'テキストをPCへ送る' : '送信';
-  }
-}
-
-function flashStatus(el, text, kind) {
-  el.textContent = text;
-  el.classList.remove('success', 'error');
-  if (kind) el.classList.add(kind);
-  if (kind === 'success') {
-    setTimeout(() => {
-      el.textContent = '';
-      el.classList.remove('success');
-    }, 1800);
-  }
+  const detect = document.getElementById('textDetect');
+  if (detect) detect.hidden = !isHttpUrl(value);
 }
 
 async function shareUrlWithFallback(url) {
@@ -543,57 +415,43 @@ async function shareUrlWithFallback(url) {
   }
 }
 
-/** テキスト欄の内容を、URL ならリンク、それ以外はテキストとして送る */
+/** 入力欄の内容を、URL ならリンク、それ以外はテキストとして送る */
 async function sendTextOrUrl() {
   const value = textInput.value.trim();
   if (!value) return;
   if (!sessionId) {
-    flashStatus(urlStatus, 'セッションが見つかりません', 'error');
     showToast('セッションが見つかりません', 'error');
     return;
   }
   const asUrl = isHttpUrl(value);
-  textSendBtn.disabled = true;
-  flashStatus(urlStatus, '送信中…');
+  const viaP2P = isP2PReady();
+  const msg = timeline.message(value, 'out', viaP2P ? DIRECT_TAG : RELAY_TAG);
+  composer.reset();
   try {
-    if (isP2PReady()) {
+    if (viaP2P) {
       sendTextOverChannel(dataChannel, value);
     } else if (asUrl) {
       await shareUrlWithFallback(value);
     } else {
       await putText(db, sessionId, value);
     }
-    flashStatus(urlStatus, asUrl ? 'リンクを送信しました' : 'テキストを送信しました', 'success');
-    showToast(asUrl ? 'リンクを送信しました' : 'テキストを送信しました', 'success');
-    textInput.value = '';
-    updateTextComposer();
-    setConnectionState(CONNECTION_STATE.COMPLETE, { detail: '送信完了', progress: 1 });
-    setTimeout(() => setConnectionState(CONNECTION_STATE.CONNECTED, { detail: '続けて送れます', progress: 0 }), 1500);
   } catch (error) {
     console.error('テキスト送信エラー:', error);
-    flashStatus(urlStatus, `送信できませんでした（${error?.message || 'unknown'}）`, 'error');
-    showToast('送信できませんでした', 'error');
-    textSendBtn.disabled = false;
+    timeline.progress(msg).fail(`送信できませんでした（${error?.message || 'unknown'}）`);
   }
 }
 
-uploadArea.addEventListener('click', () => fileInput.click());
-uploadArea.addEventListener('keydown', (e) => {
-  if (e.key === 'Enter' || e.key === ' ') {
-    e.preventDefault();
-    fileInput.click();
-  }
-});
-fileInput.addEventListener('change', handleFileSelect);
-uploadBtn.addEventListener('click', uploadFile);
+function pickFiles() {
+  fileInput.click();
+}
 
-textInput.addEventListener('input', updateTextComposer);
-textInput.addEventListener('keydown', (e) => {
-  if (e.key === 'Enter' && (e.metaKey || e.ctrlKey) && !e.isComposing) {
-    e.preventDefault();
-    if (!textSendBtn.disabled) sendTextOrUrl();
-  }
+fileInput.addEventListener('change', () => {
+  const picked = [...(fileInput.files || [])];
+  fileInput.value = '';
+  sendFilesNow(picked);
 });
+document.getElementById('attachBtn')?.addEventListener('click', pickFiles);
+document.getElementById('heroAttachBtn')?.addEventListener('click', pickFiles);
 textSendBtn.addEventListener('click', sendTextOrUrl);
 
 document.getElementById('authInput')?.addEventListener('keypress', (e) => {
@@ -619,19 +477,15 @@ function initDesktopInput() {
     canSend: canSendNow,
     onFiles: sendFilesNow,
     onText: (text) => {
-      document.querySelector('.tab-button[data-tab="text"]')?.click();
-      textInput.value = text;
+      composer.set(text);
       textInput.focus();
-      updateTextComposer();
     },
     onBlocked: blocked,
   });
-  const mod = /Mac|iPhone|iPad/.test(navigator.platform || navigator.userAgent) ? '⌘' : 'Ctrl';
-  document.querySelectorAll('[data-mod-key]').forEach((el) => { el.textContent = mod; });
+  applyModifierLabels();
 }
 
 document.addEventListener('DOMContentLoaded', async () => {
-  initTabs();
   initDesktopInput();
   subscribeConnectionState(updateMobileConnectionUI);
   if (restoreJoinSession()) {

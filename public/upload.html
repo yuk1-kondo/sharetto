@@ -2,7 +2,7 @@
 <html lang="ja">
 <head>
   <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover, interactive-widget=resizes-content">
   <meta name="theme-color" content="#ebebe7" media="(prefers-color-scheme: light)">
   <meta name="theme-color" content="#0b0b0a" media="(prefers-color-scheme: dark)">
   <link rel="manifest" href="/manifest.webmanifest">
@@ -17,7 +17,7 @@
   </script>
   <link rel="stylesheet" href="css/app.css">
 </head>
-<body class="app app--guest" data-connection-state="idle">
+<body class="app app--guest" data-connection-state="idle" data-view="session">
   <div id="authOverlay" class="auth-overlay">
     <div class="join-screen">
       <div class="join-card">
@@ -47,104 +47,54 @@
       <span class="brand">
         <img class="brand__mark" src="/icons/icon.svg" alt="">
         <span class="brand__name">シェアっと</span>
-        <span class="brand__tag">Sender</span>
+      </span>
+      <span class="status-pill" aria-live="polite">
+        <span class="led"></span>
+        <span id="mobileConnectionBadge" class="connection-badge" data-state="idle">準備中</span>
+        <span id="mobileConnectionDetail" class="status-pill__detail">PCとの接続を準備しています</span>
       </span>
       <span class="topbar__spacer"></span>
-      <span class="status-pill"><span class="led"></span><span id="mobileConnectionBadge" class="connection-badge" data-state="idle">準備中</span></span>
+      <button type="button" id="fallbackRelayBtn" class="btn btn--ghost btn--sm" hidden>サーバー経由にする</button>
     </div>
   </header>
 
-  <main id="mainContent" class="guest">
-    <section class="panel guest-status" aria-live="polite">
-      <div class="link link--compact" aria-hidden="true">
-        <span class="link__node">
-          <svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><rect x="7" y="2.5" width="10" height="19" rx="2.5"/><path d="M11 18.5h2"/></svg>
-        </span>
-        <span class="link__wire"></span>
-        <span class="link__node link__node--remote">
-          <svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="5" width="16" height="11" rx="2"/><path d="M2 19h20"/></svg>
-        </span>
-      </div>
-      <p id="mobileConnectionDetail" class="connection-detail">PCとの接続を準備しています</p>
-      <button type="button" id="fallbackRelayBtn" class="btn btn--ghost btn--block" hidden>サーバー経由に切り替える</button>
-    </section>
-
-    <nav class="segmented" role="tablist" aria-label="送るもの">
-      <button class="tab-button active" type="button" role="tab" data-tab="file">
-        <svg class="icon icon--sm" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M14 3H7a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V8z"/><path d="M14 3v5h5"/></svg>
-        写真・ファイル
-      </button>
-      <button class="tab-button" type="button" role="tab" data-tab="text">
-        <svg class="icon icon--sm" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 6h14"/><path d="M5 12h14"/><path d="M5 18h9"/></svg>
-        テキスト・リンク
-      </button>
-    </nav>
-
-    <section class="tab-content active" id="file-tab" role="tabpanel">
-      <div class="upload-area" id="upload-area" role="button" tabindex="0" aria-label="写真やファイルを選ぶ">
-        <span class="upload-key">
+  <main id="mainContent" class="session">
+    <div id="timeline" class="timeline" data-empty="true" aria-live="polite">
+      <div class="timeline__empty">
+        <button type="button" class="hero-key" id="heroAttachBtn" aria-label="写真・ファイルを送る">
           <svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 5v14"/><path d="M5 12h14"/></svg>
-        </span>
-        <p class="upload-area__title">写真・ファイルを選ぶ</p>
-        <p class="upload-area__sub">複数選択OK · 1ファイル50MBまで</p>
-        <p class="upload-area__sub desktop-only">ウィンドウにドロップ、または <kbd data-mod-key>⌘</kbd> <kbd>V</kbd> の貼り付けでもすぐ送れます</p>
-        <input type="file" id="file-input" class="file-input" accept="image/*,video/*,*/*" multiple>
+        </button>
+        <h2 class="title title--lg">写真・ファイルを送る</h2>
+        <p class="lead">タップして選ぶと、すぐ相手に届きます。<br>テキストやリンクは下の欄から。</p>
+        <ul class="timeline__tips desktop-only">
+          <li><b>ウィンドウへドロップ</b> でファイルを送信</li>
+          <li><kbd data-mod-key>⌘</kbd> <kbd>V</kbd> で画像やテキストを貼り付けて送信</li>
+          <li><kbd>Enter</kbd> で送信（<kbd>Shift</kbd>+<kbd>Enter</kbd> で改行）</li>
+        </ul>
+        <p class="timeline__credit">1ファイル50MBまで · Develop by Yuki Kondo</p>
       </div>
-
-      <div class="file-preview" id="file-preview">
-        <div class="file-preview__head">
-          <div class="file-name" id="file-name"></div>
-          <div class="file-size" id="file-size"></div>
-        </div>
-        <div class="file-strip" id="file-strip"></div>
-      </div>
-
-      <div class="progress-container" id="progress-container">
-        <div class="progress-bar"><div class="progress-fill" id="progress-bar"></div></div>
-      </div>
-      <div class="form-status" id="status" role="status"></div>
-
-      <div class="dock">
-        <div class="dock__inner">
-          <button class="btn btn--accent btn--lg" id="upload-btn" type="button" disabled>ファイルを選んでください</button>
-        </div>
-      </div>
-    </section>
-
-    <section class="tab-content" id="text-tab" role="tabpanel">
-      <label for="text-input" class="sr-only">PCへ送るテキストまたはURL</label>
-      <textarea id="text-input" class="field" rows="5" placeholder="テキストやURLを入力…"></textarea>
-      <p class="muted desktop-only"><kbd data-mod-key>⌘</kbd> <kbd>Enter</kbd> で送信</p>
-      <div class="url-preview" id="url-preview">
-        <svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M10 14a4 4 0 0 0 5.66 0l3-3a4 4 0 0 0-5.66-5.66l-1 1"/><path d="M14 10a4 4 0 0 0-5.66 0l-3 3a4 4 0 0 0 5.66 5.66l1-1"/></svg>
-        <div class="url-preview__text">
-          <span class="url-preview-title" id="url-preview-title">リンクとして送信</span>
-          <span class="url-preview-url" id="url-preview-url"></span>
-        </div>
-      </div>
-      <div class="form-status" id="url-status" role="status"></div>
-
-      <div class="dock">
-        <div class="dock__inner">
-          <button class="btn btn--accent btn--lg" id="text-send-btn" type="button" disabled>送信</button>
-        </div>
-      </div>
-    </section>
-
-    <section class="panel" id="mobileReceivePanel" hidden aria-labelledby="receiveTitle">
-      <div class="panel__head">
-        <p class="eyebrow" id="receiveTitle"><span class="eyebrow__num">IN</span>From PC</p>
-      </div>
-      <div id="mobileReceiveList" class="files-list" aria-live="polite">
-        <div class="no-files">PCから届いたファイルやテキストが、ここに表示されます</div>
-      </div>
-    </section>
+      <div class="timeline__list" id="mobileReceiveList"></div>
+    </div>
   </main>
 
-  <footer class="footer">
-    <span>Sharetto — device to device</span>
-    <span>Develop by Yuki Kondo</span>
-  </footer>
+  <div class="composer-bar" data-ready="true">
+    <div class="composer-bar__inner">
+      <div class="composer-bar__row">
+        <button id="attachBtn" type="button" class="composer-key" aria-label="写真・ファイルを送る" title="写真・ファイルを送る">
+          <svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 5v14"/><path d="M5 12h14"/></svg>
+        </button>
+        <input type="file" id="file-input" hidden accept="image/*,video/*,*/*" multiple>
+        <div class="composer-field">
+          <label for="text-input" class="sr-only">相手へ送るテキストまたはURL</label>
+          <textarea id="text-input" rows="1" placeholder="テキストやリンクを送る" enterkeyhint="send"></textarea>
+          <span id="textDetect" class="composer-field__detect" hidden>リンク</span>
+        </div>
+        <button id="text-send-btn" type="button" class="send-key" aria-label="送信" title="送信" disabled>
+          <svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 19V5"/><path d="m6 11 6-6 6 6"/></svg>
+        </button>
+      </div>
+    </div>
+  </div>
 
   <div id="dropOverlay" class="drop-overlay" aria-hidden="true">
     <div class="drop-overlay__inner">
