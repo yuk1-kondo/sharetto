@@ -105,7 +105,7 @@ export function createP2PHost({ db, sessionId, onFile, onText, onPeerConnected }
   return {
     async start() {
       await initHostSignaling(db, sessionId);
-      setConnectionState(CONNECTION_STATE.WAITING, { detail: 'スマホからの接続を待っています' });
+      setConnectionState(CONNECTION_STATE.WAITING, { detail: 'スマホまたはPCからの接続を待っています' });
       stopWatch = watchPeerOffers(db, sessionId, (peerId, data) => {
         handlePeer(peerId, data).catch((e) => console.error('[p2p-host]', e));
       });
@@ -125,12 +125,12 @@ export function createP2PHost({ db, sessionId, onFile, onText, onPeerConnected }
     },
     sendText(text) {
       const ch = getActiveChannel();
-      if (!ch) throw new Error('スマホが接続されていません');
+      if (!ch) throw new Error('相手が接続されていません');
       sendTextOverChannel(ch, text);
     },
     async sendFile(file, onProgress) {
       const ch = getActiveChannel();
-      if (!ch) throw new Error('スマホが接続されていません');
+      if (!ch) throw new Error('相手が接続されていません');
       return sendFileOverChannel(ch, file, onProgress);
     },
   };

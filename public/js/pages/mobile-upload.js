@@ -24,6 +24,8 @@ import {
   createFileItem, createUrlItem, createTextItem, createMessageItem, prependItem, isHttpUrl,
 } from '../file-items.js';
 import { extLabel } from '../icons.js';
+import { initPasteToSend, initDropToSend } from '../desktop-input.js';
+import { markIncoming } from '../attention.js';
 import {
   viewFullImage, closeImageModal, downloadModalImage, downloadFile, copyToClipboard,
 } from '../ui.js';
@@ -137,6 +139,7 @@ function appendMobileReceivedFile(file, tag = '直接') {
     timestamp: Date.now(),
   }, itemHandlers, { tag });
   prependItem(receiveList(), el);
+  markIncoming();
   showToast(`${file.name} をPCから受信しました`, 'success');
 }
 
@@ -159,6 +162,7 @@ async function appendMobileReceivedRelayFile(item) {
 function appendMobileReceivedRelayUrl(item) {
   const el = createUrlItem({ url: item.url, title: item.name, timestamp: item.timestamp }, itemHandlers, { tag: 'サーバー経由' });
   prependItem(receiveList(), el);
+  markIncoming();
   showToast('PCからリンクを受信しました', 'success');
 }
 
@@ -167,6 +171,7 @@ function appendMobileReceivedText(text, tag = '直接') {
     ? createMessageItem(text, itemHandlers, { tag })
     : createTextItem({ text, timestamp: Date.now() }, itemHandlers, { tag });
   prependItem(receiveList(), el);
+  markIncoming();
   showToast(isHttpUrl(text) ? 'PCからリンクを受信しました' : 'PCからテキストを受信しました', 'success');
 }
 
@@ -400,9 +405,28 @@ async function uploadFileWithFallback(file) {
   }
 }
 
-async function uploadFile() {
-  if (fileInput.files.length === 0) return;
+let sendQueue = Promise.resolve();
+
+/** 送信は1本のデータチャネルを共有するため、必ず順番に流す */
+function enqueueSend(task) {
+  const run = sendQueue.then(task, task);
+  sendQueue = run.catch(() => {});
+  return run;
+}
+
+function uploadFile() {
+  if (fileInput.files.length === 0) return Promise.resolve();
   const files = [...fileInput.files];
+  return enqueueSend(() => uploadFiles(files, { fromSelection: true }));
+}
+
+function sendFilesNow(files) {
+  if (!files.length) return Promise.resolve();
+  document.querySelector('.tab-button[data-tab="file"]')?.click();
+  return enqueueSend(() => uploadFiles(files, { fromSelection: false }));
+}
+
+async function uploadFiles(files, { fromSelection }) {
 
   if (!sessionId) {
     status.textContent = 'エラー: セッションIDが見つかりません';
@@ -448,8 +472,9 @@ async function uploadFile() {
     progressBar.style.width = '100%';
     status.textContent = '送信しました';
     status.classList.add('success');
-    showToast('PCへ送信しました', 'success');
-    resetFileSelection();
+    showToast(files.length > 1 ? `${files.length}件をPCへ送信しました` : `${files[0].name} をPCへ送信しました`, 'success');
+    if (fromSelection) resetFileSelection();
+    else uploadBtn.disabled = !fileInput.files.length;
     setConnectionState(CONNECTION_STATE.COMPLETE, { detail: '送信完了', progress: 1 });
     setTimeout(() => {
       progressContainer.style.display = 'none';
@@ -462,8 +487,9 @@ async function uploadFile() {
     status.textContent = `送信できませんでした（${error?.message || 'unknown'}）`;
     status.classList.add('error');
     showToast('送信に失敗しました', 'error');
-    uploadBtn.disabled = false;
+    uploadBtn.disabled = !fileInput.files.length;
     progressContainer.style.display = 'none';
+    setConnectionState(CONNECTION_STATE.CONNECTED, { detail: '送信できませんでした。もう一度お試しください', progress: 0 });
   }
 }
 
@@ -558,20 +584,16 @@ uploadArea.addEventListener('keydown', (e) => {
     fileInput.click();
   }
 });
-uploadArea.addEventListener('dragover', (e) => { e.preventDefault(); uploadArea.classList.add('dragover'); });
-uploadArea.addEventListener('dragleave', () => uploadArea.classList.remove('dragover'));
-uploadArea.addEventListener('drop', (e) => {
-  e.preventDefault();
-  uploadArea.classList.remove('dragover');
-  if (e.dataTransfer.files.length > 0) {
-    fileInput.files = e.dataTransfer.files;
-    handleFileSelect();
-  }
-});
 fileInput.addEventListener('change', handleFileSelect);
 uploadBtn.addEventListener('click', uploadFile);
 
 textInput.addEventListener('input', updateTextComposer);
+textInput.addEventListener('keydown', (e) => {
+  if (e.key === 'Enter' && (e.metaKey || e.ctrlKey) && !e.isComposing) {
+    e.preventDefault();
+    if (!textSendBtn.disabled) sendTextOrUrl();
+  }
+});
 textSendBtn.addEventListener('click', sendTextOrUrl);
 
 document.getElementById('authInput')?.addEventListener('keypress', (e) => {
@@ -581,8 +603,36 @@ document.getElementById('authInput')?.addEventListener('input', (e) => {
   e.target.classList.toggle('is-long', /[^\d\s]/.test(e.target.value));
 });
 
+function canSendNow() {
+  return Boolean(sessionId) && document.getElementById('mainContent').classList.contains('authenticated');
+}
+
+function initDesktopInput() {
+  const blocked = () => showToast('参加してから送れます', 'info');
+  initDropToSend({
+    overlay: document.getElementById('dropOverlay'),
+    canSend: canSendNow,
+    onFiles: sendFilesNow,
+    onBlocked: blocked,
+  });
+  initPasteToSend({
+    canSend: canSendNow,
+    onFiles: sendFilesNow,
+    onText: (text) => {
+      document.querySelector('.tab-button[data-tab="text"]')?.click();
+      textInput.value = text;
+      textInput.focus();
+      updateTextComposer();
+    },
+    onBlocked: blocked,
+  });
+  const mod = /Mac|iPhone|iPad/.test(navigator.platform || navigator.userAgent) ? '⌘' : 'Ctrl';
+  document.querySelectorAll('[data-mod-key]').forEach((el) => { el.textContent = mod; });
+}
+
 document.addEventListener('DOMContentLoaded', async () => {
   initTabs();
+  initDesktopInput();
   subscribeConnectionState(updateMobileConnectionUI);
   if (restoreJoinSession()) {
     await bootstrapSession();

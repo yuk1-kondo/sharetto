@@ -87,6 +87,7 @@
         </span>
         <p class="upload-area__title">写真・ファイルを選ぶ</p>
         <p class="upload-area__sub">複数選択OK · 1ファイル50MBまで</p>
+        <p class="upload-area__sub desktop-only">ウィンドウにドロップ、または <kbd data-mod-key>⌘</kbd> <kbd>V</kbd> の貼り付けでもすぐ送れます</p>
         <input type="file" id="file-input" class="file-input" accept="image/*,video/*,*/*" multiple>
       </div>
 
@@ -113,6 +114,7 @@
     <section class="tab-content" id="text-tab" role="tabpanel">
       <label for="text-input" class="sr-only">PCへ送るテキストまたはURL</label>
       <textarea id="text-input" class="field" rows="5" placeholder="テキストやURLを入力…"></textarea>
+      <p class="muted desktop-only"><kbd data-mod-key>⌘</kbd> <kbd>Enter</kbd> で送信</p>
       <div class="url-preview" id="url-preview">
         <svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M10 14a4 4 0 0 0 5.66 0l3-3a4 4 0 0 0-5.66-5.66l-1 1"/><path d="M14 10a4 4 0 0 0-5.66 0l-3 3a4 4 0 0 0 5.66 5.66l1-1"/></svg>
         <div class="url-preview__text">
@@ -143,6 +145,13 @@
     <span>Sharetto — device to device</span>
     <span>Develop by Yuki Kondo</span>
   </footer>
+
+  <div id="dropOverlay" class="drop-overlay" aria-hidden="true">
+    <div class="drop-overlay__inner">
+      <svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 4v11"/><path d="m7 10 5 5 5-5"/><path d="M5 20h14"/></svg>
+      <p>ドロップして相手へ送信</p>
+    </div>
+  </div>
 
   <div id="imageModal" class="image-modal" role="dialog" aria-modal="true" aria-labelledby="modalTitle">
     <div class="modal-content">

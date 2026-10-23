@@ -28,6 +28,10 @@
           <span id="timerDisplay">10:00</span>
         </div>
       </div>
+      <button type="button" id="openJoinDialogBtn" class="btn btn--primary btn--sm" title="ほかのPCのコードを入力して、そのPCへ送る">
+        <svg class="icon icon--sm" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12h13"/><path d="m13 6 6 6-6 6"/></svg>
+        <span class="topbar__hide-sm">コードで接続</span>
+      </button>
       <button type="button" onclick="generateNewSession()" class="btn btn--ghost btn--sm" title="新しいQRと参加コードを発行">
         <svg class="icon icon--sm" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20 11a8 8 0 1 0-2.3 5.7"/><path d="M20 5v6h-6"/></svg>
         <span class="topbar__hide-sm">新しいコード</span>
@@ -65,6 +69,7 @@
           </button>
         </div>
         <p class="code-hint">スマホで <b id="joinHost">sharetto.web.app/join.html</b> を開いて入力</p>
+        <p class="code-hint code-hint--pc">PCどうしなら、相手のPCでこのページを開き<br><b>このコードの数字をそのままキーボードで入力</b></p>
 
         <div class="btn-row">
           <button type="button" onclick="copyQRUrl()" class="btn btn--sm">
@@ -123,14 +128,14 @@
 
       <section class="panel composer" id="pcSendPanel" data-area="send" data-ready="false" aria-labelledby="sendTitle">
         <div class="panel__head">
-          <p class="eyebrow" id="sendTitle"><span class="eyebrow__num">03</span>Send to phone</p>
+          <p class="eyebrow" id="sendTitle"><span class="eyebrow__num">03</span>Send</p>
         </div>
         <p id="pcSendHint" class="composer__lock">
           <span class="led"></span>
-          スマホがつながると、ここからテキスト・リンク・ファイルを送れます
+          相手がつながると、ここからテキスト・リンク・ファイルを送れます
         </p>
         <div class="composer__box">
-          <label for="pcTextSend" class="sr-only">スマホへ送るテキストまたはURL</label>
+          <label for="pcTextSend" class="sr-only">相手へ送るテキストまたはURL</label>
           <textarea id="pcTextSend" class="composer__input" rows="3" placeholder="テキストやURLを入力…" disabled></textarea>
           <div class="composer__bar">
             <button id="pcFileSendBtn" type="button" class="btn btn--quiet btn--sm" disabled>
@@ -140,7 +145,7 @@
             <input type="file" id="pcFileSend" hidden multiple>
             <span class="muted">
               <span id="pcSendDetect" class="composer__detect" hidden></span>
-              <span class="topbar__hide-sm" id="pcSendShortcut"><kbd>⌘</kbd> <kbd>Enter</kbd> で送信</span>
+              <span class="topbar__hide-sm" id="pcSendShortcut"><kbd>⌘</kbd> <kbd>Enter</kbd> で送信 · ファイルはドロップか貼り付け</span>
             </span>
             <button id="pcSendBtn" type="button" class="btn btn--accent btn--sm" disabled>
               送信
@@ -178,9 +183,26 @@
   <div id="dropOverlay" class="drop-overlay" aria-hidden="true">
     <div class="drop-overlay__inner">
       <svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 4v11"/><path d="m7 10 5 5 5-5"/><path d="M5 20h14"/></svg>
-      <p>ドロップしてスマホへ送信</p>
+      <p>ドロップして相手へ送信</p>
     </div>
   </div>
+
+  <dialog id="joinDialog" class="join-dialog" aria-labelledby="joinDialogTitle">
+    <form method="dialog" class="join-card" id="joinDialogForm">
+      <div class="join-card__head">
+        <p class="eyebrow eyebrow--plain" style="justify-content:center"><span class="eyebrow__num">PC</span>to PC</p>
+        <h2 class="title" id="joinDialogTitle">相手のコードを入力</h2>
+        <p class="lead">相手の画面に表示されている6桁の数字。入力するとすぐに接続します。</p>
+      </div>
+      <label for="joinDialogInput" class="sr-only">参加コード</label>
+      <input id="joinDialogInput" class="code-input" placeholder="000000" maxlength="512" autocomplete="off" inputmode="numeric">
+      <div id="joinDialogStatus" class="page-status" role="status"></div>
+      <div class="btn-row">
+        <button type="button" class="btn btn--ghost" id="joinDialogCancel">キャンセル</button>
+        <button type="submit" class="btn btn--primary" id="joinDialogSubmit" disabled>接続する</button>
+      </div>
+    </form>
+  </dialog>
 
   <div id="imageModal" class="image-modal" role="dialog" aria-modal="true" aria-labelledby="modalTitle">
     <div class="modal-content">

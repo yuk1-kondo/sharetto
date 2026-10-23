@@ -1038,6 +1038,63 @@ html.qr-session .auth-overlay { display: none; }
 }
 .text-link:hover { color: var(--ink); }
 
+/* ───────────────────────── PC to PC ───────────────────────── */
+.join-dialog {
+  width: min(440px, calc(100vw - 32px));
+  padding: 28px 24px 22px;
+  border: 0;
+  border-radius: var(--radius-lg);
+  background: var(--surface);
+  color: var(--ink);
+  box-shadow: var(--shadow-float);
+}
+.join-dialog[open] { animation: pop-in 0.22s var(--ease); }
+.join-dialog::backdrop {
+  background: rgba(10, 10, 9, 0.5);
+  -webkit-backdrop-filter: blur(8px);
+  backdrop-filter: blur(8px);
+}
+.join-dialog .join-card { gap: 16px; }
+.join-dialog .code-input { height: 72px; font-size: 32px; }
+
+.code-hint--pc, .desktop-only { display: none; }
+@media (pointer: fine) {
+  .code-hint--pc { display: block; }
+  .desktop-only { display: initial; }
+}
+.code-display.is-expired .display__value { color: var(--display-dim); text-decoration: line-through; text-decoration-thickness: 2px; }
+.code-display.is-expired .display__label::after { content: " · expired"; color: var(--warn); }
+.session-timer.kept #timerDisplay { color: var(--ok); }
+
+@media (min-width: 960px) {
+  .guest {
+    max-width: 1080px;
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+    column-gap: 20px;
+    align-items: start;
+  }
+  .guest > * { grid-column: 1; }
+  .guest > #mobileReceivePanel {
+    grid-column: 2;
+    grid-row: 1 / span 4;
+    position: sticky;
+    top: calc(var(--topbar-h) + 16px);
+    max-height: calc(100vh - var(--topbar-h) - 32px);
+    overflow-y: auto;
+  }
+  .dock {
+    position: static;
+    padding: 0;
+    background: none;
+    border: 0;
+    -webkit-backdrop-filter: none;
+    backdrop-filter: none;
+  }
+  .dock__inner { max-width: none; }
+  body.app--guest .footer { padding-bottom: 28px; }
+  body.app--guest .toast-container { bottom: 24px; }
+}
+
 /* ───────────────────────── Image modal ───────────────────────── */
 .image-modal {
   position: fixed;

@@ -96,5 +96,6 @@ const urlCode = new URLSearchParams(location.search).get('code');
 if (urlCode) {
   input.value = urlCode;
   updateButtonState();
+  if (parseJoinInput(urlCode)?.type === 'code') join();
 }
 input.focus();
