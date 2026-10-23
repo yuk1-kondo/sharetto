@@ -6,7 +6,7 @@
 
 /* ───────────────────────── Tokens ───────────────────────── */
 :root {
-  color-scheme: light dark;
+  color-scheme: light;
 
   --bg: #ebebe7;
   --bg-dot: rgba(15, 15, 14, 0.07);
@@ -52,27 +52,6 @@
   --ease: cubic-bezier(0.2, 0.8, 0.2, 1);
   --topbar-h: 60px;
   --dock-h: 88px;
-}
-
-@media (prefers-color-scheme: dark) {
-  :root {
-    --bg: #0b0b0a;
-    --bg-dot: rgba(255, 255, 255, 0.05);
-    --surface: #171716;
-    --surface-2: #1f1f1d;
-    --surface-3: #2a2a27;
-    --ink: #f2f2ee;
-    --ink-2: #a8a8a1;
-    --ink-3: #6f6f69;
-    --line: rgba(255, 255, 255, 0.08);
-    --line-strong: rgba(255, 255, 255, 0.16);
-    --on-ink: #0f0f0e;
-    --display: #000000;
-    --display-dim: #4a4a46;
-    --shadow-card: 0 0 0 1px rgba(255, 255, 255, 0.04), 0 10px 30px -12px rgba(0, 0, 0, 0.6);
-    --shadow-float: 0 0 0 1px rgba(255, 255, 255, 0.06), 0 24px 48px -16px rgba(0, 0, 0, 0.8);
-    --shadow-key: 0 1px 0 rgba(255, 255, 255, 0.05) inset;
-  }
 }
 
 /* ───────────────────────── Base ───────────────────────── */
