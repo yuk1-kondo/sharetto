@@ -1,22 +1,24 @@
 <!DOCTYPE html>
-<html lang="ja">
+<html lang="en">
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <meta name="theme-color" content="#faf9f5" />
+  <meta name="theme-color" content="#fdfdfd" />
   <link rel="manifest" href="/manifest.webmanifest" />
   <link rel="icon" href="/icons/icon.svg" type="image/svg+xml" />
   <title>参加コードで参加 - シェアっと</title>
-  <link rel="stylesheet" href="css/design-tokens.css" />
-  <link rel="stylesheet" href="css/sharetto-app.css" />
-  <link rel="stylesheet" href="css/components.css" />
+  <link rel="stylesheet" href="css/design-tokens.css?v=20261102c" />
+  <link rel="stylesheet" href="css/sharetto-app.css?v=20261102c" />
+  <script type="module" src="./js/i18n.js"></script>
 </head>
 <body class="sharetto-app">
+  <div class="page-language"><div class="language-switch" role="group" aria-label="Language"><button type="button" data-language="ja" lang="ja" aria-label="日本語" aria-pressed="false">JP</button><span aria-hidden="true">/</span><button type="button" data-language="en" lang="en" aria-label="English" aria-pressed="true">EN</button></div></div>
   <div class="page-center">
     <div class="card page-card">
       <p class="card__label">Join</p>
       <h1 class="card__title">参加コード</h1>
-      <p class="page-lead">6桁のコード、または共有URLを入力してセッションに参加します（有効期限10分）。</p>
+      <p class="page-lead">6桁のコード、または共有URLを入力してセッションに参加します（有効期限2時間・延長可能）。</p>
+      <label for="code">参加コードまたは共有リンク</label>
       <input id="code" class="url-input join-input" placeholder="例: 123456" maxlength="64" autocomplete="off" inputmode="numeric" />
       <button id="joinBtn" class="action-button btn--block" disabled>参加する</button>
       <a href="/" class="page-back">← トップへ戻る</a>

@@ -1,9 +1,9 @@
 <!DOCTYPE html>
-<html lang="ja">
+<html lang="en">
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <meta name="theme-color" content="#faf9f5">
+  <meta name="theme-color" content="#fdfdfd">
   <link rel="manifest" href="/manifest.webmanifest">
   <link rel="icon" href="/icons/icon.svg" type="image/svg+xml">
   <title>送信 - シェアっと</title>
@@ -13,11 +13,12 @@
       if (sid && sid.length >= 6) document.documentElement.classList.add('qr-session');
     })();
   </script>
-  <link rel="stylesheet" href="css/design-tokens.css">
-  <link rel="stylesheet" href="css/sharetto-app.css">
-  <link rel="stylesheet" href="css/components.css">
+  <link rel="stylesheet" href="css/design-tokens.css?v=20261102c">
+  <link rel="stylesheet" href="css/sharetto-app.css?v=20261102c">
+  <script type="module" src="./js/i18n.js"></script>
 </head>
 <body class="sharetto-app">
+  <div class="page-language"><div class="language-switch" role="group" aria-label="Language"><button type="button" data-language="ja" lang="ja" aria-label="日本語" aria-pressed="false">JP</button><span aria-hidden="true">/</span><button type="button" data-language="en" lang="en" aria-label="English" aria-pressed="true">EN</button></div></div>
   <!-- 認証オーバーレイ -->
   <div id="authOverlay" class="auth-overlay">
     <div class="auth-container">
@@ -48,17 +49,10 @@
     </header>
 
     <div class="panel-card">
-      <!-- タブ切り替え -->
-      <div class="tab-container">
-        <button class="tab-button active" data-tab="file">📁 ファイル</button>
-        <button class="tab-button" data-tab="url">🔗 URL</button>
-        <button class="tab-button" data-tab="text">💬 テキスト</button>
-      </div>
-
       <!-- ファイルアップロードタブ -->
       <div class="tab-content active" id="file-tab">
-        <div class="upload-area" id="upload-area">
-          <div class="upload-icon">+</div>
+        <div class="upload-area" id="upload-area" role="button" tabindex="0" aria-label="ファイル・写真を選ぶ">
+          <span class="section-index">SELECT / DROP</span>
           <p>タップしてファイルを選択<br>または<br>ファイルをドラッグ＆ドロップ</p>
           <input type="file" id="file-input" class="file-input" accept="image/*,video/*,*/*" multiple>
         </div>
@@ -79,51 +73,25 @@
         <div class="status" id="status"></div>
       </div>
       
-      <!-- URL共有タブ -->
-      <div class="tab-content" id="url-tab">
-        <div class="url-input-container">
-          <input 
-            type="url" 
-            id="url-input" 
-            class="url-input" 
-            placeholder="https://example.com のようにURLを入力してください"
-          >
-          
-          <div class="url-preview" id="url-preview">
-            <div class="url-preview-title" id="url-preview-title"></div>
-            <div class="url-preview-description" id="url-preview-description"></div>
-            <div class="url-preview-url" id="url-preview-url"></div>
-          </div>
-        </div>
-        
-        <div class="progress-container" id="url-progress-container">
-          <div class="progress-bar">
-            <div class="progress-fill" id="url-progress-bar"></div>
-          </div>
-        </div>
-        
-        <button class="btn btn-primary btn-sticky" id="url-share-btn" disabled>URLを共有</button>
-        
-        <div class="status" id="url-status"></div>
-      </div>
-
-      <!-- テキスト送信タブ（直接接続時） -->
-      <div class="tab-content" id="text-tab">
-        <textarea id="text-input" class="url-input" rows="4" placeholder="送りたいテキストを入力"></textarea>
-        <button class="btn btn-primary btn-sticky" id="text-send-btn">テキストを送信</button>
-      </div>
     </div>
 
     <div class="panel-card card" id="mobileReceivePanel" hidden>
       <h3 class="card__title">PCから受信</h3>
-      <div id="mobileReceiveList" class="files-list">
+      <div id="mobileReceiveList" class="files-list photo-gallery">
         <div class="no-files">PCから届いたファイル・テキストがここに表示されます</div>
       </div>
     </div>
 
+    <section class="notes-section" aria-labelledby="mobileNotesTitle">
+      <div class="notes-heading"><p class="section-index">TEXT &amp; LINKS</p><h2 id="mobileNotesTitle">文章・URL</h2></div>
+      <div class="composer"><label for="text-input" class="sr-only">文章・URLを送る</label><div class="input-row"><textarea id="text-input" rows="2" placeholder="文章やURLを貼り付け…"></textarea><button id="text-send-btn" class="text-button" type="button">送信</button></div><p class="composer-hint muted">文章もリンクも、この欄から。</p></div>
+      <div id="mobileMessageList" class="messages-list" aria-label="受信した文章とURL"><p class="no-files">届いた文章やURLが、ここに並びます。</p></div>
+    </section>
+
     <footer class="app-footer">シェアっと · Develop by YUKI KONDO</footer>
   </div>
 
+  <dialog id="imageModal" class="image-modal" aria-labelledby="modalTitle"><div class="modal-content"><div class="modal-header"><h2 id="modalTitle">画像プレビュー</h2><button type="button" class="text-button underlined" onclick="closeImageModal()">閉じる</button></div><img id="modalImage" class="modal-image" alt=""><button type="button" class="text-button underlined" onclick="downloadModalImage()">この写真を保存</button></div></dialog>
   <script type="module" src="./js/pages/mobile-upload.js"></script>
 </body>
 </html>

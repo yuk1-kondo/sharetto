@@ -1,79 +1,67 @@
 {
   "rules": {
+    ".read": false,
+    ".write": false,
+    "sessions": {
+      "$sessionId": {
+        ".read": "$sessionId.matches(/^[a-z0-9]{13}$/)",
+        ".write": "newData.exists() && ($sessionId.matches(/^[a-z0-9]{13}$/) && ((!data.exists() && newData.child('status').val() == 'active') || (data.child('status').val() == 'active' && data.child('expiresAt').val() > now)))",
+        ".validate": "newData.hasChildren(['status','createdAt','expiresAt']) && (newData.child('status').val() == 'active' || newData.child('status').val() == 'ended') && newData.child('createdAt').isNumber() && newData.child('expiresAt').isNumber() && ((!data.exists() && newData.child('createdAt').val() <= now && newData.child('createdAt').val() > now - 300000 && newData.child('expiresAt').val() <= now + 7500000 && newData.child('expiresAt').val() > now) || (data.exists() && newData.child('createdAt').val() == data.child('createdAt').val() && newData.child('expiresAt').val() >= data.child('expiresAt').val() && newData.child('expiresAt').val() <= data.child('expiresAt').val() + 7200000))",
+        "$other": {
+          ".validate": false
+        },
+        "status": {},
+        "createdAt": {},
+        "expiresAt": {}
+      }
+    },
     "codes": {
-      ".read": true,
-      ".write": true,
       "$code": {
-        // 読み取りはPIN入力端末でも可（TTL判定はクライアント側も実施）
-        ".read": "($code.length == 6) && ($code.matches(/^[0-9]{6}$/))",
-        // 書き込みは許可（PIN→sessionの一時マッピング）。セッション側は別ルールで保護。
-        ".write": "true",
-        // 最低限の検証: sessionId 形式と timestamp の妥当性
-        ".validate": "newData.hasChildren(['sessionId','timestamp']) && (newData.child('sessionId').isString()) && (newData.child('sessionId').val().matches(/^[a-z0-9]{13}$/)) && (newData.child('timestamp').val() <= now) && (newData.child('timestamp').val() > now - 60000)"
+        ".read": "$code.matches(/^[0-9]{6}$/)",
+        ".write": "$code.matches(/^[0-9]{6}$/) && (!data.exists() || root.child('sessions').child(data.child('sessionId').val()).child('status').val() != 'active' || root.child('sessions').child(data.child('sessionId').val()).child('expiresAt').val() <= now)",
+        ".validate": "newData.hasChildren(['sessionId','timestamp']) && newData.child('sessionId').isString() && newData.child('sessionId').val().matches(/^[a-z0-9]{13}$/) && root.child('sessions').child(newData.child('sessionId').val()).child('status').val() == 'active' && root.child('sessions').child(newData.child('sessionId').val()).child('expiresAt').val() > now && newData.child('timestamp').isNumber() && newData.child('timestamp').val() <= now && newData.child('timestamp').val() > now - 300000"
       }
     },
     "files": {
       "$sessionId": {
-        ".read": "$sessionId.matches(/^[a-z0-9]{13}$/)",
-        ".write": "$sessionId.matches(/^[a-z0-9]{13}$/)",
+        ".read": "$sessionId.matches(/^[a-z0-9]{13}$/) && root.child('sessions').child($sessionId).child('status').val() == 'active' && root.child('sessions').child($sessionId).child('expiresAt').val() > now",
+        ".write": "$sessionId.matches(/^[a-z0-9]{13}$/) && root.child('sessions').child($sessionId).child('status').val() == 'active' && root.child('sessions').child($sessionId).child('expiresAt').val() > now",
         "timestamp": {
-          ".write": "true",
-          ".validate": "newData.isNumber() && (newData.val() <= now) && (newData.val() > now - 300000)"
+          ".validate": "newData.isNumber() && newData.val() <= now && newData.val() > now - 300000"
         },
         "size": {
-          ".write": "true",
-          ".validate": "newData.isNumber() && (newData.val() >= 0) && (newData.val() <= 52428800)"
+          ".validate": "newData.isNumber() && newData.val() >= 0 && newData.val() <= 52428800"
         },
-        "$fileId": {
-          ".read": "($fileId.length >= 8) && (root.child('files').child($sessionId).exists()) && (now - data.child('timestamp').val() < 600000)",
-          ".write": "($fileId.length >= 8) && (!data.exists() || (now - data.child('timestamp').val() < 600000)) && (!newData.child('size').exists() || (newData.child('size').isNumber() && newData.child('size').val() <= 52428800))",
-          ".validate": "newData.hasChildren(['type', 'name', 'timestamp']) && (newData.child('timestamp').val() <= now) && (newData.child('timestamp').val() > now - 300000)"
-        }
-      }
-    },
-    "signal": {
-      "$sessionId": {
-        ".read": "$sessionId.matches(/^[a-z0-9]{13}$/)",
-        ".write": "$sessionId.matches(/^[a-z0-9]{13}$/)",
-        "peers": {
-          "$peerId": {
-            ".read": "$sessionId.matches(/^[a-z0-9]{13}$/)",
-            ".write": "$sessionId.matches(/^[a-z0-9]{13}$/)",
-            "candidates": {
-              ".read": "$sessionId.matches(/^[a-z0-9]{13}$/)",
-              ".write": "$sessionId.matches(/^[a-z0-9]{13}$/)"
-            }
-          }
-        }
-      }
-    },
-    "presence": {
-      "$sessionId": {
-        ".read": "$sessionId.matches(/^[a-z0-9]{13}$/)",
-        ".write": "$sessionId.matches(/^[a-z0-9]{13}$/)",
-        "mobile": {
-          ".read": "$sessionId.matches(/^[a-z0-9]{13}$/)",
-          ".write": "$sessionId.matches(/^[a-z0-9]{13}$/)"
+        "$entryId": {
+          ".validate": "$entryId.length >= 8 && newData.hasChildren(['type','name','timestamp']) && newData.child('timestamp').isNumber() && newData.child('timestamp').val() <= now && newData.child('timestamp').val() > now - 300000 && (!newData.child('size').exists() || (newData.child('size').isNumber() && newData.child('size').val() >= 0 && newData.child('size').val() <= 52428800))"
         }
       }
     },
     "outbox": {
       "$sessionId": {
-        ".read": "$sessionId.matches(/^[a-z0-9]{13}$/)",
-        ".write": "$sessionId.matches(/^[a-z0-9]{13}$/)",
+        ".read": "$sessionId.matches(/^[a-z0-9]{13}$/) && root.child('sessions').child($sessionId).child('status').val() == 'active' && root.child('sessions').child($sessionId).child('expiresAt').val() > now",
+        ".write": "$sessionId.matches(/^[a-z0-9]{13}$/) && root.child('sessions').child($sessionId).child('status').val() == 'active' && root.child('sessions').child($sessionId).child('expiresAt').val() > now",
         "timestamp": {
-          ".write": "true",
-          ".validate": "newData.isNumber() && (newData.val() <= now) && (newData.val() > now - 300000)"
+          ".validate": "newData.isNumber() && newData.val() <= now && newData.val() > now - 300000"
         },
         "size": {
-          ".write": "true",
-          ".validate": "newData.isNumber() && (newData.val() >= 0) && (newData.val() <= 52428800)"
+          ".validate": "newData.isNumber() && newData.val() >= 0 && newData.val() <= 52428800"
         },
         "$entryId": {
-          ".read": "($entryId.length >= 8) && (root.child('outbox').child($sessionId).exists()) && (now - data.child('timestamp').val() < 600000)",
-          ".write": "($entryId.length >= 8) && (!data.exists() || (now - data.child('timestamp').val() < 600000)) && (!newData.child('size').exists() || (newData.child('size').isNumber() && newData.child('size').val() <= 52428800))",
-          ".validate": "newData.hasChildren(['type', 'name', 'timestamp']) && (newData.child('timestamp').val() <= now) && (newData.child('timestamp').val() > now - 300000)"
+          ".validate": "$entryId.length >= 8 && newData.hasChildren(['type','name','timestamp']) && newData.child('timestamp').isNumber() && newData.child('timestamp').val() <= now && newData.child('timestamp').val() > now - 300000 && (!newData.child('size').exists() || (newData.child('size').isNumber() && newData.child('size').val() >= 0 && newData.child('size').val() <= 52428800))"
         }
+      }
+    },
+    "signal": {
+      "$sessionId": {
+        ".read": "$sessionId.matches(/^[a-z0-9]{13}$/) && root.child('sessions').child($sessionId).child('status').val() == 'active' && root.child('sessions').child($sessionId).child('expiresAt').val() > now",
+        ".write": "$sessionId.matches(/^[a-z0-9]{13}$/) && root.child('sessions').child($sessionId).child('status').val() == 'active' && root.child('sessions').child($sessionId).child('expiresAt').val() > now"
+      }
+    },
+    "presence": {
+      "$sessionId": {
+        ".read": "$sessionId.matches(/^[a-z0-9]{13}$/) && root.child('sessions').child($sessionId).child('status').val() == 'active' && root.child('sessions').child($sessionId).child('expiresAt').val() > now",
+        ".write": "$sessionId.matches(/^[a-z0-9]{13}$/) && root.child('sessions').child($sessionId).child('status').val() == 'active' && root.child('sessions').child($sessionId).child('expiresAt').val() > now"
       }
     }
   }

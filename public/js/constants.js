@@ -5,8 +5,8 @@ export const JOIN_SESSION_KEY = 'sharetto_join_session';
 export const JOIN_SESSION_EXPIRES_KEY = 'sharetto_join_expires';
 export const JOIN_SESSION_DURATION_MS = 24 * 60 * 60 * 1000;
 
-export const SESSION_TTL_MS = 10 * 60 * 1000;
-export const SESSION_WARNING_THRESHOLD_MS = 3 * 60 * 1000;
+export const SESSION_TTL_MS = 2 * 60 * 60 * 1000;
+export const SESSION_WARNING_THRESHOLD_MS = 10 * 60 * 1000;
 export const SESSION_CRITICAL_THRESHOLD_MS = 1 * 60 * 1000;
 
 export const PIN_CODE_LENGTH = 6;

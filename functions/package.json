@@ -2,7 +2,7 @@
   "name": "sharetto-functions",
   "private": true,
   "engines": {
-    "node": "^18"
+    "node": "22"
   },
   "type": "module",
   "dependencies": {
@@ -10,4 +10,3 @@
     "firebase-functions": "^4.9.0"
   }
 }
-

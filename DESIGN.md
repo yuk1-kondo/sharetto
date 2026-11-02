@@ -1,49 +1,27 @@
----
-version: 2.0
-name: Sharetto-Claude-design-system
-description: >-
-  シェアっと — Anthropic / Claude 公式風ベージュ基調。3D なし・フラット・可読性優先。
-theme: claude-warm
-sources:
-  - https://github.com/VoltAgent/awesome-design-md (claude)
----
+# Sharetto — Quiet Index
 
-# Sharetto DESIGN.md
+2026年11月2日。ユーザーが選択した「1番」を正本とする。
 
-## 1. Visual Theme & Atmosphere
+## 見た目
 
-- **ムード**: 温かいクリーム地、編集的で人間的（Claude 公式サイト準拠）
-- **密度**: ゆったり — カード間 16–24px、十分な余白
-- **哲学**: **3D なし**。機能第一、フラット 2 カラム
+Nuevo.Tokyo の小さい文字と余白を参考にした、薄い方眼紙の作業画面。
 
-## 2. Color Palette
+- 背景は生成素材 `public/assets/grid-paper.png` を低い不透明度で反復する。
+- 本文14px・太さ400。IBM Plex Mono、日本語は Noto Sans JP。
+- 見出し16px・太さ400。大きな太字見出し、立体表現、グラス効果、丸いカードを使わない。
+- 配色は白・黒・薄い罫線。黒い主ボタンと下線の補助操作。
+- PCは左300pxに接続、右に送信と受信。QRは接続後も維持する。
+- 写真は200pxの正方形サムネイルをPCで3列、狭い画面で2列。写真クリックで原寸比を保った拡大。
+- 写真以外のファイルはギャラリー下の行に表示する。
 
-| トークン | Hex | 役割 |
-|---------|-----|------|
-| `canvas` | `#faf9f5` | ページ背景 |
-| `surface` | `#ffffff` | カード |
-| `canvas-soft` | `#f5f0e8` | ステータスバー・QR枠内 |
-| `ink` | `#141413` | 見出し |
-| `body` | `#3d3d3a` | 本文 |
-| `muted` | `#6c6a64` | 補助テキスト |
-| `hairline` | `#e6dfd8` | ボーダー |
-| `primary` | `#cc785c` | CTA（テラコッタ） |
-| `primary-active` | `#a9583e` | hover |
+## 操作
 
-## 3. Typography
+- 接続前も送信エリアを表示し、接続が必要な操作は無効化して理由を表示。
+- ファイル選択・ドロップで複数送信、50MB上限を確認する。
+- 写真の個別保存・ZIP保存、キーボードからの拡大・閉じる操作に対応。
+- 2時間セッション、延長、終了を維持。設定と通信方式は補助操作にまとめる。
+- サンプル画像を本番に初期データとして表示しない。
 
-- **Display**: Lora（serif）— 見出し
-- **Body**: Inter — UI 全体
-- **Mono**: JetBrains Mono — 参加コード
+## 文章・URL
 
-## 4–8. Components / Layout
-
-- CSS: `design-tokens.css` + `sharetto-app.css`
-- レイアウト: ヘッダー + ステータス + 左 360px（接続）/ 右（受信）
-- ボタン: 40px 高、primary は coral、secondary は ghost
-
-## 9. Agent Prompt
-
-```
-DESIGN.md と sharetto-app.css に従う。ベージュ基調・3D 禁止・DOM id 維持。
-```
+ギャラリー下に統合した入力欄と受信一覧を配置。文章・URLは同じ欄へ貼り付け、混在した文章内のHTTP(S)リンクは開ける形で表示する。コピーは改行・URLを含む本文全体を保持。受信行は小さいTEXT/LINK・時刻・本文・コピーを罫線で揃える。スマホもリンク用・文章用のタブを分けない。

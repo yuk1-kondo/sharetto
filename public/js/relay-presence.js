@@ -1,36 +1,22 @@
-/**
- * サーバー経由モードの接続プレゼンス（スマホ参加を PC が検知）
- */
-import { dbRef, set, onValue, off, onDisconnect } from './firebase.js';
+import { dbRef, set, onValue, onDisconnect } from './firebase.js';
+const participantId = crypto.randomUUID();
 
 export async function announceMobileJoin(db, sessionId) {
-  const ref = dbRef(db, `presence/${sessionId}/mobile`);
-  const payload = { online: true, joinedAt: Date.now(), lastSeen: Date.now() };
-  await set(ref, payload);
-  onDisconnect(ref).update({ online: false, lastSeen: Date.now() });
+  const ref = dbRef(db, `presence/${sessionId}/mobile/${participantId}`);
+  await onDisconnect(ref).remove();
+  await set(ref, { online: true, joinedAt: Date.now() });
 }
 
 export function watchMobilePresence(db, sessionId, { onJoin, onLeave } = {}) {
-  const ref = dbRef(db, `presence/${sessionId}/mobile`);
-  let wasOnline = false;
-
-  const handler = (snap) => {
-    const val = snap.val();
-    const online = val?.online === true;
-    if (online && !wasOnline) {
-      wasOnline = true;
-      onJoin?.(val);
-    } else if (!online && wasOnline) {
-      wasOnline = false;
-      onLeave?.();
-    }
-  };
-
-  onValue(ref, handler);
-  return () => off(ref, 'value', handler);
+  return onValue(dbRef(db, `presence/${sessionId}/mobile`), (snap) => {
+    const count = Object.values(snap.val() || {}).filter((value) => value?.online).length;
+    const label = document.getElementById('participantCount');
+    if (label) label.textContent = `${count}台が参加中`;
+    if (count) onJoin?.({ count });
+    else onLeave?.();
+  });
 }
 
 export async function clearMobilePresence(db, sessionId) {
-  const ref = dbRef(db, `presence/${sessionId}/mobile`);
-  await set(ref, { online: false, lastSeen: Date.now() });
+  await set(dbRef(db, `presence/${sessionId}/mobile/${participantId}`), null);
 }

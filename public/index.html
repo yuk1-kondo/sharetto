@@ -1,139 +1,77 @@
 <!DOCTYPE html>
-<html lang="ja">
+<html lang="en">
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <meta name="theme-color" content="#faf9f5">
-  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="theme-color" content="#fdfdfd">
   <link rel="manifest" href="/manifest.webmanifest">
   <link rel="icon" href="/icons/icon.svg" type="image/svg+xml">
-  <title>シェアっと - ファイル共有</title>
-  <link rel="stylesheet" href="css/design-tokens.css">
-  <link rel="stylesheet" href="css/sharetto-app.css">
-  <link rel="stylesheet" href="css/components.css">
+  <title>シェアっと — 写真とファイルを共有</title>
+  <link rel="stylesheet" href="css/design-tokens.css?v=20261102c">
+  <link rel="stylesheet" href="css/sharetto-app.css?v=20261102c">
+  <script type="module" src="./js/i18n.js"></script>
 </head>
 <body class="sharetto-app" data-connection-state="idle">
+  <a class="skip-link" href="#workspace">送受信へ移動</a>
   <div id="mainContent" class="app">
     <header class="app-header">
-      <div class="app-header__inner">
-        <div class="app-header__row">
-          <div class="app-brand">
-            <h1>シェアっと</h1>
-            <p>スマホからPCへ、すぐ転送</p>
-          </div>
-          <a href="/join.html" class="btn btn--ghost btn--sm">参加</a>
-        </div>
-        <div class="status-panel">
-          <p class="status-panel__title">接続状態</p>
-          <div class="status-panel__row">
-            <span id="connectionBadge" class="connection-badge" data-state="idle">準備中</span>
-            <span id="connectionDetail" class="connection-detail"></span>
-            <div id="sessionTimer" class="session-timer" style="display:none">
-              <div class="timer-text">
-                <span class="timer-icon">⏰</span>
-                <span id="timerDisplay">10:00</span>
-              </div>
-              <span class="timer-detail">10分後に自動削除</span>
-            </div>
-          </div>
-          <div id="connection-visual" class="connection-visual" aria-hidden="true"></div>
-          <div class="connection-progress-track"><div id="connectionProgress" class="connection-progress-bar" hidden></div></div>
-        </div>
-      </div>
+      <a class="app-brand" href="/">シェアっと <span>SHARETTO</span></a>
+      <nav aria-label="メイン"><a href="/join.html">コードで参加</a><button type="button" class="text-button" id="helpBtn">使い方</button><div class="language-switch" role="group" aria-label="Language"><button type="button" data-language="ja" lang="ja" aria-label="日本語" aria-pressed="false">JP</button><span aria-hidden="true">/</span><button type="button" data-language="en" lang="en" aria-label="English" aria-pressed="true">EN</button></div></nav>
     </header>
-
-    <main class="app-main">
-      <aside class="app-sidebar">
-        <div class="card">
-          <p class="card__label">Transfer Mode</p>
-          <div class="mode-tabs transfer-mode-tabs">
-            <button type="button" class="tab-button active" data-transfer-mode="p2p">直接接続</button>
-            <button type="button" class="tab-button" data-transfer-mode="relay">サーバー経由</button>
-          </div>
-          <p id="relayModeNote" class="mode-hint" hidden>サーバー経由は確実ですが速度は遅め。NAT越えできない場合のフォールバックにも使えます。</p>
-
-          <p class="card__title">スマホを接続</p>
-          <div class="qr-frame">
-            <div id="qrcode" class="qr-display"></div>
-          </div>
-
-          <div class="join-block join-code-display">
-            <div class="join-block__label join-code-display__label">参加コード</div>
-            <div id="joinCode" class="join-code-display__code">------</div>
-          </div>
-          <div class="btn-row" style="margin-bottom:12px">
-            <button id="copyJoinCodeBtn" type="button" class="action-button btn--sm" disabled>コードをコピー</button>
-          </div>
-
-          <p class="qr-url" id="qrUrl"></p>
-          <div class="btn-row">
-            <button type="button" onclick="copyQRUrl()" class="action-button btn--ghost btn--sm">URLコピー</button>
-            <button type="button" onclick="shareToPhone()" class="action-button btn--ghost btn--sm">スマホに送る</button>
-          </div>
-          <div class="btn-row" style="margin-top:8px">
-            <button type="button" onclick="generateNewSession()" class="action-button btn--block">新しいQRを発行</button>
-          </div>
+    <div class="intro">
+      <p>スマホとPCで、写真やファイルを共有。</p>
+      <p>QRを読み取る → ファイルを選ぶ → 相手が保存</p>
+    </div>
+    <main class="app-main" id="workspace">
+      <aside class="app-sidebar" aria-labelledby="connectTitle">
+        <p class="section-index">01 / CONNECT</p><h1 id="connectTitle">端末をつなぐ</h1>
+        <div class="qr-frame" id="sessionQrFrame"><div id="qrcode" class="qr-display" aria-label="参加用QRコード"></div></div>
+        <div class="join-block"><span class="sr-only">参加コード</span><span id="joinCode" class="join-code-display__code">------</span><button id="copyJoinCodeBtn" class="text-button" type="button" disabled>コピー</button></div>
+        <button class="text-button underlined" type="button" onclick="copyQRUrl()">リンクをコピー</button>
+        <p id="qrUrl" hidden></p>
+        <p class="connection-instruction">QRを読み取る、または<br><a href="/join.html">参加画面</a>で6桁コードを入力。</p>
+        <div class="session-controls">
+          <div id="sessionTimer" class="session-timer" style="display:none"><div>残り <span id="timerDisplay">120:00</span></div><span class="timer-detail">セッションの残り時間</span></div>
+          <button id="extendSessionBtn" class="text-button underlined" type="button" disabled>2時間延長</button>
         </div>
+        <p id="participantCount" aria-live="polite">0台が参加中</p>
+        <p class="session-ended-message" hidden>セッションは終了しました。新しく開始すると、別のQRで参加できます。</p>
+        <details class="session-settings"><summary>セッションの設定</summary>
+          <button type="button" class="text-button underlined" onclick="generateNewSession()">新しいセッションを開始</button>
+          <button id="endSessionBtn" type="button" class="text-button underlined" disabled>セッションを終了</button>
+          <p>新しく開始すると、現在の接続は終了します。</p>
+          <div class="mode-tabs" aria-label="転送方法"><button type="button" class="tab-button active" data-transfer-mode="p2p">自動</button><button type="button" class="tab-button" data-transfer-mode="relay">サーバー経由</button></div>
+          <p id="relayModeNote" hidden>サーバー経由で送受信します。</p>
+        </details>
       </aside>
+      <section class="app-content" aria-label="送受信">
+        <section id="pcSendPanel" aria-labelledby="sendTitle">
+          <p class="section-index">02 / SEND</p><h2 id="sendTitle">ファイルを送る</h2>
+          <div id="pcDropArea" class="drop-area" role="button" tabindex="0" aria-label="写真やファイルを選ぶ、またはここにドロップ">
+            <p>ここにファイルや写真をドラッグ＆ドロップ</p><span class="muted">最大50MB / 1ファイル</span>
+          </div>
+          <div class="send-controls"><div class="send-actions"><button id="pcFileSendBtn" class="action-button" type="button" disabled>ファイル・写真を選ぶ</button><input type="file" id="pcFileSend" multiple hidden><span id="pcSendHint" class="muted" aria-live="polite">端末をつなぐと送信できます</span></div>
 
-      <section class="app-content">
-        <div class="card" id="pcSendPanel" hidden>
-          <p class="card__label">Send to Phone</p>
-          <p id="pcSendHint" class="mode-hint" style="margin-bottom:12px">接続中 — PCからスマホへ送信</p>
-          <textarea id="pcTextSend" class="url-input" rows="2" placeholder="テキストを入力" style="margin-bottom:12px"></textarea>
-          <input type="url" id="pcUrlSend" class="url-input" placeholder="https://example.com" style="margin-bottom:12px">
-          <div class="btn-row">
-            <button id="pcTextSendBtn" type="button" class="action-button">テキスト送信</button>
-            <button id="pcUrlSendBtn" type="button" class="action-button btn--ghost">URL送信</button>
-            <button id="pcFileSendBtn" type="button" class="action-button btn--ghost">ファイル送信</button>
-            <input type="file" id="pcFileSend" hidden accept="image/*,video/*,*/*">
           </div>
-        </div>
+          <div class="transfer-status" aria-live="polite"><span id="connectionBadge">準備中</span><span id="connectionDetail"></span></div>
+          <div class="connection-progress-track"><div id="connectionProgress" hidden></div></div>
+        </section>
+        <section class="receive-section" aria-labelledby="receiveTitle">
+          <div class="toolbar"><h2 id="receiveTitle">受け取ったもの <span id="receivedCount" class="muted"></span></h2><button id="downloadZipBtn" class="text-button underlined" type="button" disabled>まとめて保存 / ZIP</button></div>
+          <div id="filesList" class="files-list photo-gallery" aria-label="受信した写真とファイル"><p class="no-files">届いた写真やファイルが、ここに並びます。</p></div>
 
-        <div class="card">
-          <div class="toolbar">
-            <h3>受信ファイル</h3>
-            <div class="toolbar__actions">
-              <button id="downloadZipBtn" type="button" onclick="downloadZip()" class="action-button btn--ghost" disabled>ZIP</button>
-              <button type="button" onclick="refreshFiles()" class="action-button btn--ghost">更新</button>
-            </div>
-          </div>
-          <div id="filesList" class="files-list">
-            <div class="no-files">まだファイルがありません<br><small>QRを読み取るとここに表示されます</small></div>
-          </div>
-        </div>
-
-        <div class="card">
-          <div class="toolbar">
-            <h3>URL・テキスト</h3>
-            <button type="button" onclick="refreshFiles()" class="action-button btn--ghost">更新</button>
-          </div>
-          <div id="urlsList" class="files-list">
-            <div class="no-files">URLやテキストはここに表示されます</div>
-          </div>
-        </div>
+        </section>
+        <section class="notes-section" aria-labelledby="notesTitle">
+          <div class="notes-heading"><p class="section-index">03 / TEXT &amp; LINKS</p><h2 id="notesTitle">文章・URL</h2></div>
+          <div class="composer"><label for="pcTextSend" class="sr-only">文章・URLを送る</label><div class="input-row"><textarea id="pcTextSend" rows="2" placeholder="文章やURLを貼り付け…" disabled></textarea><button id="pcTextSendBtn" class="text-button" type="button" disabled>送信</button></div><p class="composer-hint muted">文章もリンクも、この欄から。</p></div>
+          <div id="urlsList" class="messages-list" aria-label="受信した文章とURL"><p class="no-files">届いた文章やURLが、ここに並びます。</p></div>
+        </section>
       </section>
     </main>
-
-    <footer class="app-footer">シェアっと · Develop by YUKI KONDO</footer>
+    <footer class="app-footer">SHARETTO <span>YUKI KONDO</span></footer>
   </div>
-
-  <!-- 画像プレビューモーダル -->
-  <div id="imageModal" class="image-modal">
-    <div class="modal-content">
-      <button class="close-btn" onclick="closeImageModal()">×</button>
-      <div class="modal-header">
-        <div class="modal-title" id="modalTitle">画像プレビュー</div>
-      </div>
-      <img id="modalImage" class="modal-image" src="" alt="">
-      <div class="modal-actions">
-        <button class="modal-btn" onclick="downloadModalImage()">⬇️ ダウンロード</button>
-        <button class="modal-btn" onclick="closeImageModal()">✕ 閉じる</button>
-      </div>
-    </div>
-  </div>
-
-  <!-- QRコード生成ライブラリ -->
+  <dialog id="imageModal" class="image-modal" aria-labelledby="modalTitle"><div class="modal-content"><div class="modal-header"><h2 id="modalTitle">画像プレビュー</h2><button type="button" class="text-button underlined" onclick="closeImageModal()">閉じる</button></div><img id="modalImage" class="modal-image" alt=""><button type="button" class="text-button underlined" onclick="downloadModalImage()">この写真を保存</button></div></dialog>
+  <dialog id="helpDialog" class="help-dialog"><h2>使い方</h2><ol><li>スマホのカメラで、この画面のQRコードを読み取ります。</li><li>つながった端末で「ファイル・写真を選ぶ」を押して送ります。</li><li>届いた写真を押すと拡大できます。「保存」で端末に保存します。</li></ol><p>複数人で同じQRを使えます。有効時間は2時間、必要に応じて延長できます。</p><form method="dialog"><button class="action-button">閉じる</button></form></dialog>
   <script src="https://cdn.jsdelivr.net/npm/qrcode-generator@1.4.4/qrcode.js"></script>
   <script type="module" src="./js/pages/pc-view.js"></script>
 </body>

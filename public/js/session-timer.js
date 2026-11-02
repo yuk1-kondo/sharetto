@@ -24,7 +24,7 @@ export function createSessionTimer(options) {
   } = options;
 
   let intervalId = null;
-  let startTime = null;
+  let expiresAt = null;
 
   function stop() {
     if (intervalId) {
@@ -34,9 +34,9 @@ export function createSessionTimer(options) {
   }
 
   function update() {
-    if (!startTime) return;
+    if (!expiresAt) return;
 
-    const remaining = durationMs - (Date.now() - startTime);
+    const remaining = expiresAt - Date.now();
     if (remaining <= 0) {
       stop();
       if (elements.display) elements.display.textContent = '期限切れ';
@@ -50,10 +50,13 @@ export function createSessionTimer(options) {
       return;
     }
 
+    if (elements.detail) elements.detail.textContent = remaining <= warningMs ? 'まもなく終了します。必要なら延長してください' : 'セッションの残り時間';
     const minutes = Math.floor(remaining / 60000);
     const seconds = Math.floor((remaining % 60000) / 1000);
     if (elements.display) {
-      elements.display.textContent = `${minutes}:${seconds.toString().padStart(2, '0')}`;
+      elements.display.textContent = minutes >= 60
+        ? `${Math.floor(minutes / 60)}時間${minutes % 60}分`
+        : `${minutes}:${seconds.toString().padStart(2, '0')}`;
     }
 
     if (elements.container) {
@@ -67,18 +70,18 @@ export function createSessionTimer(options) {
   }
 
   return {
-    start() {
+    start(deadline = Date.now() + durationMs) {
       stop();
-      startTime = Date.now();
+      expiresAt = deadline;
       if (elements.container) elements.container.style.display = 'block';
-      if (elements.detail) elements.detail.textContent = 'ファイルは自動的に削除されます';
+      if (elements.detail) elements.detail.textContent = 'セッションの残り時間';
       update();
-      intervalId = setInterval(update, 1000);
+      if (expiresAt > Date.now()) intervalId = setInterval(update, 1000);
     },
     stop,
     getRemainingRatio() {
-      if (!startTime) return 1;
-      const remaining = durationMs - (Date.now() - startTime);
+      if (!expiresAt) return 1;
+      const remaining = expiresAt - Date.now();
       return Math.max(0, Math.min(1, remaining / durationMs));
     },
     resetDetail(text) {

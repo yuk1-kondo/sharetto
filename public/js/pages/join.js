@@ -5,7 +5,6 @@ import { initFirebase } from '../firebase.js';
 import { resolveJoinCode } from '../session.js';
 import { parseJoinInput } from '../utils.js';
 import { showToast } from '../toast.js';
-import { SESSION_TTL_MS } from '../constants.js';
 import { firebaseConfig } from '../../config.js';
 
 const { db } = initFirebase(firebaseConfig);
@@ -47,7 +46,7 @@ async function join() {
 
   for (let attempt = 0; attempt < 10; attempt++) {
     try {
-      const sessionId = await resolveJoinCode(db, code, SESSION_TTL_MS);
+      const sessionId = await resolveJoinCode(db, code);
       if (sessionId) {
         showToast('セッションに参加します', 'success', 1200);
         redirectToSession(sessionId);

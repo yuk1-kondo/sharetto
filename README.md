@@ -114,7 +114,7 @@ firebase use sharetto
 firebase deploy
 ```
 
-Functions を利用する場合は、後述の「自動削除(10分)」セクションも参照してください。
+Functions を利用する場合は、後述の「セッションの有効期限」セクションも参照してください。
 
 ## 📝 ファイル構成
 
@@ -143,26 +143,30 @@ Functions を利用する場合は、後述の「自動削除(10分)」セクシ
 - ルール: セッションIDの形式とタイムスタンプでアクセス制御（`database.rules.json` / `firestore.rules`）
 - 設定の共通化: `public/config.js` にFirebase公開設定を集約
 
-## 🧹 データの有効期限（10分）
+## 🧹 セッションの有効期限（2時間）
 
-UIでは10分の残り時間を表示し、ルールで「古いデータへの書込/読込」を抑制しています。
+- QRコード・参加コードは参加後も表示し、複数端末で同じセッションに参加できます。
+- 初期の有効時間は2時間。残り10分で案内し、PCの「2時間延長」で現在の期限に2時間追加します。
+- 延長時もQRコード・参加コードは変わりません。
+- 「セッションを終了」または期限切れで参加と転送を停止します。自動で新しいセッションには切り替えません。
+- 有効期限は RTDB の `sessions/{sessionId}` で管理し、送受信・参加コードの照会にも反映します。
+- 受信済みの端末上のファイルや保存済みデータは、終了しても取り消しません。
+- 認証なしの既存方式を維持しているため、セッションIDを知る利用者を信頼する用途向けです。ホスト専用の管理権限はありません。
 
-- **Spark（無料）プランでも運用可能** — Hosting / RTDB / Firestore の無料枠で足りる想定
-- 期限切れデータの**物理削除**は Cloud Functions（要 Blaze）で行うが、小規模利用では未削除分のストレージも微量
-- Functions 未デプロイ時も、ルールにより期限切れデータは**読めない・書けない**
+### 物理削除と反映手順
 
-- スケジュール: 1分ごとに実行
-- クリーニング対象: `files/{sessionId}/{fileId}`, `pc-share/{sessionId}/{fileId}`
-- 期限: 10分経過したアイテムを削除。空になったセッションノードも削除
+終了したデータの物理削除は Cloud Functions（Blazeプラン）で1分ごとに行います。延長されたセッションのデータは保持し、終了した `files` / `outbox` / `signal` / `presence` と期限切れコードを削除します。再利用を防ぐため、終了済みのセッション情報は残します。
 
-デプロイ手順（初回）:
+Functions未デプロイ時も、**更新したルールが反映されていれば**終了後の送受信データの読書きは拒否されます。物理削除は実行されません。
+
+今回の変更は Hosting・Database rules・Functions の同時更新が必要です。既存のセッションは新しいQRコードから参加し直してください。公開デプロイは別途行います。
+
 ```bash
 cd functions
-npm ci # or npm install
+npm install
 cd ..
-firebase deploy --only functions
+firebase deploy --only hosting,database,functions
 ```
-ローカルでエミュレーションする場合は Firebase Emulator Suite を利用できます。
 
 ## 🤝 コントリビューション
 
@@ -196,3 +200,14 @@ MIT License
 ## 🤝 コントリビューション
 
 プルリクエストや Issue の報告を歓迎します！
+
+## ローカル検証
+
+```bash
+# ターミナル1（本番には接続しない）
+firebase emulators:start --only database --project demo-sharetto
+# ターミナル2
+node --test tests/session-timer.mjs tests/session-cleanup.mjs tests/session-rules.mjs
+```
+
+ルール検証は `demo-sharetto-default-rtdb` 名前空間を使用します。タイマーと削除処理のテストはエミュレーターなしでも実行できます。

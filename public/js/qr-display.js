@@ -12,13 +12,7 @@ export function renderQRCode(element, url) {
     qr.make();
 
     const qrContainer = document.createElement('div');
-    qrContainer.style.cssText = `
-      background: white;
-      padding: 20px;
-      border-radius: 20px;
-      box-shadow: 0 12px 48px rgba(0, 0, 0, 0.15), 0 6px 24px rgba(0, 0, 0, 0.1);
-      display: inline-block;
-    `;
+    qrContainer.style.cssText = 'background:white;display:block';
     qrContainer.innerHTML = qr.createSvgTag(4, 4);
 
     element.innerHTML = '';

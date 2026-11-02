@@ -1,6 +1,7 @@
 /**
  * WebRTC signaling via Firebase RTDB（ファイル転送と同じ経路）
  */
+import { SESSION_TTL_MS } from '../constants.js';
 import { dbRef, set, update, push, onValue, off, get } from '../firebase.js';
 
 function sessionRef(db, sessionId) {
@@ -20,7 +21,7 @@ export async function initHostSignaling(db, sessionId) {
     role: 'host',
     status: 'waiting',
     createdAt: Date.now(),
-    expiresAt: Date.now() + 10 * 60 * 1000,
+    expiresAt: Date.now() + SESSION_TTL_MS,
   });
 }
 

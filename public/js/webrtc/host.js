@@ -31,6 +31,8 @@ export function createP2PHost({ db, sessionId, onFile, onText, onPeerConnected }
   const peers = new Map();
   const processing = new Set();
   let stopWatch = null;
+  let stopped = false;
+  const pending = new Set();
 
   function getActiveChannel() {
     for (const { channel } of peers.values()) {
@@ -40,31 +42,36 @@ export function createP2PHost({ db, sessionId, onFile, onText, onPeerConnected }
   }
 
   async function handlePeer(peerId, data) {
-    if (peers.has(peerId) || processing.has(peerId)) return;
+    if (stopped || peers.has(peerId) || processing.has(peerId)) return;
     processing.add(peerId);
 
     const pc = createPeerConnection();
+    pending.add(pc);
     const iceQueue = createIceQueue(pc);
     const receiver = createFileReceiver(
       (file) => {
+        if (stopped) return;
         setConnectionState(CONNECTION_STATE.TRANSFERRING, { detail: `${file.name} を受信中` });
         onFile?.(file, peerId);
         setConnectionState(CONNECTION_STATE.COMPLETE, { detail: `${file.name} を受信しました`, progress: 1 });
-        setTimeout(() => setConnectionState(CONNECTION_STATE.CONNECTED, { detail: '双方向で送受信できます', progress: 0 }), 2000);
+        setTimeout(() => { if (!stopped) setConnectionState(CONNECTION_STATE.CONNECTED, { detail: '双方向で送受信できます', progress: 0 }); }, 2000);
       },
-      (text) => onText?.(text, peerId),
+      (text) => { if (!stopped) onText?.(text, peerId); },
       (p, name) => setTransferProgress(p, name ? `${name} ${Math.round(p * 100)}%` : undefined),
     );
 
     const channelPromise = new Promise((resolve, reject) => {
       const t = setTimeout(() => reject(new Error('timeout')), P2P_CONNECT_TIMEOUT_MS);
       pc.ondatachannel = (ev) => {
-        clearTimeout(t);
-        receiver.bindChannel(ev.channel);
-        resolve(ev.channel);
+        const channel = ev.channel;
+        receiver.bindChannel(channel);
+        const ready = () => { clearTimeout(t); resolve(channel); };
+        if (channel.readyState === 'open') ready();
+        else channel.addEventListener('open', ready, { once: true });
       };
     });
 
+    channelPromise.catch(() => {});
     let stopIce = null;
 
     try {
@@ -84,12 +91,14 @@ export function createP2PHost({ db, sessionId, onFile, onText, onPeerConnected }
       });
 
       const channel = await channelPromise;
+      if (stopped) throw new Error('session stopped');
       incrementPeerCount(1);
       setConnectionState(CONNECTION_STATE.CONNECTED, {
         detail: '直接接続 — 高速転送に切り替えました',
         peerCount: peers.size + 1,
       });
       await setSignalingStatus(db, sessionId, 'connected');
+      if (stopped) throw new Error('session stopped');
       peers.set(peerId, { pc, stopIce, channel });
       onPeerConnected?.(peerId, channel);
     } catch (e) {
@@ -98,6 +107,7 @@ export function createP2PHost({ db, sessionId, onFile, onText, onPeerConnected }
       stopIce?.();
       pc.close();
     } finally {
+      pending.delete(pc);
       processing.delete(peerId);
     }
   }
@@ -111,6 +121,9 @@ export function createP2PHost({ db, sessionId, onFile, onText, onPeerConnected }
       });
     },
     stop() {
+      stopped = true;
+      pending.forEach((pc) => pc.close());
+      pending.clear();
       stopWatch?.();
       peers.forEach(({ pc, stopIce }) => {
         stopIce?.();
